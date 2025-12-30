@@ -1,12 +1,17 @@
 <?php
+// public/index.php
+
 $root = dirname(__DIR__);
 
+// ملفات أساسية
 require_once $root . '/app/config/config.php';
 require_once $root . '/app/helpers/session_helper.php';
 
+// المكتبات
 require_once $root . '/app/libraries/Database.php';
 require_once $root . '/app/libraries/Controller.php';
 
+// المتحكمات
 require_once $root . '/app/controllers/AuthController.php';
 require_once $root . '/app/controllers/DashboardController.php';
 require_once $root . '/app/controllers/AssetsController.php';
@@ -168,4 +173,3 @@ switch ($url) {
         (new DashboardController())->index();
         break;
 }
-?>

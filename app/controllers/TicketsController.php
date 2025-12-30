@@ -1,21 +1,13 @@
 <?php
-
-class TicketsController extends Controller
-{
+class TicketsController extends Controller {
     private $ticketModel;
     private $assetModel;
     private $userModel;
 
-    public function __construct()
-    {
-        // الأفضل توحيدها: استخدم requireLogin من Controller.php (إذا موجود عندك)
-        if (method_exists($this, 'requireLogin')) {
-            $this->requireLogin();
-        } else {
-            if (!isLoggedIn()) {
-                redirect('index.php?page=login');
-                exit;
-            }
+    public function __construct() {
+        if (!function_exists('isLoggedIn') || !isLoggedIn()) {
+            redirect('index.php?page=login');
+            exit;
         }
 
         $this->ticketModel = $this->model('Ticket');
@@ -24,184 +16,127 @@ class TicketsController extends Controller
     }
 
     // ---------- Helpers ----------
-    private function getAssetsForCurrentUser()
-    {
-        // سوبر/مدير يشوف كل الأصول
+    private function getAssetsForCurrentUser() {
         if (isSuperAdmin() || isManager()) {
             return $this->assetModel->getAllAssets();
         }
-
-        // الموظف يشوف عهده فقط (إذا الدالة موجودة)
         if (method_exists($this->assetModel, 'getAssetsByUserId')) {
             return $this->assetModel->getAssetsByUserId($_SESSION['user_id']);
         }
-
         return [];
     }
 
-    private function canAccessTicket($ticket)
-    {
+    private function getUsersForAssignment() {
+        if (isSuperAdmin() && method_exists($this->userModel, 'getUsers')) {
+            return $this->userModel->getUsers();
+        }
+        if (isManager() && method_exists($this->userModel, 'getUsersByManager')) {
+            return $this->userModel->getUsersByManager($_SESSION['user_id']);
+        }
+        return [];
+    }
+
+    private function canAccessTicket($ticket) {
         if (!$ticket) return false;
+
+        $me = (int)$_SESSION['user_id'];
 
         if (isSuperAdmin()) return true;
 
-        // المدير: الأفضل يشوف تذاكر فريقه فقط
+        $createdBy  = isset($ticket->created_by) ? (int)$ticket->created_by : 0;
+        $assignedTo = isset($ticket->assigned_to) ? (int)$ticket->assigned_to : 0;
+
         if (isManager()) {
-            // إذا عندك في التذكرة created_by أو assigned_to
-            $ownerId = isset($ticket->created_by) ? (int)$ticket->created_by : 0;
-            $assigneeId = isset($ticket->assigned_to) ? (int)$ticket->assigned_to : 0;
+            // مدير يشوف تذاكره + تذاكر فريقه
+            if ($createdBy === $me || $assignedTo === $me) return true;
 
-            // لو عندك دالة في موديل User تجيب التابعين للمدير:
             if (method_exists($this->userModel, 'getUsersByManager')) {
-                $team = $this->userModel->getUsersByManager($_SESSION['user_id']);
+                $team = $this->userModel->getUsersByManager($me);
                 $teamIds = array_map(fn($u) => (int)$u->id, $team);
-
-                if (in_array($ownerId, $teamIds, true) || in_array($assigneeId, $teamIds, true)) {
-                    return true;
-                }
+                return in_array($createdBy, $teamIds, true) || in_array($assignedTo, $teamIds, true);
             }
-
-            // fallback: على الأقل لو هو اللي أنشأها أو مكلّف بها
-            if ($ownerId === (int)$_SESSION['user_id'] || $assigneeId === (int)$_SESSION['user_id']) {
-                return true;
-            }
-
             return false;
         }
 
-        // الموظف: يشوف تذاكره فقط (أو المكلّف بها)
-        $createdBy = isset($ticket->created_by) ? (int)$ticket->created_by : 0;
-        $assignedTo = isset($ticket->assigned_to) ? (int)$ticket->assigned_to : 0;
-
-        return ($createdBy === (int)$_SESSION['user_id'] || $assignedTo === (int)$_SESSION['user_id']);
+        // موظف: تذاكره أو المكلف بها
+        return ($createdBy === $me || $assignedTo === $me);
     }
 
     // ---------- Index ----------
-    public function index()
-    {
-        // سوبر أدمن: كل التذاكر
+    public function index() {
         if (isSuperAdmin()) {
             $tickets = $this->ticketModel->getAll();
-        }
-        // مدير: تذاكر فريقه (لو عندك دالة بالموديل)
-        elseif (isManager() && method_exists($this->ticketModel, 'getTicketsByManagerId')) {
+        } elseif (isManager() && method_exists($this->ticketModel, 'getTicketsByManagerId')) {
             $tickets = $this->ticketModel->getTicketsByManagerId($_SESSION['user_id']);
-        }
-        // مدير (fallback): يعرض كل التذاكر (مؤقتاً) — لكن الأفضل تضيف الدالة فوق في الموديل لاحقاً
-        elseif (isManager()) {
-            $tickets = $this->ticketModel->getAll();
-        }
-        // موظف: تذاكره
-        else {
+        } elseif (isManager()) {
+            $tickets = $this->ticketModel->getAll(); // مؤقتاً
+        } else {
             $tickets = $this->ticketModel->getTicketsByUserId($_SESSION['user_id']);
         }
 
-        $data = [
-            'tickets' => $tickets
-        ];
-
-        $this->view('tickets/index', $data);
+        $this->view('tickets/index', ['tickets' => $tickets]);
     }
 
     // ---------- Add ----------
-    public function add()
-    {
+    public function add() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
 
-            // من أنشأ التذكرة
             $createdBy = (int)$_SESSION['user_id'];
 
-            // لمن التذكرة؟ (الأدمن/المدير يقدر يفتحها لموظف عنده)
-            $requestedFor = $createdBy;
-            if ((isSuperAdmin() || isManager()) && !empty($_POST['requested_for_user_id'])) {
-                $requestedFor = (int)$_POST['requested_for_user_id'];
-
-                // حماية: المدير ما يفتح إلا للي تحت إدارته
-                if (isManager() && method_exists($this->userModel, 'getUsersByManager')) {
-                    $team = $this->userModel->getUsersByManager($_SESSION['user_id']);
-                    $teamIds = array_map(fn($u) => (int)$u->id, $team);
-
-                    if (!in_array($requestedFor, $teamIds, true)) {
-                        flash('access_denied', 'لا يمكنك فتح تذكرة لمستخدم خارج فريقك', 'alert alert-danger');
-                        redirect('index.php?page=tickets/add');
-                        exit;
-                    }
-                }
-            }
-
             $data = [
-                // مفاتيح آمنة (ونحط القديم كمان لو موديلك يعتمد عليه)
-                'created_by'   => $createdBy,
-                'user_id'      => $createdBy,
+                // مهم: موديلك القديم كان يستخدم user_id — نخلي الاثنين للتوافق
+                'created_by' => $createdBy,
+                'user_id'    => $createdBy,
 
-                'requested_for_user_id' => $requestedFor,
+                'asset_id'      => !empty($_POST['asset_id']) ? (int)$_POST['asset_id'] : null,
+                'subject'       => trim($_POST['subject'] ?? ''),
+                'description'   => trim($_POST['description'] ?? ''),
+                'contact_info'  => trim($_POST['contact_info'] ?? ''),
+                'priority'      => trim($_POST['priority'] ?? 'Medium'),
 
-                'asset_id'     => !empty($_POST['asset_id']) ? (int)$_POST['asset_id'] : null,
-                'subject'      => trim($_POST['subject'] ?? ''),
-                'description'  => trim($_POST['description'] ?? ''),
-                'priority'     => trim($_POST['priority'] ?? 'Low'),
+                // للتطوير (التصعيد/الفريق)
+                'team'          => trim($_POST['team'] ?? 'field_it'),
 
-                // تجهيزات للتطوير لاحقاً:
-                // team: field_it / network / security / electricity
-                'team'         => trim($_POST['team'] ?? 'field_it'),
-                // assigned_to: مين مسؤول عنها (اختياري)
-                'assigned_to'  => !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null,
-
-                'assets'       => [],
-
-                'subject_err'      => '',
-                'description_err'  => ''
+                'assets'        => [],
+                'subject_err'   => '',
+                'description_err' => '',
+                'contact_err'   => '',
             ];
 
-            if (empty($data['subject'])) {
-                $data['subject_err'] = 'الرجاء كتابة عنوان للمشكلة';
-            }
-            if (empty($data['description'])) {
-                $data['description_err'] = 'الرجاء كتابة وصف تفصيلي';
-            }
+            if ($data['subject'] === '')      $data['subject_err'] = 'اكتب عنوان مختصر للمشكلة';
+            if ($data['description'] === '')  $data['description_err'] = 'اكتب وصف تفصيلي للمشكلة';
+            if ($data['contact_info'] === '') $data['contact_err'] = 'اكتب رقم/تحويلة للتواصل';
 
-            if (empty($data['subject_err']) && empty($data['description_err'])) {
-
+            if ($data['subject_err'] === '' && $data['description_err'] === '' && $data['contact_err'] === '') {
                 if ($this->ticketModel->add($data)) {
                     flash('ticket_msg', 'تم فتح التذكرة بنجاح');
                     redirect('index.php?page=tickets/index');
                     exit;
                 }
-
-                die('حدث خطأ في قاعدة البيانات');
+                die('خطأ في قاعدة البيانات أثناء إضافة التذكرة');
             }
 
-            // في حال وجود خطأ
             $data['assets'] = $this->getAssetsForCurrentUser();
             $this->view('tickets/add', $data);
-
-        } else {
-
-            $assets = $this->getAssetsForCurrentUser();
-
-            $data = [
-                'assets'      => $assets,
-                'subject'     => '',
-                'description' => '',
-                'priority'    => 'Low',
-                'asset_id'    => '',
-                // تجهيزات للتطوير:
-                'team'        => 'field_it',
-                'assigned_to' => '',
-                'requested_for_user_id' => '',
-                'subject_err' => '',
-                'description_err' => ''
-            ];
-
-            $this->view('tickets/add', $data);
+            return;
         }
+
+        $this->view('tickets/add', [
+            'assets' => $this->getAssetsForCurrentUser(),
+            'priority' => 'Medium',
+            'subject' => '',
+            'description' => '',
+            'contact_info' => '',
+            'team' => 'field_it',
+            'subject_err' => '',
+            'description_err' => '',
+            'contact_err' => '',
+        ]);
     }
 
     // ---------- Show ----------
-    public function show()
-    {
+    public function show() {
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         if ($id <= 0) {
             redirect('index.php?page=tickets/index');
@@ -209,14 +144,12 @@ class TicketsController extends Controller
         }
 
         $ticket = $this->ticketModel->getTicketById($id);
-
         if (!$this->canAccessTicket($ticket)) {
             flash('access_denied', 'لا تملك صلاحية عرض هذه التذكرة', 'alert alert-danger');
             redirect('index.php?page=tickets/index');
             exit;
         }
 
-        // (اختياري) لو عندك لاحقاً سجل تحديثات + مرفقات
         $updates = method_exists($this->ticketModel, 'getUpdatesByTicketId')
             ? $this->ticketModel->getUpdatesByTicketId($id)
             : [];
@@ -225,18 +158,18 @@ class TicketsController extends Controller
             ? $this->ticketModel->getAttachmentsByTicketId($id)
             : [];
 
-        $data = [
+        $users = (isSuperAdmin() || isManager()) ? $this->getUsersForAssignment() : [];
+
+        $this->view('tickets/show', [
             'ticket' => $ticket,
             'updates' => $updates,
-            'attachments' => $attachments
-        ];
-
-        $this->view('tickets/show', $data);
+            'attachments' => $attachments,
+            'users' => $users,
+        ]);
     }
 
-    // ---------- Update Status (User/Manager/Super) ----------
-    public function update_status()
-    {
+    // ---------- Update Status ----------
+    public function update_status() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirect('index.php?page=tickets/index');
             exit;
@@ -259,7 +192,6 @@ class TicketsController extends Controller
             exit;
         }
 
-        // لو موديلك يدعم log للتحديثات
         if (method_exists($this->ticketModel, 'addUpdate')) {
             $this->ticketModel->addUpdate([
                 'ticket_id' => $ticketId,
@@ -279,16 +211,15 @@ class TicketsController extends Controller
         exit;
     }
 
-    // ---------- Escalate (تصعيد) ----------
-    public function escalate()
-    {
+    // ---------- Escalate ----------
+    public function escalate() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirect('index.php?page=tickets/index');
             exit;
         }
 
         $ticketId = isset($_POST['ticket_id']) ? (int)$_POST['ticket_id'] : 0;
-        $team     = trim($_POST['team'] ?? ''); // network/security/electricity/field_it
+        $team     = trim($_POST['team'] ?? '');
         $comment  = trim($_POST['comment'] ?? '');
 
         if ($ticketId <= 0 || $team === '') {
@@ -304,25 +235,20 @@ class TicketsController extends Controller
             exit;
         }
 
-        // إذا موديل Ticket فيه updateTeam / escalateTo
         if (method_exists($this->ticketModel, 'updateTeam')) {
             $this->ticketModel->updateTeam($ticketId, $team);
-        } elseif (method_exists($this->ticketModel, 'escalateTo')) {
-            $this->ticketModel->escalateTo($ticketId, $team);
         } else {
-            // مؤقتاً: لو ما عندك هذا في قاعدة البيانات، بنوقف هنا
             flash('ticket_msg', 'ميزة التصعيد غير مفعلة في قاعدة البيانات حالياً', 'alert alert-warning');
             redirect('index.php?page=tickets/show&id=' . $ticketId);
             exit;
         }
 
-        // سجل تحديث (اختياري)
         if (method_exists($this->ticketModel, 'addUpdate')) {
             $this->ticketModel->addUpdate([
                 'ticket_id' => $ticketId,
                 'user_id'   => (int)$_SESSION['user_id'],
-                'status'    => 'escalated',
-                'comment'   => $comment !== '' ? $comment : ('تم تصعيد التذكرة إلى: ' . $team)
+                'status'    => 'Escalated',
+                'comment'   => ($comment !== '') ? $comment : ('تم تصعيد التذكرة إلى: ' . $team),
             ]);
         }
 
@@ -331,9 +257,8 @@ class TicketsController extends Controller
         exit;
     }
 
-    // ---------- Upload Attachments (صور) ----------
-    public function upload()
-    {
+    // ---------- Upload ----------
+    public function upload() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirect('index.php?page=tickets/index');
             exit;
@@ -360,32 +285,26 @@ class TicketsController extends Controller
 
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
         $uploadDir = dirname(__DIR__, 2) . '/public/uploads/tickets/ticket_' . $ticketId . '/';
-
         if (!is_dir($uploadDir)) {
             @mkdir($uploadDir, 0755, true);
         }
 
         $files = $_FILES['images'];
         $count = is_array($files['name']) ? count($files['name']) : 0;
-
         $savedAny = false;
 
         for ($i = 0; $i < $count; $i++) {
             if ($files['error'][$i] !== UPLOAD_ERR_OK) continue;
 
-            $name = $files['name'][$i];
-            $tmp  = $files['tmp_name'][$i];
-
-            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            $ext = strtolower(pathinfo($files['name'][$i], PATHINFO_EXTENSION));
             if (!in_array($ext, $allowed, true)) continue;
 
             $newName = 'img_' . time() . '_' . $i . '.' . $ext;
             $dest = $uploadDir . $newName;
 
-            if (move_uploaded_file($tmp, $dest)) {
+            if (move_uploaded_file($files['tmp_name'][$i], $dest)) {
                 $savedAny = true;
 
-                // سجل بالموديل إذا عندك attachments table
                 if (method_exists($this->ticketModel, 'addAttachment')) {
                     $this->ticketModel->addAttachment([
                         'ticket_id' => $ticketId,
@@ -396,14 +315,10 @@ class TicketsController extends Controller
             }
         }
 
-        if ($savedAny) {
-            flash('ticket_msg', 'تم رفع الصور بنجاح');
-        } else {
-            flash('ticket_msg', 'لم يتم رفع أي صورة (تأكد من الامتداد: jpg/png/webp)', 'alert alert-warning');
-        }
+        if ($savedAny) flash('ticket_msg', 'تم رفع الصور بنجاح');
+        else flash('ticket_msg', 'لم يتم رفع أي صورة (تأكد من الامتداد jpg/png/webp)', 'alert alert-warning');
 
         redirect('index.php?page=tickets/show&id=' . $ticketId);
         exit;
     }
 }
-?>
