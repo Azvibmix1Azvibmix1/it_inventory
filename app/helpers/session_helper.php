@@ -1,11 +1,63 @@
+<?php
+// تشغيل الجلسة إذا لم تكن مبدوءة
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+/**
+ * فلاش ميسج بسيطة
+ */
+function flash($name = '', $message = '', $class = 'alert alert-success'){
+    if(!empty($name)){
+        if(!empty($message) && empty($_SESSION[$name])){
+            if(!empty($_SESSION[$name])){
+                unset($_SESSION[$name]);
+            }
+            if(!empty($_SESSION[$name.'_class'])){
+                unset($_SESSION[$name.'_class']);
+            }
+
+            $_SESSION[$name] = $message;
+            $_SESSION[$name.'_class'] = $class;
+        } elseif(empty($message) && !empty($_SESSION[$name])){
+            $class = !empty($_SESSION[$name.'_class']) ? $_SESSION[$name.'_class'] : '';
+            echo '<div class="'.$class.'">'.$_SESSION[$name].'</div>';
+            unset($_SESSION[$name]);
+            unset($_SESSION[$name.'_class']);
+        }
+    }
+}
+
+/**
+ * التحقق من تسجيل الدخول
+ */
+function isLoggedIn(){
+    return isset($_SESSION['user_id']);
+}
+
 function currentRole() {
     return $_SESSION['user_role'] ?? 'user';
 }
 
+function isUser() {
+    return currentRole() === 'user';
+}
+
+function isManager() {
+    return currentRole() === 'manager';
+}
+
+function isSuperAdmin() {
+    return currentRole() === 'superadmin';
+}
+
+/**
+ * صلاحيات مرنة (RBAC)
+ */
 function can($permissionCode) {
     if (!isset($_SESSION['user_id'])) return false;
 
-    // superadmin له كل الصلاحيات (اختياري بس مريح)
+    // superadmin له كل الصلاحيات
     if (currentRole() === 'superadmin') return true;
 
     try {
@@ -26,8 +78,8 @@ function can($permissionCode) {
         if ($row2) return (int)$row2->allowed === 1;
 
         return false;
+
     } catch (Exception $e) {
-        // لو صار خطأ في قاعدة البيانات، نكون حذرين ونرجع false
         return false;
     }
 }
@@ -38,4 +90,12 @@ function requirePermission($permissionCode, $redirectPage = 'dashboard') {
         redirect('index.php?page=' . $redirectPage);
         exit;
     }
+}
+
+/**
+ * دالة إعادة التوجيه
+ */
+function redirect($location){
+    header('Location: ' . $location);
+    exit;
 }

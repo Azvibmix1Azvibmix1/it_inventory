@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
 
     <title><?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?></title>
 
@@ -12,25 +11,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body{
+        body {
             font-family: "Cairo", sans-serif;
-            background:#f8f9fa;
+            background: #f8f9fa;
         }
-        .navbar-brand{
-            font-weight:700;
-            letter-spacing:.3px;
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: .3px;
         }
-        .nav-link{
-            font-weight:600;
+        .nav-link {
+            font-weight: 600;
         }
-        .container-main{
+        .container-main {
             padding-top: 22px;
             padding-bottom: 22px;
         }
     </style>
 </head>
-
 <body class="d-flex flex-column min-vh-100">
+
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
     <div class="container">
         <a class="navbar-brand d-flex align-items-center gap-2" href="<?php echo URLROOT; ?>/index.php?page=dashboard">
@@ -44,8 +43,7 @@
 
         <div class="collapse navbar-collapse" id="mainNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
-                <?php if(function_exists('isLoggedIn') && isLoggedIn()): ?>
+                <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
 
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=dashboard">
@@ -60,13 +58,12 @@
                     </li>
 
                     <?php if (function_exists('can') && can('locations.manage')): ?>
-    <li class="nav-item">
-        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
-            <i class="fa fa-map-marker-alt"></i> المواقع
-        </a>
-    </li>
-<?php endif; ?>
-
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
+                                <i class="fa fa-map-marker-alt"></i> المواقع
+                            </a>
+                        </li>
+                    <?php endif; ?>
 
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=spare_parts/index">
@@ -76,33 +73,29 @@
 
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=tickets/index">
-                            <i class="fa fa-ticket"></i> التذاكر
+                            <i class="fa fa-ticket-alt"></i> التذاكر
                         </a>
                     </li>
 
                     <?php if (function_exists('can') && can('users.manage')): ?>
-    <li class="nav-item">
-        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
-            <i class="fa fa-users-cog"></i> المستخدمين
-        </a>
-    </li>
-<?php endif; ?>
-
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
+                                <i class="fa fa-users-cog"></i> المستخدمين
+                            </a>
+                        </li>
+                    <?php endif; ?>
 
                 <?php endif; ?>
             </ul>
 
             <ul class="navbar-nav ms-auto">
-
-                <?php if(function_exists('isLoggedIn') && isLoggedIn()): ?>
-
+                <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fa fa-user-circle"></i>
                             <?php echo isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'حسابي'; ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <!-- لو ما عندك route users/profile حاليًا، نضيفه بعدين -->
                             <li>
                                 <a class="dropdown-item" href="<?php echo URLROOT; ?>/index.php?page=users/profile">
                                     <i class="fa fa-id-card"></i> ملفي الشخصي
@@ -116,21 +109,17 @@
                             </li>
                         </ul>
                     </li>
-
                 <?php else: ?>
-
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=auth/register">
                             <i class="fa fa-user-plus"></i> تسجيل جديد
                         </a>
                     </li>
-
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=login">
                             <i class="fa fa-sign-in-alt"></i> دخول
                         </a>
                     </li>
-
                 <?php endif; ?>
             </ul>
         </div>
