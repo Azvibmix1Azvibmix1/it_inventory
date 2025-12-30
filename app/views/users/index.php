@@ -36,21 +36,29 @@
                                     </td>
                                     <td><?php echo $user->email; ?></td>
                                     <td>
-                                        <?php if($user->role == 'admin'): ?>
-                                            <span class="badge bg-danger">مدير نظام (Admin)</span>
+                                        <?php if($user->role == 'super_admin'): ?>
+                                            <span class="badge bg-dark">سوبر أدمن (Super Admin)</span>
+                                        <?php elseif($user->role == 'manager' || $user->role == 'admin'): ?>
+                                            <span class="badge bg-danger">مدير (Admin/Manager)</span>
                                         <?php else: ?>
                                             <span class="badge bg-info text-dark">موظف (User)</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?php echo date('Y-m-d', strtotime($user->created_at)); ?></td>
-                                    <td>
+                                    <td><?php echo !empty($user->created_at) ? date('Y-m-d', strtotime($user->created_at)) : '-'; ?></td>
+                                    <td class="d-flex gap-1">
                                         <a href="<?php echo URLROOT; ?>/index.php?page=users/edit&id=<?php echo $user->id; ?>" class="btn btn-sm btn-outline-primary">
                                             <i class="fa fa-edit"></i>
                                         </a>
+
                                         <?php if($user->id != $_SESSION['user_id']): ?>
-                                            <a href="<?php echo URLROOT; ?>/index.php?page=users/delete&id=<?php echo $user->id; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
-                                                <i class="fa fa-trash"></i>
-                                            </a>
+                                            <!-- حذف المستخدم: POST فقط (أكثر أمانًا من GET) -->
+                                            <form action="<?php echo URLROOT; ?>/index.php?page=users/delete" method="POST" class="d-inline"
+                                                  onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
+                                                <input type="hidden" name="id" value="<?php echo (int)$user->id; ?>">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -66,4 +74,6 @@
         </div>
     </div>
 
-</div> <?php require_once APPROOT . '/views/layouts/footer.php'; ?>
+</div>
+
+<?php require_once APPROOT . '/views/layouts/footer.php'; ?>
