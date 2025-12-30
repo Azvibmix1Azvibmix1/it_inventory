@@ -18,8 +18,9 @@ class AssetsController extends Controller
     }
 
     // 1. عرض قائمة الأصول (الرئيسية)
-    public function index()
-    {
+    public function index(){
+
+
         $assets = $this->assetModel->getAllAssets();
 
         $data = [
@@ -30,8 +31,9 @@ class AssetsController extends Controller
     }
 
     // 2. إضافة أصل جديد
-    public function add()
-    {
+    public function add(){
+        requirePermission('assets.assign', 'assets/index');
+
         // الموظف العادي ما يضيف أصول
         $this->requireRole(['super_admin', 'manager']);
 
@@ -107,8 +109,9 @@ class AssetsController extends Controller
     }
 
     // 3. تعديل أصل
-    public function edit($id)
-    {
+    public function edit($id){
+        requirePermission('assets.edit', 'assets/index');
+
         // منع الموظف العادي من التعديل
         $this->requireRole(['super_admin', 'manager']);
 
@@ -178,8 +181,9 @@ class AssetsController extends Controller
     }
 
     // 4. حذف أصل
-    public function delete()
-    {
+    public function delete(){
+        requirePermission('assets.delete', 'assets/index');
+
         // منع الموظف العادي من الحذف
         $this->requireRole(['super_admin', 'manager']);
 

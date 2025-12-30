@@ -59,11 +59,14 @@
                         </a>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
-                            <i class="fa fa-map-marker-alt"></i> المواقع
-                        </a>
-                    </li>
+                    <?php if (function_exists('can') && can('locations.manage')): ?>
+    <li class="nav-item">
+        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
+            <i class="fa fa-map-marker-alt"></i> المواقع
+        </a>
+    </li>
+<?php endif; ?>
+
 
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=spare_parts/index">
@@ -77,13 +80,14 @@
                         </a>
                     </li>
 
-                    <?php if(function_exists('isSuperAdmin') && isSuperAdmin() || (function_exists('isManager') && isManager())): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
-                                <i class="fa fa-users-cog"></i> المستخدمين
-                            </a>
-                        </li>
-                    <?php endif; ?>
+                    <?php if (function_exists('can') && can('users.manage')): ?>
+    <li class="nav-item">
+        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
+            <i class="fa fa-users-cog"></i> المستخدمين
+        </a>
+    </li>
+<?php endif; ?>
+
 
                 <?php endif; ?>
             </ul>

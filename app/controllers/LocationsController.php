@@ -32,6 +32,9 @@ class LocationsController extends Controller {
             exit;
         }
 
+        requirePermission('locations.manage', 'dashboard');
+
+
         if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
 
@@ -70,7 +73,12 @@ class LocationsController extends Controller {
             flash('access_denied', 'تعديل المواقع للمدير العام فقط', 'alert alert-danger');
             redirect('index.php?page=locations/index');
             exit;
+        
+
         }
+
+        requirePermission('locations.manage', 'dashboard');
+
 
         if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
@@ -117,6 +125,7 @@ class LocationsController extends Controller {
         if(!isSuperAdmin()){ 
             redirect('index.php?page=locations/index');
         }
+        requirePermission('locations.manage', 'dashboard');
 
         if(empty($id)){
             $id = isset($_GET['id']) ? $_GET['id'] : 0;

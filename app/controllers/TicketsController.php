@@ -96,6 +96,8 @@ class TicketsController extends Controller {
     }
 
     public function add() {
+        requirePermission('tickets.add', 'tickets/index');
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
 
@@ -233,6 +235,9 @@ class TicketsController extends Controller {
     }
 
     public function update_status() {
+
+        requirePermission('tickets.assign', 'tickets/index');
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirect('index.php?page=tickets/index');
             exit;
@@ -294,6 +299,8 @@ class TicketsController extends Controller {
     }
 
     public function escalate() {
+        requirePermission('tickets.escalate', 'tickets/index');
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             redirect('index.php?page=tickets/index');
             exit;

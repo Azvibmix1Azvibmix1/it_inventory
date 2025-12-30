@@ -52,3 +52,46 @@ function isManager() {
 function isUser() {
     return (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'user');
 }
+
+function currentRole() {
+    return $_SESSION['user_role'] ?? 'user';
+}
+
+function can($permissionCode) {
+    if (!isset($_SESSION['user_id'])) return false;
+
+    // superadmin bypass (اختياري)
+    if (currentRole() === 'superadmin') return true;
+
+    try {
+        $db = new Database();
+
+        // 1) user override (أولوية أعلى)
+        $db->query("SELECT allowed FROM user_permissions WHERE user_id = :uid AND permission_code = :p LIMIT 1");
+        $db->bind(':uid', (int)$_SESSION['user_id']);
+        $db->bind(':p', $permissionCode);
+        $row = $db->single();
+        if ($row) return (int)$row->allowed === 1;
+
+        // 2) role default
+        $db->query("SELECT allowed FROM role_permissions WHERE role = :r AND permission_code = :p LIMIT 1");
+        $db->bind(':r', currentRole());
+        $db->bind(':p', $permissionCode);
+        $row2 = $db->single();
+        if ($row2) return (int)$row2->allowed === 1;
+
+        return false;
+
+    } catch (Exception $e) {
+        // fallback آمن: ما نعطي صلاحيات إذا صار خطأ
+        return false;
+    }
+}
+
+function requirePermission($permissionCode, $redirectPage = 'dashboard') {
+    if (!can($permissionCode)) {
+        flash('access_denied', 'ليس لديك صلاحية للوصول لهذه الصفحة', 'alert alert-danger');
+        redirect('index.php?page=' . $redirectPage);
+        exit;
+    }
+}

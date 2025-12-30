@@ -16,8 +16,10 @@ class UsersController extends Controller
     }
 
     // صفحة عرض المستخدمين (الجدول)
-    public function index()
-    {
+    public function index(){
+        requirePermission('users.manage', 'dashboard');
+
+
         $users = [];
 
         // إذا كان سوبر أدمن -> هات كل المستخدمين
@@ -37,8 +39,10 @@ class UsersController extends Controller
     }
 
     // صفحة إضافة مستخدم جديد
-    public function add()
-    {
+    public function add(){
+
+        requirePermission('users.manage', 'dashboard');
+
         // الموظف العادي أصلاً ما يقدر يوصل هنا بسبب requireRole في __construct
         // هنا نسمح فقط لـ super_admin و manager (مع اختلاف الصلاحيات بينهم)
 
@@ -146,8 +150,10 @@ class UsersController extends Controller
     }
 
     // صفحة تعديل المستخدم
-    public function edit($id)
-    {
+    public function edit($id){
+        requirePermission('users.manage', 'dashboard');
+
+
         $userId = (int) $id;
         if ($userId <= 0) {
             redirect('index.php?page=users/index');
@@ -235,8 +241,10 @@ class UsersController extends Controller
     }
 
     // حذف المستخدم
-    public function delete()
-    {
+    public function delete(){
+
+        requirePermission('users.manage', 'dashboard');
+
         // هنا نسمح فقط لـ super_admin و manager (بسبب requireRole في __construct)
         // لكن نضيف حماية إضافية للمدير
 
