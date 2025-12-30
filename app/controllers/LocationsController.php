@@ -2,13 +2,18 @@
 class LocationsController extends Controller {
     private $locationModel;
 
-    public function __construct() {
-        // التحقق من تسجيل الدخول
-        if(!isLoggedIn()){
-            redirect('index.php?page=login');
-        }
-        $this->locationModel = $this->model('Location');
+    public function __construct(){
+    if(!isLoggedIn()){
+        redirect('index.php?page=login');
+        exit;
     }
+
+    // ✅ أي شخص يدخل على المتحكم هذا لازم يملك صلاحية إدارة المواقع
+    requirePermission('locations.manage', 'dashboard');
+
+    $this->locationModel = $this->model('Location');
+}
+
 
     public function index() {
         $main_locations = $this->locationModel->getMainLocations();
@@ -25,13 +30,7 @@ class LocationsController extends Controller {
     }
 
     public function add() {
-        // الحماية: للمدير العام فقط
-        if(!isSuperAdmin()){ 
-            flash('access_denied', 'إضافة المواقع للمدير العام فقط', 'alert alert-danger');
-            redirect('index.php?page=locations/index');
-            exit;
-        }
-
+        
         requirePermission('locations.manage', 'dashboard');
 
 
@@ -68,14 +67,8 @@ class LocationsController extends Controller {
 
     // دالة التعديل (هذه هي الدالة التي كانت تسبب الخطأ لعدم وجودها)
     public function edit($id){
-        // الحماية: للمدير العام فقط
-        if(!isSuperAdmin()){ 
-            flash('access_denied', 'تعديل المواقع للمدير العام فقط', 'alert alert-danger');
-            redirect('index.php?page=locations/index');
-            exit;
-        
-
-        }
+  
+    
 
         requirePermission('locations.manage', 'dashboard');
 
@@ -122,11 +115,8 @@ class LocationsController extends Controller {
     }
 
     public function delete($id = null) {
-        if(!isSuperAdmin()){ 
-            redirect('index.php?page=locations/index');
-        }
-        requirePermission('locations.manage', 'dashboard');
-
+        
+        requirePermission('locations.manage', 'locations/index');
         if(empty($id)){
             $id = isset($_GET['id']) ? $_GET['id'] : 0;
         }
