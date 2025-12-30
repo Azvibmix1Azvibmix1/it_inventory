@@ -168,6 +168,12 @@ switch ($url) {
         (new UsersController())->delete();
         break;
 
+
+    case 'users/profile':
+    $users = new UsersController();
+    $users->profile();
+    break;
+    
     // --- Default ---
     default:
         (new DashboardController())->index();
