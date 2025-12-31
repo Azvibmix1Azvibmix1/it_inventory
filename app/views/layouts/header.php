@@ -77,7 +77,7 @@
                         </a>
                     </li>
 
-                    <!-- المواقع: تظهر لأي دور أعلى من user -->
+                    <!-- المواقع: أي دور أعلى من user -->
                     <?php if ($role !== 'user'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
@@ -86,7 +86,7 @@
                         </li>
                     <?php endif; ?>
 
-                    <!-- المستخدمين: للـ admin أو superadmin فقط -->
+                    <!-- المستخدمين: للـ admin أو superadmin -->
                     <?php if ($role === 'admin' || $role === 'superadmin'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
@@ -98,7 +98,7 @@
                 <?php endif; ?>
             </ul>
 
-            <!-- يمين النافبار: حساب المستخدم أو تسجيل الدخول -->
+            <!-- يمين النافبار -->
             <ul class="navbar-nav ms-auto">
                 <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
                     <li class="nav-item dropdown">

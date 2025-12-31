@@ -1,1 +1,2 @@
-<?php require_once __DIR__ . '/../app/views/layouts/header.php'; ?>
+<?php
+require_once APPROOT . '/views/layouts/footer.php';
