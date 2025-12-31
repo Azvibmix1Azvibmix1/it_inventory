@@ -12,6 +12,8 @@ class SparePartsController extends Controller {
         // تحميل الموديلات
         $this->spareModel = $this->model('SparePart');
         $this->locationModel = $this->model('Location');
+        $locations = $this->locationModel->getAll();
+
     }
 
     public function index(){

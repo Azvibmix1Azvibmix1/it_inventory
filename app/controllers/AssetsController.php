@@ -14,7 +14,9 @@ class AssetsController extends Controller
         // تحميل الموديلات المطلوبة
         $this->assetModel    = $this->model('Asset');
         $this->userModel     = $this->model('User');
-        $this->locationModel = $this->model('Location'); 
+        $this->locationModel = $this->model('Location');
+         $locations = $this->locationModel->getAll();
+ 
     }
 
     // 1. عرض قائمة الأصول (الرئيسية)
