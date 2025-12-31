@@ -17,28 +17,26 @@ class LocationsController extends Controller
     // صفحة عرض المواقع (الهيكل كامل)
     public function index()
     {
-        $main_locations = $this->locationModel->getMainLocations(); // مثلاً الكليات / الفروع الرئيسية
-        $all_locations  = $this->locationModel->getAll();           // كل المستويات
+        // نجيب كل المواقع، ونستخدمها في الجدول + القوائم المنسدلة
+        $locations = $this->locationModel->getAll();
 
         $data = [
-            'main_locations' => $main_locations,
-            'all_locations'  => $all_locations,
-
-            // حقول جاهزة لو بنضيف من نفس الصفحة
-            'name_ar'   => '',
-            'name_en'   => '',
-            'type'      => '',
-            'parent_id' => '',
-            'name_err'  => ''
+            'locations'  => $locations,
+            // حقول جاهزة للنموذج (لتفادي undefined index)
+            'name_ar'    => '',
+            'name_en'    => '',
+            'type'       => '',
+            'parent_id'  => '',
+            'name_err'   => ''
         ];
 
         $this->view('locations/index', $data);
     }
 
-    // إضافة موقع جديد (فرع / كلية / مبنى / طابق / معمل)
+    // إضافة موقع جديد (فرع / كلية / مبنى / طابق / معمل / مكتب / مستودع)
     public function add()
     {
-        // 🔐 صلاحية بسيطة: نخلي فقط admin + superadmin يقدروا يضيفوا مواقع
+        // صلاحية بسيطة: نخلي فقط المديرين والسوبر أدمن
         if (!isSuperAdmin() && !isManager()) {
             flash('access_denied', 'إضافة المواقع مسموحة للمديرين فقط', 'alert alert-danger');
             redirect('index.php?page=locations/index');
@@ -52,7 +50,7 @@ class LocationsController extends Controller
             $data = [
                 'name_ar'   => trim($_POST['name_ar'] ?? ''),
                 'name_en'   => trim($_POST['name_en'] ?? ''),
-                'type'      => trim($_POST['type'] ?? 'Building'), // College / Branch / Building / Floor / Lab
+                'type'      => trim($_POST['type'] ?? 'Building'),
                 'parent_id' => !empty($_POST['parent_id']) ? trim($_POST['parent_id']) : null,
                 'name_err'  => ''
             ];
@@ -69,13 +67,13 @@ class LocationsController extends Controller
                     die('خطأ في قاعدة البيانات أثناء إضافة الموقع');
                 }
             } else {
-                // لو فيه خطأ، نرجع للرئيسية مع رسالة
+                // نرجع لنفس الصفحة ونظهر رسالة الخطأ
                 flash('location_msg', $data['name_err'], 'alert alert-danger');
                 redirect('index.php?page=locations/index');
             }
 
         } else {
-            // طلب GET عادي → نرجعه لصفحة الهيكل
+            // GET → رجع لصفحة المواقع
             redirect('index.php?page=locations/index');
         }
     }
@@ -83,9 +81,9 @@ class LocationsController extends Controller
     // تعديل موقع
     public function edit($id)
     {
-        // فقط admin + superadmin
+        // صلاحية للمديرين / السوبر أدمن
         if (!isSuperAdmin() && !isManager()) {
-            flash('access_denied', 'تعديل المواقع للمديرين فقط', 'alert alert-danger');
+            flash('access_denied', 'تعديل المواقع مسموح للمديرين فقط', 'alert alert-danger');
             redirect('index.php?page=locations/index');
             exit;
         }
@@ -110,21 +108,21 @@ class LocationsController extends Controller
             }
 
         } else {
-            // عرض بيانات الموقع في الفورم
-            $location      = $this->locationModel->getLocationById($id);
-            $all_locations = $this->locationModel->getAll();
+            // GET: عرض الفورم مع بيانات الموقع
+            $location   = $this->locationModel->getLocationById($id);
+            $locations  = $this->locationModel->getAll();
 
             if (!$location) {
                 redirect('index.php?page=locations/index');
             }
 
             $data = [
-                'id'           => $id,
-                'name_ar'      => $location->name_ar,
-                'name_en'      => $location->name_en,
-                'type'         => $location->type,
-                'parent_id'    => $location->parent_id,
-                'all_locations'=> $all_locations
+                'id'         => $id,
+                'name_ar'    => $location->name_ar,
+                'name_en'    => $location->name_en,
+                'type'       => $location->type,
+                'parent_id'  => $location->parent_id,
+                'locations'  => $locations
             ];
 
             $this->view('locations/edit', $data);
@@ -134,8 +132,9 @@ class LocationsController extends Controller
     // حذف موقع
     public function delete($id = null)
     {
+        // صلاحية للمديرين / السوبر أدمن
         if (!isSuperAdmin() && !isManager()) {
-            flash('access_denied', 'حذف المواقع للمديرين فقط', 'alert alert-danger');
+            flash('access_denied', 'حذف المواقع مسموح للمديرين فقط', 'alert alert-danger');
             redirect('index.php?page=locations/index');
             exit;
         }
