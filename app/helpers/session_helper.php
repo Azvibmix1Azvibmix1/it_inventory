@@ -35,21 +35,25 @@ function isLoggedIn(){
     return isset($_SESSION['user_id']);
 }
 
-function currentRole() {
-    return $_SESSION['user_role'] ?? 'user';
+function currentRole() { 
+    return $_SESSION['user_role'] ?? 'user'; 
 }
 
-function isUser() {
-    return currentRole() === 'user';
+function isUser()      { 
+    return currentRole() === 'user'; 
 }
 
 function isManager() {
-    return currentRole() === 'manager';
+    $role = currentRole();
+    // نخلي admin له صلاحيات المدير
+    return $role === 'manager' || $role === 'admin';
 }
 
 function isSuperAdmin() {
+    // السوبر أدمن بس هو اللي له صلاحية كاملة
     return currentRole() === 'superadmin';
 }
+
 
 /**
  * صلاحيات مرنة (RBAC)

@@ -6,7 +6,7 @@ class LocationsController extends Controller
 
     public function __construct()
     {
-        // لازم يكون مسجل دخول
+        // لازم يكون مسجّل دخول
         if (!isLoggedIn()) {
             redirect('index.php?page=login');
         }
@@ -14,47 +14,49 @@ class LocationsController extends Controller
         $this->locationModel = $this->model('Location');
     }
 
-    // صفحة عرض المواقع (الهيكل كامل)
+    /**
+     * صفحة عرض الهيكل + نموذج إضافة موقع جديد
+     */
     public function index()
     {
-        // نجيب كل المواقع، ونستخدمها في الجدول + القوائم المنسدلة
         $locations = $this->locationModel->getAll();
 
         $data = [
-            'locations'  => $locations,
-            // حقول جاهزة للنموذج (لتفادي undefined index)
-            'name_ar'    => '',
-            'name_en'    => '',
-            'type'       => '',
-            'parent_id'  => '',
-            'name_err'   => ''
+            'locations' => $locations,
+            'name_ar'   => '',
+            'name_en'   => '',
+            'type'      => 'College',
+            'parent_id' => '',
+            'name_err'  => '',
         ];
 
         $this->view('locations/index', $data);
     }
 
-    // إضافة موقع جديد (فرع / كلية / مبنى / طابق / معمل / مكتب / مستودع)
+    /**
+     * إضافة موقع جديد (كلية / مبنى / طابق / معمل / مكتب / مستودع)
+     */
     public function add()
     {
-        // صلاحية بسيطة: نخلي فقط المديرين والسوبر أدمن
+        // صلاحية: المديرين + السوبر أدمن فقط
         if (!isSuperAdmin() && !isManager()) {
             flash('access_denied', 'إضافة المواقع مسموحة للمديرين فقط', 'alert alert-danger');
             redirect('index.php?page=locations/index');
             exit;
         }
 
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
 
             $data = [
                 'name_ar'   => trim($_POST['name_ar'] ?? ''),
                 'name_en'   => trim($_POST['name_en'] ?? ''),
                 'type'      => trim($_POST['type'] ?? 'Building'),
-                'parent_id' => !empty($_POST['parent_id']) ? trim($_POST['parent_id']) : null,
-                'name_err'  => ''
+                'parent_id' => !empty($_POST['parent_id']) ? (int) $_POST['parent_id'] : null,
+                'name_err'  => '',
             ];
 
+            // تحقق بسيط
             if (empty($data['name_ar'])) {
                 $data['name_err'] = 'الاسم العربي مطلوب';
             }
@@ -67,37 +69,36 @@ class LocationsController extends Controller
                     die('خطأ في قاعدة البيانات أثناء إضافة الموقع');
                 }
             } else {
-                // نرجع لنفس الصفحة ونظهر رسالة الخطأ
-                flash('location_msg', $data['name_err'], 'alert alert-danger');
-                redirect('index.php?page=locations/index');
+                // لو فيه خطأ نرجّع نفس الصفحة مع القائمة كاملة
+                $data['locations'] = $this->locationModel->getAll();
+                $this->view('locations/index', $data);
             }
-
         } else {
             // GET → رجع لصفحة المواقع
             redirect('index.php?page=locations/index');
         }
     }
 
-    // تعديل موقع
+    /**
+     * تعديل موقع
+     */
     public function edit($id)
     {
-        // صلاحية للمديرين / السوبر أدمن
         if (!isSuperAdmin() && !isManager()) {
             flash('access_denied', 'تعديل المواقع مسموح للمديرين فقط', 'alert alert-danger');
             redirect('index.php?page=locations/index');
             exit;
         }
 
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
 
             $data = [
-                'id'        => $id,
+                'id'        => (int) $id,
                 'name_ar'   => trim($_POST['name_ar'] ?? ''),
                 'name_en'   => trim($_POST['name_en'] ?? ''),
                 'type'      => trim($_POST['type'] ?? ''),
-                'parent_id' => !empty($_POST['parent_id']) ? trim($_POST['parent_id']) : null
+                'parent_id' => !empty($_POST['parent_id']) ? (int) $_POST['parent_id'] : null,
             ];
 
             if ($this->locationModel->update($data)) {
@@ -106,33 +107,33 @@ class LocationsController extends Controller
             } else {
                 die('حدث خطأ أثناء تحديث بيانات الموقع');
             }
-
         } else {
-            // GET: عرض الفورم مع بيانات الموقع
-            $location   = $this->locationModel->getLocationById($id);
-            $locations  = $this->locationModel->getAll();
+            // GET → نعرض نموذج التعديل
+            $location  = $this->locationModel->getLocationById($id);
+            $locations = $this->locationModel->getAll();
 
             if (!$location) {
                 redirect('index.php?page=locations/index');
             }
 
             $data = [
-                'id'         => $id,
-                'name_ar'    => $location->name_ar,
-                'name_en'    => $location->name_en,
-                'type'       => $location->type,
-                'parent_id'  => $location->parent_id,
-                'locations'  => $locations
+                'id'        => $location->id,
+                'name_ar'   => $location->name_ar,
+                'name_en'   => $location->name_en,
+                'type'      => $location->type,
+                'parent_id' => $location->parent_id,
+                'locations' => $locations,
             ];
 
             $this->view('locations/edit', $data);
         }
     }
 
-    // حذف موقع
+    /**
+     * حذف موقع
+     */
     public function delete($id = null)
     {
-        // صلاحية للمديرين / السوبر أدمن
         if (!isSuperAdmin() && !isManager()) {
             flash('access_denied', 'حذف المواقع مسموح للمديرين فقط', 'alert alert-danger');
             redirect('index.php?page=locations/index');
@@ -140,7 +141,7 @@ class LocationsController extends Controller
         }
 
         if (empty($id)) {
-            $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+            $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
         }
 
         if ($this->locationModel->delete($id)) {
