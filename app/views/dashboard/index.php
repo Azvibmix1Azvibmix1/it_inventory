@@ -1,5 +1,4 @@
 <?php require APPROOT . '/views/includes/header.php'; ?>
-<?php require APPROOT . '/views/includes/navbar.php'; ?>
 
 <div class="container fade-in py-4">
     

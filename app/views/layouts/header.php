@@ -6,6 +6,7 @@
 
     <title><?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?></title>
 
+    <!-- Bootstrap & Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
@@ -28,7 +29,7 @@
         }
     </style>
 </head>
-<body class="d-flex flex-column min-vh-100">
+<body class="d-flex min-vh-100 flex-column">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
     <div class="container">
@@ -41,43 +42,52 @@
             <span class="navbar-toggler-icon"></span>
         </button>
 
+        <?php $role = $_SESSION['user_role'] ?? 'user'; ?>
+
         <div class="collapse navbar-collapse" id="mainNav">
+            <!-- الروابط الرئيسية -->
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
 
+                    <!-- الرئيسية -->
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=dashboard">
                             <i class="fa fa-home"></i> الرئيسية
                         </a>
                     </li>
 
+                    <!-- الأجهزة والعهد -->
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=assets/index">
                             <i class="fa fa-desktop"></i> الأجهزة والعهد
                         </a>
                     </li>
 
-                    <?php if (function_exists('can') && can('locations.manage')): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
-                                <i class="fa fa-map-marker-alt"></i> المواقع
-                            </a>
-                        </li>
-                    <?php endif; ?>
-
+                    <!-- قطع الغيار -->
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=spare_parts/index">
                             <i class="fa fa-toolbox"></i> قطع الغيار
                         </a>
                     </li>
 
+                    <!-- التذاكر -->
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=tickets/index">
                             <i class="fa fa-ticket-alt"></i> التذاكر
                         </a>
                     </li>
 
-                    <?php if (function_exists('can') && can('users.manage')): ?>
+                    <!-- المواقع: تظهر لأي دور أعلى من user -->
+                    <?php if ($role !== 'user'): ?>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
+                                <i class="fa fa-map-marker-alt"></i> المواقع والمباني
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
+                    <!-- المستخدمين: للـ admin أو superadmin فقط -->
+                    <?php if ($role === 'admin' || $role === 'superadmin'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
                                 <i class="fa fa-users-cog"></i> المستخدمين
@@ -88,6 +98,7 @@
                 <?php endif; ?>
             </ul>
 
+            <!-- يمين النافبار: حساب المستخدم أو تسجيل الدخول -->
             <ul class="navbar-nav ms-auto">
                 <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
                     <li class="nav-item dropdown">
