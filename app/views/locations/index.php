@@ -1,242 +1,290 @@
 <?php require_once APPROOT . '/views/layouts/header.php'; ?>
 
 <?php
-// تأكد أن المصفوفة موجودة
-$locations = $data['locations'] ?? [];
+// تجهيز البيانات القادمة من الكنترولر
+$locations   = $data['locations'] ?? [];
+$name_ar     = $data['name_ar'] ?? '';
+$name_en     = $data['name_en'] ?? '';
+$type        = $data['type'] ?? 'College';
+$parent_id   = $data['parent_id'] ?? '';
+$name_err    = $data['name_err'] ?? '';
 
-// تجميع حسب الـ parent_id عشان نرسم شجرة
+// نبني هيكل parent -> children
 $byParent = [];
 foreach ($locations as $loc) {
-    $pid = $loc->parent_id;
-    if ($pid === null) {
-        $pid = 0; // الجذور
-    }
+    $pid = $loc->parent_id ?? 0; // NULL نعتبره مستوى أعلى
     if (!isset($byParent[$pid])) {
         $byParent[$pid] = [];
     }
     $byParent[$pid][] = $loc;
 }
 
-// الجذور = مواقع بدون parent_id
-$roots = $byParent[0] ?? [];
+// دالة عرض شجرة المواقع داخل الكلية/المبنى
+if (!function_exists('renderLocationTree')) {
+    function renderLocationTree($parentId, $byParent, $level = 0) {
+        if (!isset($byParent[$parentId])) {
+            return;
+        }
+
+        echo '<ul class="list-unstyled ms-' . ($level > 0 ? 4 : 0) . ' mt-2">';
+
+        foreach ($byParent[$parentId] as $loc) {
+            echo '<li class="mb-2">';
+            echo '<div class="d-flex align-items-center justify-content-between bg-white border rounded p-2">';
+
+            // معلومات الموقع
+            echo '<div>';
+            echo '<span class="fw-bold">' . htmlspecialchars($loc->name_ar) . '</span>';
+            echo ' <span class="badge bg-secondary ms-2">' . htmlspecialchars($loc->type) . '</span>';
+            if (!empty($loc->name_en)) {
+                echo '<small class="text-muted ms-2">' . htmlspecialchars($loc->name_en) . '</small>';
+            }
+            echo '</div>';
+
+            // أزرار الإجراءات
+            echo '<div class="ms-2">';
+            echo '<a href="' . URLROOT . '/index.php?page=locations/edit&id=' . $loc->id . '" ';
+            echo 'class="btn btn-sm btn-outline-primary me-1"><i class="fa fa-edit"></i></a>';
+
+            echo '<a href="' . URLROOT . '/index.php?page=locations/delete&id=' . $loc->id . '" ';
+            echo 'class="btn btn-sm btn-outline-danger" ';
+            echo 'onclick="return confirm(\'هل أنت متأكد من حذف هذا الموقع؟ قد يتم حذف المواقع التابعة له أيضاً.\');">';
+            echo '<i class="fa fa-trash"></i></a>';
+
+            echo '</div>'; // /actions
+            echo '</div>'; // /card row
+
+            // لو عنده أبناء، نعرضهم بشكل متدرج تحته
+            renderLocationTree($loc->id, $byParent, $level + 1);
+
+            echo '</li>';
+        }
+
+        echo '</ul>';
+    }
+}
 ?>
 
-<div class="container mt-4">
+<div class="container-fluid mt-4">
 
-    <!-- عنوان -->
-    <div class="row mb-3">
-        <div class="col-md-8">
-            <h1 class="h3">
-                <i class="fa fa-sitemap text-primary"></i>
-                إدارة الهيكل التنظيمي
-            </h1>
-            <p class="text-muted mb-0">
-                قم ببناء الهيكل: أضف الكليات، ثم المباني التابعة لها، ثم المعامل والمكاتب.
-            </p>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">
+            <i class="fa fa-sitemap text-primary"></i>
+            إدارة الهيكل التنظيمي (كليات - مباني - معامل)
+        </h2>
     </div>
 
-    <!-- نموذج إضافة موقع جديد -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <span class="fw-bold">
-                <i class="fa fa-plus-circle text-success"></i>
-                إضافة موقع جديد
-            </span>
-        </div>
-        <div class="card-body">
-            <form action="<?php echo URLROOT; ?>/index.php?page=locations/add" method="post" class="row g-3">
+    <?php flash('location_msg'); ?>
+    <?php flash('access_denied'); ?>
 
-                <div class="col-md-4">
-                    <label class="form-label">الاسم (عربي) <span class="text-danger">*</span></label>
-                    <input type="text"
-                           name="name_ar"
-                           class="form-control"
-                           value="<?php echo htmlspecialchars($data['name_ar'] ?? ''); ?>"
-                           placeholder="مثال: كلية الحاسب"
-                           required>
+    <div class="row">
+        <!-- نموذج إضافة موقع جديد -->
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fa fa-plus-circle"></i>
+                        إضافة موقع جديد للنظام
+                    </h5>
                 </div>
+                <div class="card-body">
+                    <form action="<?php echo URLROOT; ?>/index.php?page=locations/add" method="post">
 
-                <div class="col-md-4">
-                    <label class="form-label">الاسم (إنجليزي)</label>
-                    <input type="text"
-                           name="name_en"
-                           class="form-control"
-                           value="<?php echo htmlspecialchars($data['name_en'] ?? ''); ?>"
-                           placeholder="Optional">
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label">نوع المكان</label>
-                    <select name="type" class="form-select">
-                        <?php
-                        $currentType = $data['type'] ?? 'College';
-                        $types = [
-                            'College'  => 'كلية / فرع رئيسي',
-                            'Building' => 'مبنى',
-                            'Floor'    => 'طابق',
-                            'Lab'      => 'معمل',
-                            'Office'   => 'مكتب',
-                            'Store'    => 'مستودع',
-                        ];
-                        foreach ($types as $value => $label):
-                        ?>
-                            <option value="<?php echo $value; ?>" <?php echo ($currentType === $value ? 'selected' : ''); ?>>
-                                <?php echo $label; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label">يتبع لـ (الموقع الأب)</label>
-                    <select name="parent_id" class="form-select">
-                        <option value="">-- الكيان هو أعلى مستوى --</option>
-                        <?php foreach ($locations as $loc): ?>
-                            <option value="<?php echo $loc->id; ?>"
-                                <?php echo (!empty($data['parent_id']) && $data['parent_id'] == $loc->id) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($loc->name_ar) . ' - ' . $loc->type; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <div class="form-text">
-                        مثال: المبنى يتبع للكلية، المعمل يتبع للمبنى... إلخ.
-                    </div>
-                </div>
-
-                <?php if (!empty($data['name_err'])): ?>
-                    <div class="col-12">
-                        <div class="alert alert-danger mb-0">
-                            <?php echo htmlspecialchars($data['name_err']); ?>
+                        <!-- الاسم العربي -->
+                        <div class="mb-3">
+                            <label class="form-label">الاسم (عربي) <span class="text-danger">*</span></label>
+                            <input type="text"
+                                   name="name_ar"
+                                   class="form-control <?php echo !empty($name_err) ? 'is-invalid' : ''; ?>"
+                                   value="<?php echo htmlspecialchars($name_ar); ?>"
+                                   placeholder="مثال: كلية الحاسب، أو مبنى الشبكات، أو معمل 101">
+                            <?php if (!empty($name_err)): ?>
+                                <div class="invalid-feedback">
+                                    <?php echo $name_err; ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
-                    </div>
-                <?php endif; ?>
 
-                <div class="col-12">
-                    <button type="submit" class="btn btn-success">
-                        <i class="fa fa-save"></i> حفظ الموقع
-                    </button>
-                </div>
+                        <!-- الاسم الإنجليزي (اختياري) -->
+                        <div class="mb-3">
+                            <label class="form-label">الاسم (إنجليزي) <small class="text-muted">(اختياري)</small></label>
+                            <input type="text"
+                                   name="name_en"
+                                   class="form-control"
+                                   value="<?php echo htmlspecialchars($name_en); ?>"
+                                   placeholder="Ex: Asfan Campus, Network Lab">
+                        </div>
 
-            </form>
-        </div>
-    </div>
-
-    <!-- عرض الهيكل الحالي (هرمي) -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <span class="fw-bold">
-                <i class="fa fa-layer-group text-primary"></i>
-                الهيكل الحالي
-            </span>
-        </div>
-        <div class="card-body">
-
-            <?php if (empty($roots)): ?>
-                <p class="text-muted mb-0">
-                    لا توجد أي مواقع مضافة حالياً. ابدأ بإضافة الكلية الأولى من النموذج أعلاه.
-                </p>
-            <?php else: ?>
-
-                <?php foreach ($roots as $root): ?>
-                    <?php $children = $byParent[$root->id] ?? []; ?>
-
-                    <div class="mb-3 border rounded">
-                        <!-- الكلية / الفرع -->
-                        <div class="d-flex justify-content-between align-items-center p-3 bg-light">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fa fa-university text-primary"></i>
-                                <strong><?php echo htmlspecialchars($root->name_ar); ?></strong>
-                                <span class="badge bg-secondary">
-                                    <?php
-                                    switch ($root->type) {
-                                        case 'College':  echo 'كلية'; break;
-                                        case 'Branch':   echo 'فرع رئيسي'; break;
-                                        default:         echo $root->type;
-                                    }
-                                    ?>
-                                </span>
-                            </div>
-
-                            <div class="d-flex align-items-center gap-2">
-                                <a href="<?php echo URLROOT; ?>/index.php?page=locations/edit&id=<?php echo $root->id; ?>"
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="fa fa-edit"></i>
-                                </a>
-                                <a href="<?php echo URLROOT; ?>/index.php?page=locations/delete&id=<?php echo $root->id; ?>"
-                                   class="btn btn-sm btn-outline-danger"
-                                   onclick="return confirm('هل أنت متأكد من حذف هذا الموقع وكل المواقع التابعة له (إن وجدت)؟');">
-                                    <i class="fa fa-trash"></i> حذف الكلية
-                                </a>
+                        <!-- نوع المكان -->
+                        <div class="mb-3">
+                            <label class="form-label">نوع المكان</label>
+                            <select name="type" class="form-select">
+                                <option value="College"  <?php echo $type === 'College'  ? 'selected' : ''; ?>>كلية / فرع رئيسي</option>
+                                <option value="Building" <?php echo $type === 'Building' ? 'selected' : ''; ?>>مبنى</option>
+                                <option value="Floor"    <?php echo $type === 'Floor'    ? 'selected' : ''; ?>>طابق</option>
+                                <option value="Lab"      <?php echo $type === 'Lab'      ? 'selected' : ''; ?>>معمل</option>
+                                <option value="Office"   <?php echo $type === 'Office'   ? 'selected' : ''; ?>>مكتب</option>
+                                <option value="Store"    <?php echo $type === 'Store'    ? 'selected' : ''; ?>>مستودع / مخزن</option>
+                            </select>
+                            <div class="form-text">
+                                ابدأ بإضافة الكلية أو الفرع أولاً، ثم أضف المباني التابعة لها، ثم المعامل/المكاتب تحت كل مبنى.
                             </div>
                         </div>
 
-                        <!-- الأبناء المباشرين (مباني / معامل / مكاتب...) -->
-                        <div class="p-3">
+                        <!-- الموقع الأب -->
+                        <div class="mb-3">
+                            <label class="form-label">يتبع لـ (الموقع الأب)</label>
+                            <select name="parent_id" class="form-select">
+                                <option value="">هذا فرع رئيسي (لا يتبع أحد)</option>
+                                <?php foreach ($locations as $loc): ?>
+                                    <option value="<?php echo $loc->id; ?>"
+                                        <?php echo ($parent_id == $loc->id) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($loc->name_ar); ?>
+                                        (<?php echo htmlspecialchars($loc->type); ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">
+                                مثال: اختر الكلية كأب للمبنى، واختر المبنى كأب للمعمل.
+                            </div>
+                        </div>
 
-                            <?php if (empty($children)): ?>
-                                <p class="text-muted mb-0">لا توجد مواقع فرعية.</p>
-                            <?php else: ?>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fa fa-save"></i> حفظ الموقع
+                            </button>
+                        </div>
 
-                                <?php foreach ($children as $child): ?>
-                                    <?php $grandChildren = $byParent[$child->id] ?? []; ?>
+                    </form>
+                </div>
+            </div>
+        </div>
 
-                                    <div class="border rounded p-2 mb-2 ms-3">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <strong><?php echo htmlspecialchars($child->name_ar); ?></strong>
-                                                <span class="badge bg-info text-dark ms-2">
-                                                    <?php
-                                                    switch ($child->type) {
-                                                        case 'Building': echo 'مبنى'; break;
-                                                        case 'Floor':    echo 'طابق'; break;
-                                                        case 'Lab':      echo 'معمل'; break;
-                                                        case 'Office':   echo 'مكتب'; break;
-                                                        case 'Store':    echo 'مستودع'; break;
-                                                        default:         echo $child->type;
+        <!-- عرض الهيكل الحالي -->
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fa fa-layer-group text-primary"></i>
+                        الهيكل الحالي
+                    </h5>
+                </div>
+                <div class="card-body">
+
+                    <?php
+                    // الجذور (كليات / فروع عليا)
+                    $roots = $byParent[0] ?? [];
+
+                    if (empty($roots)) {
+                        echo '<div class="alert alert-info mb-0">';
+                        echo 'لا توجد أي مواقع مضافة حالياً، ابدأ بإضافة الكلية الأولى من النموذج أعلاه.';
+                        echo '</div>';
+                    } else {
+                        foreach ($roots as $root) {
+                            $accordionId = 'locAccordion' . $root->id;
+                            $collapseId  = 'collapse' . $root->id;
+                            $headingId   = 'heading' . $root->id;
+
+                            echo '<div class="accordion mb-3" id="' . $accordionId . '">';
+                            echo '  <div class="accordion-item">';
+                            echo '    <h2 class="accordion-header" id="' . $headingId . '">';
+                            echo '      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"';
+                            echo '              data-bs-target="#' . $collapseId . '" aria-expanded="false" aria-controls="' . $collapseId . '">';
+                            echo            htmlspecialchars($root->name_ar);
+                            echo '        <span class="badge bg-info ms-2">' . htmlspecialchars($root->type) . '</span>';
+                            if (!empty($root->name_en)) {
+                                echo '    <small class="text-muted ms-2">' . htmlspecialchars($root->name_en) . '</small>';
+                            }
+                            echo '      </button>';
+                            echo '    </h2>';
+
+                            echo '    <div id="' . $collapseId . '" class="accordion-collapse collapse" aria-labelledby="' . $headingId . '">';
+                            echo '      <div class="accordion-body">';
+
+                            // أبناء هذا الجذر (مباني، معامل، ... إلخ)
+                            renderLocationTree($root->id, $byParent, 0);
+
+                            echo '      </div>';
+                            echo '    </div>';
+                            echo '  </div>';
+                            echo '</div>';
+                        }
+                    }
+                    ?>
+
+                </div>
+            </div>
+
+            <!-- جدول بسيط بكل المواقع (للبحث السريع) -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fa fa-list"></i> قائمة المواقع الحالية</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0 align-middle text-center">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>#</th>
+                                    <th>الاسم العربي</th>
+                                    <th>الاسم الإنجليزي</th>
+                                    <th>النوع</th>
+                                    <th>الموقع الأب</th>
+                                    <th>تاريخ الإضافة</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($locations)): ?>
+                                    <?php foreach ($locations as $loc): ?>
+                                        <tr>
+                                            <td><?php echo $loc->id; ?></td>
+                                            <td><?php echo htmlspecialchars($loc->name_ar); ?></td>
+                                            <td><?php echo htmlspecialchars($loc->name_en); ?></td>
+                                            <td><?php echo htmlspecialchars($loc->type); ?></td>
+                                            <td>
+                                                <?php
+                                                if ($loc->parent_id && isset($byParent[0])) {
+                                                    // نحاول إيجاد اسم الأب من نفس المصفوفة
+                                                    $parentName = '';
+                                                    foreach ($locations as $p) {
+                                                        if ($p->id == $loc->parent_id) {
+                                                            $parentName = $p->name_ar;
+                                                            break;
+                                                        }
                                                     }
-                                                    ?>
-                                                </span>
-                                            </div>
-
-                                            <div class="d-flex gap-2">
-                                                <a href="<?php echo URLROOT; ?>/index.php?page=locations/edit&id=<?php echo $child->id; ?>"
+                                                    echo $parentName ?: '—';
+                                                } else {
+                                                    echo '—';
+                                                }
+                                                ?>
+                                            </td>
+                                            <td><?php echo $loc->created_at; ?></td>
+                                            <td>
+                                                <a href="<?php echo URLROOT; ?>/index.php?page=locations/edit&id=<?php echo $loc->id; ?>"
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="fa fa-edit"></i>
                                                 </a>
-                                                <a href="<?php echo URLROOT; ?>/index.php?page=locations/delete&id=<?php echo $child->id; ?>"
+                                                <a href="<?php echo URLROOT; ?>/index.php?page=locations/delete&id=<?php echo $loc->id; ?>"
                                                    class="btn btn-sm btn-outline-danger"
                                                    onclick="return confirm('هل أنت متأكد من حذف هذا الموقع؟');">
-                                                    <i class="fa fa-trash"></i> حذف
+                                                    <i class="fa fa-trash"></i>
                                                 </a>
-                                            </div>
-                                        </div>
-
-                                        <?php if (!empty($grandChildren)): ?>
-                                            <ul class="mt-2 mb-0">
-                                                <?php foreach ($grandChildren as $g): ?>
-                                                    <li>
-                                                        <?php echo htmlspecialchars($g->name_ar); ?>
-                                                        <span class="badge bg-light text-muted">
-                                                            <?php echo $g->type; ?>
-                                                        </span>
-                                                        <a href="<?php echo URLROOT; ?>/index.php?page=locations/edit&id=<?php echo $g->id; ?>"
-                                                           class="text-primary ms-2">
-                                                            <i class="fa fa-pen"></i>
-                                                        </a>
-                                                    </li>
-                                                <?php endforeach; ?>
-                                            </ul>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endforeach; ?>
-
-                            <?php endif; ?>
-                        </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="7" class="text-muted py-3">
+                                            لا توجد مواقع مسجلة حتى الآن.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
                     </div>
-                <?php endforeach; ?>
-
-            <?php endif; ?>
+                </div>
+            </div>
 
         </div>
     </div>

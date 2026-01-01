@@ -151,12 +151,21 @@ class UsersController extends Controller {
                     $data['password'] = $user->password; // الحفاظ على الباسورد القديم
                 }
 
-                if ($this->userModel->update($data)) {
-                    flash('user_message', 'تم تحديث البيانات بنجاح');
-                    redirect('index.php?page=users/index');
-                } else {
-                    die('حدث خطأ ما أثناء التحديث');
-                }
+                if($this->userModel->update($data)){
+
+    // ✅ لو كنت تعدّل بياناتك أنت، حدّث الجلسة مباشرة
+            if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $id) {
+                $_SESSION['user_name']  = $data['name'];
+                $_SESSION['user_email'] = $data['email'];
+                $_SESSION['user_role']  = $data['role'];  // أهم شيء الصلاحية
+                     }
+
+    flash('user_message', 'تم تحديث البيانات بنجاح');
+    redirect('index.php?page=users/index');
+            } else {
+                die('حدث خطأ ما');
+            }
+
             } else {
                 $this->view('users/edit', $data);
             }
