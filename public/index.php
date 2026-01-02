@@ -3,8 +3,12 @@
 
 // 1. ملفات الإعداد والجلسة
 $root = dirname(__DIR__);
-require_once $root . '/app/config/config.php';
-require_once $root . '/app/helpers/session_helper.php';
+
+require_once '../app/config/config.php';
+require_once '../app/helpers/session_helper.php';
+require_once '../app/libraries/Controller.php';
+require_once '../app/libraries/Database.php';
+
 
 // 2. تحميل المكتبات الأساسية
 require_once $root . '/app/libraries/Database.php';

@@ -116,5 +116,12 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
 }
 
 
+function requireLogin() {
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: ' . URLROOT . '/users/login');
+        exit;
+    }
+}
+
 
 }
