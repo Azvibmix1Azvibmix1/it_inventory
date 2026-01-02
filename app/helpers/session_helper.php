@@ -48,10 +48,11 @@ function isManager()
     return $role === 'manager' || $role === 'admin';
 }
 
-function isSuperAdmin()
-{
-    return currentRole() === 'superadmin';
+function isSuperAdmin() {
+  $role = currentRole();
+  return $role === 'superadmin' || $role === 'super_admin';
 }
+
 
 /**
  * ✅ تحديث دور المستخدم من قاعدة البيانات لو تغيّر
@@ -117,11 +118,11 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
 
 
 function requireLogin() {
-    if (!isset($_SESSION['user_id'])) {
-        header('Location: ' . URLROOT . '/users/login');
-        exit;
-    }
+  if (!isset($_SESSION['user_id'])) {
+    redirect('index.php?page=login');
+  }
 }
+
 
 
 }
