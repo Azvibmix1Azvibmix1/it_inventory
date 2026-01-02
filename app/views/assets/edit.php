@@ -1,90 +1,181 @@
-<?php require APPROOT . '/views/includes/header.php'; ?>
-<?php require APPROOT . '/views/includes/navbar.php'; ?>
+<?php require_once APPROOT . '/views/layouts/header.php'; ?>
 
-<div class="container fade-in">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-lg my-5 border-0">
-                <div class="card-header bg-warning text-dark text-center py-3">
-                    <h4 class="m-0 fw-bold"><i class="fas fa-edit"></i> تعديل بيانات الأصل</h4>
+<?php
+$locations = $data['locations'] ?? [];
+$users     = $data['users_list'] ?? [];
+
+// بناء مصفوفة id => object
+$locById = [];
+foreach ($locations as $loc) {
+    $locById[$loc->id] = $loc;
+}
+
+if (!function_exists('buildLocationPath')) {
+    function buildLocationPath($loc, $locById) {
+        $parts   = [$loc->name_ar];
+        $current = $loc;
+
+        while (!empty($current->parent_id) && isset($locById[$current->parent_id])) {
+            $current = $locById[$current->parent_id];
+            array_unshift($parts, $current->name_ar);
+        }
+
+        return implode(' › ', $parts);
+    }
+}
+$asset = $data['asset'] ?? null;
+?>
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">
+            <i class="fa fa-edit text-primary"></i>
+            تعديل بيانات الأصل
+            <?php if ($asset): ?>
+                <small class="text-muted">(#<?php echo $asset->id; ?>)</small>
+            <?php endif; ?>
+        </h3>
+        <a href="<?php echo URLROOT; ?>/index.php?page=assets/index" class="btn btn-outline-secondary">
+            <i class="fa fa-arrow-right"></i> عودة لقائمة الأصول
+        </a>
+    </div>
+
+    <?php flash('asset_msg'); ?>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">
+            <i class="fa fa-desktop"></i> معلومات الأصل
+        </div>
+        <div class="card-body">
+
+            <form action="<?php echo URLROOT; ?>/index.php?page=assets/edit&id=<?php echo $data['id']; ?>" method="post">
+
+                <div class="row">
+                    <!-- رقم الأصل -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">رقم الأصل / العهدة</label>
+                        <input type="text"
+                               name="asset_tag"
+                               class="form-control"
+                               value="<?php echo htmlspecialchars($data['asset_tag']); ?>">
+                    </div>
+
+                    <!-- Serial -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">الرقم التسلسلي</label>
+                        <input type="text"
+                               name="serial_no"
+                               class="form-control"
+                               value="<?php echo htmlspecialchars($data['serial_no']); ?>">
+                    </div>
+
+                    <!-- نوع الجهاز -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">نوع الجهاز</label>
+                        <input type="text"
+                               name="type"
+                               class="form-control"
+                               value="<?php echo htmlspecialchars($data['type']); ?>">
+                    </div>
                 </div>
-                <div class="card-body p-4">
-                    <form action="<?php echo URLROOT; ?>/index.php?page=assets/edit&id=<?php echo $data['id']; ?>" method="post">
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">رقم الأصل (Asset Tag)</label>
-                                <input type="text" name="asset_tag" class="form-control" value="<?php echo $data['asset_tag']; ?>">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">الرقم التسلسلي</label>
-                                <input type="text" name="serial_no" class="form-control" value="<?php echo $data['serial_no']; ?>">
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">الماركة</label>
-                                <input type="text" name="brand" class="form-control" value="<?php echo $data['brand']; ?>">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">الموديل</label>
-                                <input type="text" name="model" class="form-control" value="<?php echo $data['model']; ?>">
-                            </div>
-                        </div>
+                <div class="row">
+                    <!-- الماركة -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">الماركة (Brand)</label>
+                        <input type="text"
+                               name="brand"
+                               class="form-control"
+                               value="<?php echo htmlspecialchars($data['brand']); ?>">
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">نوع الجهاز</label>
-                            <select name="type" class="form-select">
-                                <option value="Laptop" <?php echo ($data['type'] == 'Laptop') ? 'selected' : ''; ?>>لابتوب</option>
-                                <option value="Desktop" <?php echo ($data['type'] == 'Desktop') ? 'selected' : ''; ?>>مكتبي</option>
-                                <option value="Monitor" <?php echo ($data['type'] == 'Monitor') ? 'selected' : ''; ?>>شاشة</option>
-                                <option value="Printer" <?php echo ($data['type'] == 'Printer') ? 'selected' : ''; ?>>طابعة</option>
-                                <option value="Accessory" <?php echo ($data['type'] == 'Accessory') ? 'selected' : ''; ?>>ملحقات</option>
-                            </select>
-                        </div>
+                    <!-- الموديل -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">الموديل (Model)</label>
+                        <input type="text"
+                               name="model"
+                               class="form-control"
+                               value="<?php echo htmlspecialchars($data['model']); ?>">
+                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">الموقع</label>
-                            <select name="location_id" class="form-select">
-                                <?php foreach($data['locations'] as $loc): ?>
-                                    <option value="<?php echo $loc->id; ?>" <?php echo ($data['location_id'] == $loc->id) ? 'selected' : ''; ?>>
-                                        <?php echo $loc->name_ar; ?>
+                    <!-- الموقع -->
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">الموقع الحالي</label>
+                        <select name="location_id" class="form-select">
+                            <option value="">اختر موقع الجهاز</option>
+                            <?php if (!empty($locations)): ?>
+                                <?php foreach ($locations as $loc): ?>
+                                    <?php
+                                    $allowedTypes = ['Lab', 'Office', 'Store'];
+                                    if (!in_array($loc->type, $allowedTypes)) continue;
+
+                                    $selected = ((int)$data['location_id'] === (int)$loc->id) ? 'selected' : '';
+                                    $label    = buildLocationPath($loc, $locById) . ' (' . $loc->type . ')';
+                                    ?>
+                                    <option value="<?php echo $loc->id; ?>" <?php echo $selected; ?>>
+                                        <?php echo htmlspecialchars($label); ?>
                                     </option>
                                 <?php endforeach; ?>
-                            </select>
-                        </div>
+                            <?php endif; ?>
+                        </select>
+                    </div>
+                </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold text-success">الموظف المسؤول:</label>
-                            <select name="assigned_to" class="form-select">
-                                <option value="">-- في المخزن --</option>
-                                <?php foreach($data['users_list'] as $user): ?>
-                                    <option value="<?php echo $user->id; ?>" <?php echo ($data['assigned_to'] == $user->id) ? 'selected' : ''; ?>>
-                                        <?php echo $user->name; ?> (<?php echo $user->email; ?>)
+                <hr>
+
+                <div class="row">
+                    <!-- الموظف المستلم -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">الموظف المستلم للعهدة</label>
+                        <select name="assigned_to" class="form-select">
+                            <option value="">بدون تعيين / في المخزن</option>
+                            <?php if (!empty($users)): ?>
+                                <?php foreach ($users as $user): ?>
+                                    <?php
+                                    $userName = $user->name ?? ($user->username ?? $user->email);
+                                    $selected = (!empty($data['assigned_to']) && (int)$data['assigned_to'] === (int)$user->id)
+                                        ? 'selected'
+                                        : '';
+                                    ?>
+                                    <option value="<?php echo $user->id; ?>" <?php echo $selected; ?>>
+                                        <?php echo htmlspecialchars($userName) . ' (' . htmlspecialchars($user->role) . ')'; ?>
                                     </option>
                                 <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">الحالة</label>
-                            <select name="status" class="form-select">
-                                <option value="Active" <?php echo ($data['status'] == 'Active') ? 'selected' : ''; ?>>نشط (Active)</option>
-                                <option value="In Repair" <?php echo ($data['status'] == 'In Repair') ? 'selected' : ''; ?>>في الصيانة (In Repair)</option>
-                                <option value="Retired" <?php echo ($data['status'] == 'Retired') ? 'selected' : ''; ?>>تالف/مكهن (Retired)</option>
-                            </select>
-                        </div>
+                            <?php endif; ?>
+                        </select>
+                    </div>
 
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-warning btn-lg">تحديث البيانات</button>
-                            <a href="<?php echo URLROOT; ?>/index.php?page=assets/index" class="btn btn-light border">إلغاء</a>
-                        </div>
-                    </form>
+                    <!-- الحالة -->
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">حالة الأصل</label>
+                        <select name="status" class="form-select">
+                            <option value="Active"   <?php echo ($data['status'] == 'Active')   ? 'selected' : ''; ?>>نشط (Active)</option>
+                            <option value="Broken"   <?php echo ($data['status'] == 'Broken')   ? 'selected' : ''; ?>>عطلان (Broken)</option>
+                            <option value="Repair"   <?php echo ($data['status'] == 'Repair')   ? 'selected' : ''; ?>>تحت الإصلاح (Repair)</option>
+                            <option value="Retired"  <?php echo ($data['status'] == 'Retired')  ? 'selected' : ''; ?>>رجيع / مستبعد (Retired)</option>
+                            <option value="Lost"     <?php echo ($data['status'] == 'Lost')     ? 'selected' : ''; ?>>مفقود (Lost)</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
+
+                <div class="d-flex justify-content-between mt-3">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa fa-save"></i> حفظ التعديلات
+                    </button>
+
+                    <a href="<?php echo URLROOT; ?>/index.php?page=assets/delete&id=<?php echo $data['id']; ?>"
+                       class="btn btn-outline-danger"
+                       onclick="return confirm('هل أنت متأكد من حذف هذا الأصل؟');">
+                        <i class="fa fa-trash"></i> حذف الأصل
+                    </a>
+                </div>
+
+            </form>
+
         </div>
     </div>
+
 </div>
 
-<?php require APPROOT . '/views/includes/footer.php'; ?>
+<?php require_once APPROOT . '/views/layouts/footer.php'; ?>
