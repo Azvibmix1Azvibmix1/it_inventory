@@ -1,23 +1,16 @@
 <?php
-// public/index.php
+// نقطة البداية (Router)
 
-// 1) Root
+// 1. ملفات الإعداد والجلسة
 $root = dirname(__DIR__);
-
-// 2) Core config + helpers
 require_once $root . '/app/config/config.php';
 require_once $root . '/app/helpers/session_helper.php';
 
-// 3) Libraries
+// 2. تحميل المكتبات الأساسية
 require_once $root . '/app/libraries/Database.php';
 require_once $root . '/app/libraries/Controller.php';
 
-// ✅ تحديث دور المستخدم من قاعدة البيانات (إذا تغير)
-if (function_exists('syncSessionRole')) {
-    syncSessionRole();
-}
-
-// 4) Controllers
+// 3. تحميل المتحكمات
 require_once $root . '/app/controllers/AuthController.php';
 require_once $root . '/app/controllers/DashboardController.php';
 require_once $root . '/app/controllers/AssetsController.php';
@@ -26,8 +19,13 @@ require_once $root . '/app/controllers/LocationsController.php';
 require_once $root . '/app/controllers/UsersController.php';
 require_once $root . '/app/controllers/SparePartsController.php';
 
-// 5) Router
-$page = $_GET['page'] ?? 'dashboard';
+// 4. تحديث صلاحية الدور من قاعدة البيانات لو تغيّرت
+if (function_exists('syncSessionRole')) {
+    syncSessionRole();
+}
+
+// 5. استلام الصفحة المطلوبة
+$page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
 
 switch ($page) {
 
@@ -70,8 +68,7 @@ switch ($page) {
         break;
 
     case 'assets/edit':
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        (new AssetsController())->edit($id);
+        (new AssetsController())->edit();
         break;
 
     case 'assets/delete':
@@ -98,14 +95,12 @@ switch ($page) {
 
     case 'spare_parts/edit':
     case 'SpareParts/edit':
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        (new SparePartsController())->edit($id);
+        (new SparePartsController())->edit();
         break;
 
     case 'spare_parts/delete':
     case 'SpareParts/delete':
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        (new SparePartsController())->delete($id);
+        (new SparePartsController())->delete();
         break;
 
     // --- Tickets ---
@@ -140,8 +135,7 @@ switch ($page) {
         break;
 
     case 'locations/edit':
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        (new LocationsController())->edit($id);
+        (new LocationsController())->edit();
         break;
 
     case 'locations/delete':
@@ -159,8 +153,7 @@ switch ($page) {
         break;
 
     case 'users/edit':
-        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        (new UsersController())->edit($id);
+        (new UsersController())->edit();
         break;
 
     case 'users/delete':
@@ -171,6 +164,7 @@ switch ($page) {
         (new UsersController())->profile();
         break;
 
+    // --- Default ---
     default:
         (new DashboardController())->index();
         break;

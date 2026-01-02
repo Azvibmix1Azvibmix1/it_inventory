@@ -75,4 +75,46 @@ function syncSessionRole()
     } catch (Exception $e) {
         // لو DB فيها مشكلة ما نكسر الموقع
     }
+
+    // ✅ صلاحيات مرنة: تمرير أدوار مسموحة
+// ✅ صلاحيات مرنة: تقبل (roles array) أو (permission string مثل users.manage)
+function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=dashboard')
+{
+    if (!isLoggedIn()) {
+        redirect('index.php?page=login');
+    }
+
+    $role = $_SESSION['user_role'] ?? 'user';
+
+    // 1) لو Array => أدوار مباشرة
+    if (is_array($permissionOrRoles)) {
+        if (!in_array($role, $permissionOrRoles, true)) {
+            flash('access_denied', 'ليس لديك صلاحية للوصول لهذه الصفحة', 'alert alert-danger');
+            redirect($redirectTo);
+        }
+        return;
+    }
+
+    // 2) لو String => Permission key (مبدئيًا)
+    $permission = (string)$permissionOrRoles;
+
+    // خريطة صلاحيات سريعة (نطورها لاحقًا)
+    $map = [
+        'users.manage'     => ['superadmin', 'admin', 'manager'],
+        'locations.manage' => ['superadmin', 'admin'],
+        'assets.manage'    => ['superadmin', 'admin', 'manager'],
+        'spareparts.manage'=> ['superadmin', 'admin', 'manager'],
+        'tickets.manage'   => ['superadmin', 'admin', 'manager'],
+    ];
+
+    $allowed = $map[$permission] ?? ['superadmin']; // افتراضي: سوبر أدمن فقط
+
+    if (!in_array($role, $allowed, true)) {
+        flash('access_denied', 'ليس لديك صلاحية للوصول لهذه الصفحة', 'alert alert-danger');
+        redirect($redirectTo);
+    }
+}
+
+
+
 }

@@ -1,22 +1,40 @@
 <?php
-class Announcement {
+
+class Announcement
+{
     private $db;
-    public function __construct(){ $this->db = new Database; }
-    
-    public function getLatest(){
-        $conn = $this->db->getConnection();
-        $stmt = $conn->query("SELECT * FROM announcements WHERE is_published = 1 ORDER BY created_at DESC LIMIT 5");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    public function __construct()
+    {
+        $this->db = new Database;
     }
-    
-    public function create($title, $body, $uid){
-        $conn = $this->db->getConnection();
-        $sql = "INSERT INTO announcements (title, body, created_by) VALUES (:t, :b, :u)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindValue(':t', $title);
-        $stmt->bindValue(':b', $body);
-        $stmt->bindValue(':u', $uid);
-        return $stmt->execute();
+
+    // جلب آخر الإعلانات
+    public function getLatest()
+    {
+        $this->db->query("
+            SELECT *
+            FROM announcements
+            WHERE is_published = 1
+            ORDER BY created_at DESC
+            LIMIT 5
+        ");
+
+        return $this->db->resultSet();
+    }
+
+    // إضافة إعلان جديد
+    public function create($title, $body, $user_id)
+    {
+        $this->db->query("
+            INSERT INTO announcements (title, body, created_by)
+            VALUES (:title, :body, :user_id)
+        ");
+
+        $this->db->bind(':title', $title);
+        $this->db->bind(':body', $body);
+        $this->db->bind(':user_id', $user_id);
+
+        return $this->db->execute();
     }
 }
-?>

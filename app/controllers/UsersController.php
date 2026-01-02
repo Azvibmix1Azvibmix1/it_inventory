@@ -186,14 +186,26 @@ class UsersController extends Controller {
     }
 
     // حذف المستخدم
-    public function delete($id){
-        requirePermission('users.manage', 'dashboard');
-
-        if ($this->userModel->delete($id)) {
-            flash('user_message', 'تم حذف المستخدم بنجاح');
-            redirect('index.php?page=users/index');
-        } else {
-            die('حدث خطأ أثناء الحذف');
-        }
+    public function delete(){
+    if (!isSuperAdmin()) {
+        redirect('index.php?page=dashboard');
+        exit;
     }
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id'])) {
+        redirect('index.php?page=users/index');
+        exit;
+    }
+
+    $id = (int)$_POST['id'];
+
+    if ($this->userModel->delete($id)) {
+        flash('user_message', 'تم حذف المستخدم بنجاح');
+    } else {
+        flash('user_message', 'حدث خطأ أثناء الحذف', 'alert alert-danger');
+    }
+
+    redirect('index.php?page=users/index');
+   }
+    
 }
