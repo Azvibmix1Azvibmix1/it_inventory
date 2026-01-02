@@ -1,17 +1,23 @@
 <?php
 // public/index.php
 
+// 1) Root
 $root = dirname(__DIR__);
 
-// ملفات أساسية
+// 2) Core config + helpers
 require_once $root . '/app/config/config.php';
 require_once $root . '/app/helpers/session_helper.php';
 
-// المكتبات
+// 3) Libraries
 require_once $root . '/app/libraries/Database.php';
 require_once $root . '/app/libraries/Controller.php';
 
-// المتحكمات
+// ✅ تحديث دور المستخدم من قاعدة البيانات (إذا تغير)
+if (function_exists('syncSessionRole')) {
+    syncSessionRole();
+}
+
+// 4) Controllers
 require_once $root . '/app/controllers/AuthController.php';
 require_once $root . '/app/controllers/DashboardController.php';
 require_once $root . '/app/controllers/AssetsController.php';
@@ -20,14 +26,15 @@ require_once $root . '/app/controllers/LocationsController.php';
 require_once $root . '/app/controllers/UsersController.php';
 require_once $root . '/app/controllers/SparePartsController.php';
 
-$url = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
+// 5) Router
+$page = $_GET['page'] ?? 'dashboard';
 
-switch ($url) {
+switch ($page) {
 
     // --- Auth ---
     case 'login':
-    case 'users/login':
     case 'auth/login':
+    case 'users/login':
         (new AuthController())->login();
         break;
 
@@ -79,55 +86,47 @@ switch ($url) {
     // --- Spare Parts ---
     case 'spare_parts':
     case 'spareparts':
-    case 'SpareParts/index':
     case 'spare_parts/index':
+    case 'SpareParts/index':
         (new SparePartsController())->index();
         break;
 
-    case 'SpareParts/add':
     case 'spare_parts/add':
+    case 'SpareParts/add':
         (new SparePartsController())->add();
         break;
 
-    case 'SpareParts/edit':
     case 'spare_parts/edit':
+    case 'SpareParts/edit':
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         (new SparePartsController())->edit($id);
         break;
 
-    case 'SpareParts/delete':
     case 'spare_parts/delete':
+    case 'SpareParts/delete':
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         (new SparePartsController())->delete($id);
         break;
 
     // --- Tickets ---
     case 'tickets':
-    case 'Tickets/index':
     case 'tickets/index':
+    case 'Tickets/index':
         (new TicketsController())->index();
         break;
 
-    case 'Tickets/add':
     case 'tickets/add':
+    case 'Tickets/add':
         (new TicketsController())->add();
         break;
 
-    case 'Tickets/show':
     case 'tickets/show':
+    case 'Tickets/show':
         (new TicketsController())->show();
         break;
 
     case 'tickets/update_status':
         (new TicketsController())->update_status();
-        break;
-
-    case 'tickets/escalate':
-        (new TicketsController())->escalate();
-        break;
-
-    case 'tickets/upload':
-        (new TicketsController())->upload();
         break;
 
     // --- Locations ---
@@ -168,13 +167,10 @@ switch ($url) {
         (new UsersController())->delete();
         break;
 
-
     case 'users/profile':
-    $users = new UsersController();
-    $users->profile();
-    break;
-    
-    // --- Default ---
+        (new UsersController())->profile();
+        break;
+
     default:
         (new DashboardController())->index();
         break;
