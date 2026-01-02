@@ -21,6 +21,9 @@ function flash($name, $message = '', $class = 'alert alert-success')
   }
 }
 
+/**
+ * Redirect helper
+ */
 function redirect($location)
 {
   header('Location: ' . $location);
@@ -52,10 +55,11 @@ function normalizeRole($role)
   return $role;
 }
 
-function currentRole()
-{
-  return normalizeRole($_SESSION['user_role'] ?? 'user');
+function currentRole() {
+  $r = $_SESSION['user_role'] ?? 'user';
+  return ($r === 'super_admin') ? 'superadmin' : $r;
 }
+
 
 function isUser()
 {
@@ -70,16 +74,17 @@ function isManager()
 
 function isSuperAdmin()
 {
-  $role = currentRole();
-  return ($role === 'superadmin');
+  return currentRole() === 'superadmin';
 }
 
 /**
- * ✅ تحديث الدور من قاعدة البيانات لو تغيّر (بدون logout/login)
+ * ✅ تحديث دور المستخدم من قاعدة البيانات لو تغيّر
+ * مهم: لا ننفّذه إلا إذا Database محمّل
  */
 function syncSessionRole()
 {
   if (!isLoggedIn()) return;
+  if (!class_exists('Database')) return;
 
   try {
     $db = new Database();
@@ -99,11 +104,11 @@ function syncSessionRole()
 }
 
 /**
- * ✅ صلاحيات عامة مرنة:
- * - تمرير Array: requirePermission(['admin','manager'])
- * - تمرير Permission string: requirePermission('locations.edit')
+ * ✅ صلاحيات عامة:
+ * - تمرير Array أدوار: requirePermission(['admin','manager'])
+ * - تمرير Permission key: requirePermission('locations.edit')
  */
-function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=dashboard')
+function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=dashboard/index')
 {
   requireLogin();
   syncSessionRole();
@@ -127,18 +132,18 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
     // Users
     'users.manage' => ['superadmin', 'admin', 'manager'],
 
-    // Assets
-    'assets.manage' => ['superadmin', 'admin', 'manager'],
-    'assets.assign' => ['superadmin', 'admin', 'manager'],
-    'assets.edit'   => ['superadmin', 'admin', 'manager'],
-    'assets.delete' => ['superadmin', 'admin'],
-
     // Locations (عام)
     'locations.view'   => ['superadmin', 'admin', 'manager', 'user'],
     'locations.add'    => ['superadmin', 'admin', 'manager'],
     'locations.edit'   => ['superadmin', 'admin', 'manager'],
     'locations.delete' => ['superadmin', 'admin'],
     'locations.manage' => ['superadmin', 'admin'],
+
+    // Assets
+    'assets.manage' => ['superadmin', 'admin', 'manager'],
+    'assets.assign' => ['superadmin', 'admin', 'manager'],
+    'assets.edit'   => ['superadmin', 'admin', 'manager'],
+    'assets.delete' => ['superadmin', 'admin'],
 
     // Spare parts
     'spareparts.manage' => ['superadmin', 'admin', 'manager'],
@@ -147,8 +152,7 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
     'tickets.manage' => ['superadmin', 'admin', 'manager'],
   ];
 
-  $allowed = $map[$permission] ?? ['superadmin']; // افتراضي: سوبر أدمن فقط
-
+  $allowed = $map[$permission] ?? ['superadmin'];
   $allowed = array_map('normalizeRole', $allowed);
 
   if (!in_array($role, $allowed, true)) {
@@ -161,9 +165,7 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
  * ===========================
  * ✅ صلاحيات على مستوى "الموقع"
  * ===========================
- *
- * تعتمد على جدول:
- * locations_permissions (location_id, role/user_id, can_manage, can_add_children, can_edit, can_delete)
+ * تعتمد على جدول locations_permissions
  */
 function canManageLocation($locationId, $action = 'manage')
 {
@@ -176,6 +178,11 @@ function canManageLocation($locationId, $action = 'manage')
 
   $locationId = (int)$locationId;
   if ($locationId <= 0) return false;
+
+  // إذا Database غير محمّل: لا نكسر الصفحة، نخلي admin/manager فقط
+  if (!class_exists('Database')) {
+    return ($role === 'admin' || $role === 'manager');
+  }
 
   try {
     $db = new Database();
@@ -190,13 +197,13 @@ function canManageLocation($locationId, $action = 'manage')
     $u = $db->single();
 
     if ($u) {
-      return match ($action) {
-        'manage' => (bool)$u->can_manage,
-        'add'    => (bool)$u->can_add_children,
-        'edit'   => (bool)$u->can_edit,
-        'delete' => (bool)$u->can_delete,
-        default  => (bool)$u->can_manage,
-      };
+      switch ($action) {
+        case 'add':    return (bool)$u->can_add_children;
+        case 'edit':   return (bool)$u->can_edit;
+        case 'delete': return (bool)$u->can_delete;
+        case 'manage':
+        default:       return (bool)$u->can_manage;
+      }
     }
 
     // 2) صلاحية حسب الدور
@@ -209,20 +216,19 @@ function canManageLocation($locationId, $action = 'manage')
     $r = $db->single();
 
     if ($r) {
-      return match ($action) {
-        'manage' => (bool)$r->can_manage,
-        'add'    => (bool)$r->can_add_children,
-        'edit'   => (bool)$r->can_edit,
-        'delete' => (bool)$r->can_delete,
-        default  => (bool)$r->can_manage,
-      };
+      switch ($action) {
+        case 'add':    return (bool)$r->can_add_children;
+        case 'edit':   return (bool)$r->can_edit;
+        case 'delete': return (bool)$r->can_delete;
+        case 'manage':
+        default:       return (bool)$r->can_manage;
+      }
     }
 
-    // افتراضي: المدير/الأدمن مسموح لهم إذا ما فيه إعدادات
+    // افتراضي: admin/manager مسموح لهم إذا ما فيه إعدادات
     return ($role === 'admin' || $role === 'manager');
 
   } catch (Exception $e) {
-    // لو DB فيها مشكلة: نخلي الأدمن/المدير فقط
     return ($role === 'admin' || $role === 'manager');
   }
 }

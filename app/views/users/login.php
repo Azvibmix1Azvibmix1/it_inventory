@@ -1,4 +1,5 @@
 <?php require_once APPROOT . '/views/layouts/header.php'; ?>
+<?php require APPROOT . '/views/auth/login.php'; ?>
 
 <div class="row justify-content-center">
     <div class="col-md-6">
