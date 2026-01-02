@@ -123,6 +123,76 @@ function requireLogin() {
   }
 }
 
+function canManageLocation($locationId, $action = 'manage') {
+  if (!isLoggedIn()) return false;
+
+  $role = currentRole();
+  if ($role === 'superadmin' || $role === 'super_admin') return true; // سوبر أدمن دائمًا
+
+  $locationId = (int)$locationId;
+  if ($locationId <= 0) return false;
+
+  // admin: يقدر يشوف كل المواقع، لكن نخلّيه يخضع للـ permissions لو تبغى
+  // إذا تبغاه دائمًا = فك التعليق:
+  // if ($role === 'admin') return true;
+
+  try {
+    $db = new Database();
+
+    // 1) صلاحية مباشرة للمستخدم
+    $db->query("SELECT can_manage, can_add_children, can_edit, can_delete
+                FROM locations_permissions
+                WHERE location_id = :loc AND user_id = :uid
+                LIMIT 1");
+    $db->bind(':loc', $locationId);
+    $db->bind(':uid', (int)$_SESSION['user_id']);
+    $u = $db->single();
+
+    if ($u) {
+      return match ($action) {
+        'manage' => (bool)$u->can_manage,
+        'add'    => (bool)$u->can_add_children,
+        'edit'   => (bool)$u->can_edit,
+        'delete' => (bool)$u->can_delete,
+        default  => (bool)$u->can_manage,
+      };
+    }
+
+    // 2) صلاحية حسب الدور
+    $db->query("SELECT can_manage, can_add_children, can_edit, can_delete
+                FROM locations_permissions
+                WHERE location_id = :loc AND role = :role
+                LIMIT 1");
+    $db->bind(':loc', $locationId);
+    $db->bind(':role', $role);
+    $r = $db->single();
+
+    if ($r) {
+      return match ($action) {
+        'manage' => (bool)$r->can_manage,
+        'add'    => (bool)$r->can_add_children,
+        'edit'   => (bool)$r->can_edit,
+        'delete' => (bool)$r->can_delete,
+        default  => (bool)$r->can_manage,
+      };
+    }
+
+    // افتراضي: المدير (manager/admin) مسموح له إداريًا لو ما فيه إعدادات
+    return ($role === 'admin' || $role === 'manager');
+
+  } catch (Exception $e) {
+    // لو DB فيها مشكلة: نخليها سياسة آمنة (deny) أو allow للمدير
+    return ($role === 'admin' || $role === 'manager');
+  }
+}
+
+function requireLocationPermission($locationId, $action = 'manage', $redirectTo = 'index.php?page=locations/index') {
+  requireLogin();
+  if (!canManageLocation($locationId, $action)) {
+    flash('access_denied', 'ليس لديك صلاحية لإدارة هذا الموقع', 'alert alert-danger');
+    redirect($redirectTo);
+  }
+}
 
 
 }

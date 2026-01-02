@@ -1,282 +1,341 @@
-<?php require_once APPROOT . '/views/layouts/header.php'; ?>
+<?php require APPROOT . '/views/inc/header.php'; ?>
 
-<div class="container-fluid mt-4">
+<style>
+  .wrap{ direction: rtl; text-align: right; }
+  .form-row-rtl{ flex-direction: row-reverse; }
+  .card{ border-radius: 12px; }
+  .card-header{ border-top-left-radius:12px; border-top-right-radius:12px; }
+  .hint{ color:#6c757d; font-size:.9rem; }
+  .pill{ border-radius:999px; padding:.15rem .6rem; font-weight:700; font-size:.85rem; }
+  .pill-primary{ background:rgba(13,110,253,.1); border:1px solid rgba(13,110,253,.2); color:#0d6efd; }
+  .pill-dark{ background:rgba(33,37,41,.08); border:1px solid rgba(33,37,41,.15); color:#212529; }
+  .btn-icon{
+    width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;
+    padding:0!important;border-radius:10px!important;
+  }
+  .btn-soft-danger{ background:rgba(220,53,69,.10)!important; border:1px solid rgba(220,53,69,.18)!important; color:#dc3545!important; }
+  .btn-soft-danger:hover{ background:rgba(220,53,69,.16)!important; }
+  .btn-save{ border-radius:10px!important; font-weight:800; padding:.55rem 1.2rem!important; }
+</style>
 
-    <!-- عنوان الصفحة + رجوع -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h3 class="mb-0">
-                <i class="fa fa-sitemap text-primary"></i>
-                تعديل الموقع / الهيكل
-            </h3>
-            <small class="text-muted">
-                عدّل بيانات الكلية / المبنى / المعمل، وحدّد من يملك صلاحية إدارته.
-            </small>
+<?php
+  if (function_exists('flash')) {
+    flash('location_msg');
+    flash('access_denied');
+  }
+
+  $typeLabels = [
+    'College'     => 'كلية / فرع رئيسي',
+    'Building'    => 'مبنى',
+    'Department'  => 'قسم',
+    'Lab'         => 'معمل',
+    'Office'      => 'مكتب',
+    'Other'       => 'أخرى',
+  ];
+
+  $rolePerms = $data['rolePerms'] ?? [];
+  $getRole = function($role, $key) use ($rolePerms) {
+    return !empty($rolePerms[$role][$key]) ? 1 : 0;
+  };
+
+  $userPerms = $data['userPerms'] ?? [];
+  $users = $data['users'] ?? [];
+  $children = $data['children'] ?? [];
+  $audit = $data['audit'] ?? [];
+?>
+
+<div class="container-fluid wrap py-4">
+
+  <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      أنت تعدّل: <strong><?= htmlspecialchars($data['name_ar'] ?? '') ?></strong>
+      <span class="pill pill-primary ms-2"><?= htmlspecialchars($typeLabels[$data['type']] ?? $data['type']) ?></span>
+    </div>
+    <a class="btn btn-outline-secondary" href="index.php?page=locations/index">
+      <i class="bi bi-arrow-right"></i> رجوع
+    </a>
+  </div>
+
+  <div class="row g-3">
+    <!-- Left: Permissions -->
+    <div class="col-12 col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white">
+          <i class="bi bi-shield-lock"></i> صلاحيات إدارة هذا الموقع
         </div>
+        <div class="card-body">
+          <div class="hint mb-3">
+            هنا تحدد من يقدر يدير هذا الموقع (إضافة/تعديل/حذف/إضافة مواقع تابعة).
+          </div>
 
-        <div class="text-end">
-            <a href="<?php echo URLROOT; ?>/index.php?page=locations/index" class="btn btn-outline-secondary">
-                <i class="fa fa-arrow-right"></i> رجوع للهيكل
-            </a>
+          <form method="post" action="index.php?page=locations/edit&id=<?= (int)$data['id'] ?>">
+            <input type="hidden" name="save_permissions" value="1">
+
+            <div class="mb-3">
+              <div class="fw-bold mb-2">صلاحيات حسب الدور (Role)</div>
+
+              <?php
+                $rolesUI = [
+                  'admin' => 'Admin',
+                  'manager' => 'Manager',
+                  'user' => 'User/Staff',
+                ];
+                foreach ($rolesUI as $role => $label):
+              ?>
+                <div class="border rounded-3 p-2 mb-2">
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div class="fw-bold"><?= $label ?></div>
+                    <span class="pill pill-dark"><?= $role ?></span>
+                  </div>
+
+                  <div class="row g-2 mt-1">
+                    <div class="col-6">
+                      <label class="form-check">
+                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_manage" <?= $getRole($role,'can_manage') ? 'checked' : '' ?>>
+                        <span class="form-check-label">تحكم كامل</span>
+                      </label>
+                    </div>
+                    <div class="col-6">
+                      <label class="form-check">
+                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_add" <?= $getRole($role,'can_add_children') ? 'checked' : '' ?>>
+                        <span class="form-check-label">إضافة مواقع تابعة</span>
+                      </label>
+                    </div>
+                    <div class="col-6">
+                      <label class="form-check">
+                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_edit" <?= $getRole($role,'can_edit') ? 'checked' : '' ?>>
+                        <span class="form-check-label">تعديل</span>
+                      </label>
+                    </div>
+                    <div class="col-6">
+                      <label class="form-check">
+                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_delete" <?= $getRole($role,'can_delete') ? 'checked' : '' ?>>
+                        <span class="form-check-label">حذف</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              <?php endforeach; ?>
+            </div>
+
+            <hr>
+
+            <div class="mb-2 fw-bold">إضافة/تحديث صلاحية لمستخدم معيّن</div>
+            <div class="row g-2 align-items-end">
+              <div class="col-12">
+                <label class="form-label">اختر المستخدم (اختياري)</label>
+                <select class="form-select" name="target_user_id">
+                  <option value="">— اختر المستخدم —</option>
+                  <?php foreach ($users as $u): ?>
+                    <option value="<?= (int)$u->id ?>">
+                      <?= htmlspecialchars($u->name ?? $u->username ?? $u->email ?? ('User#'.$u->id)) ?>
+                      (<?= htmlspecialchars($u->role ?? '') ?>)
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+
+              <div class="col-6">
+                <label class="form-check">
+                  <input class="form-check-input" type="checkbox" name="user_manage">
+                  <span class="form-check-label">تحكم كامل</span>
+                </label>
+              </div>
+              <div class="col-6">
+                <label class="form-check">
+                  <input class="form-check-input" type="checkbox" name="user_add">
+                  <span class="form-check-label">إضافة مواقع تابعة</span>
+                </label>
+              </div>
+              <div class="col-6">
+                <label class="form-check">
+                  <input class="form-check-input" type="checkbox" name="user_edit">
+                  <span class="form-check-label">تعديل</span>
+                </label>
+              </div>
+              <div class="col-6">
+                <label class="form-check">
+                  <input class="form-check-input" type="checkbox" name="user_delete">
+                  <span class="form-check-label">حذف</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <button class="btn btn-primary btn-save" type="submit">
+                <i class="bi bi-save"></i> حفظ إعدادات الصلاحيات
+              </button>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="fw-bold mb-2">الصلاحيات المضافة يدويًا للمستخدمين</div>
+
+            <?php if (empty($userPerms)): ?>
+              <div class="text-muted">لا توجد صلاحيات مخصصة لمستخدمين حتى الآن.</div>
+            <?php else: ?>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead>
+                    <tr>
+                      <th>المستخدم</th>
+                      <th>Manage</th>
+                      <th>Add</th>
+                      <th>Edit</th>
+                      <th>Delete</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($userPerms as $p): ?>
+                      <tr>
+                        <td>
+                          <div class="fw-bold"><?= htmlspecialchars($p->name ?? '') ?></div>
+                          <div class="text-muted small"><?= htmlspecialchars($p->email ?? $p->username ?? '') ?></div>
+                        </td>
+                        <td><?= (int)$p->can_manage ?></td>
+                        <td><?= (int)$p->can_add_children ?></td>
+                        <td><?= (int)$p->can_edit ?></td>
+                        <td><?= (int)$p->can_delete ?></td>
+                        <td>
+                          <button class="btn btn-soft-danger btn-icon"
+                                  type="submit"
+                                  name="remove_user_id"
+                                  value="<?= (int)$p->user_id ?>"
+                                  title="حذف صلاحية المستخدم">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
+              </div>
+            <?php endif; ?>
+
+          </form>
         </div>
+      </div>
     </div>
 
-    <!-- تنبيه: اسم الموقع -->
-    <div class="alert alert-info d-flex align-items-center">
-        <i class="fa fa-map-marker-alt fa-lg ms-2"></i>
-        <div>
-            أنت تعدّل: 
-            <strong>
-                <?php echo isset($data['location']->name_ar) ? htmlspecialchars($data['location']->name_ar) : 'موقع غير معروف'; ?>
-            </strong>
-            <span class="badge bg-light text-dark border ms-2">
-                نوع: <?php echo isset($data['location']->type) ? htmlspecialchars($data['location']->type) : '--'; ?>
-            </span>
+    <!-- Right: Location Data -->
+    <div class="col-12 col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <i class="bi bi-info-circle"></i> بيانات الموقع
         </div>
+        <div class="card-body">
+          <form method="post" action="index.php?page=locations/edit&id=<?= (int)$data['id'] ?>">
+            <input type="hidden" name="save_location" value="1">
+
+            <div class="row g-3 align-items-end form-row-rtl">
+              <div class="col-12 col-lg-6">
+                <label class="form-label">الاسم (عربي) <span class="text-danger">*</span></label>
+                <input class="form-control" name="name_ar" value="<?= htmlspecialchars($data['name_ar'] ?? '') ?>" required>
+              </div>
+              <div class="col-12 col-lg-6">
+                <label class="form-label">الاسم (إنجليزي) (اختياري)</label>
+                <input class="form-control" name="name_en" value="<?= htmlspecialchars($data['name_en'] ?? '') ?>" placeholder="Ex: IT Building A">
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <label class="form-label">نوع المكان</label>
+                <select class="form-select" name="type">
+                  <?php foreach ($typeLabels as $val => $label): ?>
+                    <option value="<?= htmlspecialchars($val) ?>" <?= (($data['type'] ?? '') === $val) ? 'selected' : '' ?>>
+                      <?= htmlspecialchars($label) ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+
+              <div class="col-12 col-lg-6">
+                <label class="form-label">يتبع لـ (الموقع الأب)</label>
+                <select class="form-select" name="parent_id">
+                  <option value="">— اختر الموقع الأب —</option>
+                  <?php foreach (($data['locations'] ?? []) as $l): ?>
+                    <?php if ((int)$l->id === (int)$data['id']) continue; ?>
+                    <option value="<?= (int)$l->id ?>" <?= ((string)($data['parent_id'] ?? '') === (string)$l->id) ? 'selected' : '' ?>>
+                      <?= htmlspecialchars($l->name_ar ?? ('موقع#'.$l->id)) ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+                <div class="hint mt-1">الكلية هي أعلى مستوى.</div>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <button class="btn btn-success btn-save" type="submit">
+                <i class="bi bi-save"></i> حفظ بيانات الموقع
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Children -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-light">
+          <i class="bi bi-layers"></i> المواقع التابعة لهذا الموقع
+        </div>
+        <div class="card-body">
+          <?php if (empty($children)): ?>
+            <div class="text-muted">لا توجد مواقع تابعة لهذا الموقع حاليًا.</div>
+          <?php else: ?>
+            <div class="list-group">
+              <?php foreach ($children as $c): ?>
+                <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                   href="index.php?page=locations/edit&id=<?= (int)$c->id ?>">
+                  <div>
+                    <div class="fw-bold"><?= htmlspecialchars($c->name_ar ?? '') ?></div>
+                    <div class="text-muted small"><?= htmlspecialchars($typeLabels[$c->type] ?? $c->type) ?></div>
+                  </div>
+                  <i class="bi bi-chevron-left"></i>
+                </a>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+          <div class="hint mt-2">إضافة مواقع تابعة تتم من صفحة المواقع الرئيسية باستخدام زر (+) بجانب الموقع.</div>
+        </div>
+      </div>
+
+      <!-- Audit -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-light">
+          <i class="bi bi-clock-history"></i> سجل آخر التعديلات
+        </div>
+        <div class="card-body">
+          <?php if (empty($audit)): ?>
+            <div class="text-muted">لا يوجد سجل تعديلات حتى الآن.</div>
+          <?php else: ?>
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>الوقت</th>
+                    <th>المستخدم</th>
+                    <th>الإجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($audit as $a): ?>
+                    <tr>
+                      <td><?= htmlspecialchars($a->created_at ?? '') ?></td>
+                      <td><?= htmlspecialchars($a->name ?? '—') ?></td>
+                      <td><?= htmlspecialchars($a->action ?? '') ?></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php endif; ?>
+          <div class="hint">حاليًا يعرض آخر 20 عملية (شكل بسيط).</div>
+        </div>
+      </div>
+
     </div>
+  </div>
 
-    <form action="<?php echo URLROOT; ?>/index.php?page=locations/edit&id=<?php echo $data['location']->id ?? 0; ?>" method="post">
-
-        <div class="row">
-            <!-- 🟦 الكرت 1: بيانات الموقع الأساسية -->
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <span><i class="fa fa-info-circle"></i> بيانات الموقع</span>
-                    </div>
-                    <div class="card-body">
-
-                        <div class="mb-3">
-                            <label class="form-label">الاسم (عربي) <span class="text-danger">*</span></label>
-                            <input type="text"
-                                   name="name_ar"
-                                   class="form-control"
-                                   value="<?php echo htmlspecialchars($data['location']->name_ar ?? ''); ?>"
-                                   placeholder="مثال: مبنى الحاسب، معمل 101">
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">الاسم (إنجليزي) <span class="text-muted">(اختياري)</span></label>
-                            <input type="text"
-                                   name="name_en"
-                                   class="form-control"
-                                   value="<?php echo htmlspecialchars($data['location']->name_en ?? ''); ?>"
-                                   placeholder="Ex: IT Building A">
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">نوع المكان</label>
-                                <select name="type" class="form-select">
-                                    <?php
-                                    $currentType = $data['location']->type ?? 'College';
-                                    $types = [
-                                        'College' => 'كلية / فرع رئيسي',
-                                        'Building' => 'مبنى',
-                                        'Lab' => 'معمل',
-                                        'Office' => 'مكتب',
-                                        'Store' => 'مخزن',
-                                    ];
-                                    foreach($types as $key => $label): ?>
-                                        <option value="<?php echo $key; ?>" <?php echo ($currentType == $key) ? 'selected' : ''; ?>>
-                                            <?php echo $label; ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">يتبع لـ (الموقع الأب)</label>
-                                <select name="parent_id" class="form-select">
-                                    <option value="">الكلية هي أعلى مستوى</option>
-                                    <?php if (!empty($data['parents'])): ?>
-                                        <?php foreach($data['parents'] as $parent): ?>
-                                            <?php if (isset($data['location']->id) && $parent->id == $data['location']->id) continue; ?>
-                                            <option value="<?php echo $parent->id; ?>"
-                                                <?php echo (!empty($data['location']->parent_id) && $data['location']->parent_id == $parent->id) ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($parent->name_ar); ?> 
-                                                (<?php echo htmlspecialchars($parent->type); ?>)
-                                            </option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select>
-                                <div class="form-text">
-                                    مثال: المبنى يتبع الكلية، المعمل يتبع المبنى.
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="text-end mt-2">
-                            <button type="submit" name="save_basic" class="btn btn-success">
-                                <i class="fa fa-save"></i> حفظ بيانات الموقع
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 🟦 الكرت 2: صلاحيات الموقع (للسوبر أدمن) -->
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                        <span><i class="fa fa-user-shield"></i> صلاحيات إدارة هذا الموقع</span>
-                        <span class="badge bg-warning text-dark">
-                            تحكم السوبر أدمن فقط (شكل مبدئي)
-                        </span>
-                    </div>
-                    <div class="card-body">
-
-                        <p class="text-muted small mb-3">
-                            هنا تختار من يحق له إضافة / تعديل المواقع داخل هذه الكلية أو المبنى.
-                            (هذا الجزء واجهة فقط الآن، سنربطه بقاعدة البيانات لاحقاً).
-                        </p>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold mb-2">صلاحيات حسب الدور (Role)</label>
-
-                            <div class="form-check mb-1">
-                                <input class="form-check-input" type="checkbox" name="perm_super_admin"
-                                       id="perm_super_admin" checked>
-                                <label class="form-check-label" for="perm_super_admin">
-                                    السماح للسوبر أدمن بالتحكم الكامل في هذا الموقع
-                                </label>
-                            </div>
-
-                            <div class="form-check mb-1">
-                                <input class="form-check-input" type="checkbox" name="perm_manager"
-                                       id="perm_manager" checked>
-                                <label class="form-check-label" for="perm_manager">
-                                    السماح لمدراء الأقسام بإضافة/تعديل المباني والمعامل التابعة
-                                </label>
-                            </div>
-
-                            <div class="form-check mb-1">
-                                <input class="form-check-input" type="checkbox" name="perm_user"
-                                       id="perm_user">
-                                <label class="form-check-label" for="perm_user">
-                                    السماح للموظف العادي بإضافة معامل / مكاتب في هذا الموقع
-                                </label>
-                            </div>
-                        </div>
-
-                        <hr>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">إضافة صلاحية لمستخدم معيّن</label>
-                            <select name="special_user_id" class="form-select mb-2">
-                                <option value="">-- اختر مستخدم (اختياري) --</option>
-                                <?php if (!empty($data['users'])): ?>
-                                    <?php foreach($data['users'] as $user): ?>
-                                        <option value="<?php echo $user->id; ?>">
-                                            <?php echo htmlspecialchars($user->name ?? $user->email); ?>
-                                            (<?php echo htmlspecialchars($user->role); ?>)
-                                        </option>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </select>
-                            <button type="button" class="btn btn-outline-primary btn-sm">
-                                <i class="fa fa-plus"></i> إضافة صلاحية مخصصة (واجهة فقط الآن)
-                            </button>
-                            <div class="form-text">
-                                لاحقاً سنحفظ هذه الصلاحيات في جدول خاص (locations_permissions مثلاً).
-                            </div>
-                        </div>
-
-                        <div class="text-end mt-3">
-                            <button type="submit" name="save_permissions" class="btn btn-primary">
-                                <i class="fa fa-lock"></i> حفظ إعدادات الصلاحيات
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 🟦 الكرت 3: الأبناء (المواقع التابعة) -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <span>
-                    <i class="fa fa-layer-group text-primary"></i>
-                    المواقع التابعة لهذا الموقع
-                </span>
-                <button type="button" class="btn btn-sm btn-outline-success" disabled>
-                    <i class="fa fa-plus"></i> إضافة فرع / معمل (واجهة فقط الآن)
-                </button>
-            </div>
-            <div class="card-body p-0">
-                <?php if (!empty($data['children'])): ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0 align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>الاسم العربي</th>
-                                    <th>النوع</th>
-                                    <th>يتبع لـ</th>
-                                    <th class="text-center">إجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach($data['children'] as $child): ?>
-                                    <tr>
-                                        <td><?php echo $child->id; ?></td>
-                                        <td><?php echo htmlspecialchars($child->name_ar); ?></td>
-                                        <td>
-                                            <span class="badge bg-secondary">
-                                                <?php echo htmlspecialchars($child->type); ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($data['location']->name_ar ?? '—'); ?></td>
-                                        <td class="text-center">
-                                            <a href="<?php echo URLROOT; ?>/index.php?page=locations/edit&id=<?php echo $child->id; ?>"
-                                               class="btn btn-sm btn-outline-primary">
-                                                <i class="fa fa-edit"></i>
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled>
-                                                <i class="fa fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php else: ?>
-                    <div class="p-4 text-center text-muted">
-                        لا توجد مواقع تابعة لهذا الموقع حالياً.
-                        <br>
-                        <small>لاحقاً نفعّل زر "إضافة فرع" لربطه بقاعدة البيانات.</small>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- 🟦 الكرت 4: سجل التعديلات (Placeholder) -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
-                <i class="fa fa-history text-primary"></i> سجل آخر التعديلات (شكلي فقط الآن)
-            </div>
-            <div class="card-body">
-                <p class="text-muted mb-0">
-                    هنا لاحقاً نعرض:
-                    <ul class="text-muted small">
-                        <li>من عدّل هذا الموقع؟</li>
-                        <li>ما التغييرات (اسم / نوع / صلاحيات)؟</li>
-                        <li>وقت و تاريخ التعديل.</li>
-                    </ul>
-                    حالياً هذا مجرد تصميم لتوضيح الفكرة.
-                </p>
-            </div>
-        </div>
-
-        <!-- زر حفظ شامل تحت الصفحة -->
-        <div class="text-end mb-5">
-            <button type="submit" name="save_all" class="btn btn-success btn-lg">
-                <i class="fa fa-save"></i> حفظ كل التغييرات
-            </button>
-        </div>
-
-    </form>
 </div>
 
-<?php require_once APPROOT . '/views/layouts/footer.php'; ?>
+<?php require APPROOT . '/views/inc/footer.php'; ?>
