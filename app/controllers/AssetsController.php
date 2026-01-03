@@ -25,8 +25,6 @@ class AssetsController extends Controller
       'include_children' => !empty($_GET['include_children']) ? 1 : 0,
     ];
 
-    $role = function_exists('currentRole') ? currentRole() : ($_SESSION['user_role'] ?? 'user');
-
     $locationsAll = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
     [$childrenMap, $parentMap] = $this->buildLocationMaps($locationsAll);
 
@@ -43,8 +41,6 @@ class AssetsController extends Controller
     }
 
     // Dropdown المواقع في الفلتر:
-    // - manager/superadmin: كل المواقع
-    // - user: فقط المواقع المسموحة (مع توابعها)
     $locationsForUser = $locationsAll;
     if (is_array($allowedLocationIds)) {
       $locationsForUser = array_values(array_filter($locationsAll, function ($loc) use ($allowedLocationIds) {
@@ -52,7 +48,7 @@ class AssetsController extends Controller
       }));
     }
 
-    // جلب الأجهزة بكفاءة من DB (الموديل فيه getAssetsFiltered)
+    // جلب الأجهزة بكفاءة
     $assets = method_exists($this->assetModel, 'getAssetsFiltered')
       ? $this->assetModel->getAssetsFiltered($filters, $allowedLocationIds)
       : [];
@@ -65,10 +61,10 @@ class AssetsController extends Controller
     }
 
     $data = [
-      'assets'    => $assets,
-      'locations' => $locationsForUser,
-      'filters'   => $filters,
-      'can_add_asset' => $this->canAddAssetsAnywhere() || $this->userHasAnyAddableLocation($childrenMap),
+      'assets'       => $assets,
+      'locations'    => $locationsForUser,
+      'filters'      => $filters,
+      'can_add_asset'=> $this->canAddAssetsAnywhere() || $this->userHasAnyAddableLocation($childrenMap),
     ];
 
     $this->view('assets/index', $data);
@@ -317,7 +313,7 @@ class AssetsController extends Controller
   }
 
   /* =========================
-   * ✅ طباعة (قائمة + باركود)
+   * ✅ طباعة (قائمة + ملصقات)
    * ========================= */
 
   public function print_list()
@@ -341,7 +337,9 @@ class AssetsController extends Controller
       $filters['location_ids'] = array_values(array_unique(array_merge([(int)$filters['location_id']], $desc)));
     }
 
-    $assets = $this->assetModel->getAssetsFiltered($filters, $allowedLocationIds);
+    $assets = method_exists($this->assetModel, 'getAssetsFiltered')
+      ? $this->assetModel->getAssetsFiltered($filters, $allowedLocationIds)
+      : [];
 
     $data = [
       'assets'  => $assets,
@@ -372,7 +370,9 @@ class AssetsController extends Controller
       $filters['location_ids'] = array_values(array_unique(array_merge([(int)$filters['location_id']], $desc)));
     }
 
-    $assets = $this->assetModel->getAssetsFiltered($filters, $allowedLocationIds);
+    $assets = method_exists($this->assetModel, 'getAssetsFiltered')
+      ? $this->assetModel->getAssetsFiltered($filters, $allowedLocationIds)
+      : [];
 
     $data = [
       'assets'  => $assets,
@@ -575,6 +575,4 @@ class AssetsController extends Controller
     }
     return $out;
   }
-
-  
 }

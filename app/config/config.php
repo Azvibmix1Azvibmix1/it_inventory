@@ -6,7 +6,9 @@ define('DB_PASS', '');
 define('DB_NAME', 'it_inventory');
 
 // مسار التطبيق
-define('APPROOT', dirname(dirname(__FILE__)));
+if (!defined('APPROOT')) {
+  define('APPROOT', dirname(dirname(__FILE__)));
+}
 
 // رابط الموقع (هام: يجب أن ينتهي بـ /public)
 define('URLROOT', 'http://localhost/it_inventory/public');
