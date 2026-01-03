@@ -281,4 +281,13 @@ class Asset
     $this->db->bind(':status', $status);
     return $this->db->execute();
   }
+
+public function assetTagExists(string $tag): bool
+{
+  $this->db->query("SELECT 1 FROM assets WHERE asset_tag = :tag LIMIT 1");
+  $this->db->bind(':tag', $tag);
+  $row = $this->db->single();
+  return !empty($row);
+}
+
 }

@@ -17,8 +17,7 @@ class AssetsController extends Controller
     }
   }
 
-  public function index()
-  {
+  public function index(){
     $filters = [
       'location_id'      => isset($_GET['location_id']) ? (int)$_GET['location_id'] : 0,
       'q'                => trim($_GET['q'] ?? ''),
@@ -593,4 +592,21 @@ class AssetsController extends Controller
     }
     return $out;
   }
+
+  private function generateUniqueAssetTag(): string
+{
+  // مثال: AST-20260103-182112-A1B2
+  for ($i = 0; $i < 10; $i++) {
+    $rand = strtoupper(bin2hex(random_bytes(2))); // 4 chars
+    $tag  = 'AST-' . date('Ymd-His') . '-' . $rand;
+
+    if (!$this->assetModel->assetTagExists($tag)) {
+      return $tag;
+    }
+  }
+
+  // fallback نادر جدًا
+  return 'AST-' . date('Ymd-His') . '-' . strtoupper(bin2hex(random_bytes(3)));
+}
+
 }
