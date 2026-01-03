@@ -89,6 +89,13 @@ switch ($page) {
     case 'assets/my_assets':
         (new AssetsController())->my_assets();
         break;
+    case 'assets/print': 
+        (new AssetsController())->print_list();
+         break;
+
+    case 'assets/labels': 
+        (new AssetsController())->print_labels(); 
+        break;
 
     // --- Spare Parts ---
     case 'spare_parts':
@@ -178,4 +185,7 @@ switch ($page) {
     default:
         (new DashboardController())->index();
         break;
+
+
+        
 }
