@@ -97,7 +97,12 @@
       <div class="table-responsive">
         <table class="table table-striped align-middle mb-0">
           <thead>
+
             <tr>
+              <td>
+  <svg class="barcode" data-tag="<?= htmlspecialchars($tag) ?>"></svg>
+</td>
+
               <th>Tag</th>
               <th>النوع</th>
               <th>الماركة / الموديل</th>
@@ -105,6 +110,7 @@
               <th>الموقع</th>
               <th>الحالة</th>
               <th class="no-print">إجراءات</th>
+              <th>Barcode</th>
             </tr>
           </thead>
           <tbody>
@@ -155,9 +161,13 @@
                         <a class="btn btn-sm btn-outline-warning btn-round" href="index.php?page=assets/edit&id=<?= (int)$a->id ?>">تعديل</a>
                       <?php endif; ?>
                       <?php if ($canDelete): ?>
-                        <a class="btn btn-sm btn-outline-danger btn-round"
-                           onclick="return confirm('هل أنت متأكد من الحذف؟')"
-                           href="index.php?page=assets/delete&id=<?= (int)$a->id ?>">حذف</a>
+                        <form method="post" action="index.php?page=assets/delete"
+      onsubmit="return confirm('هل أنت متأكد من الحذف؟');"
+      style="display:inline-block; margin:0;">
+  <input type="hidden" name="id" value="<?= (int)$a->id ?>">
+  <button type="submit" class="btn btn-sm btn-outline-danger btn-round">حذف</button>
+</form>
+
                       <?php endif; ?>
                     </div>
                   </td>
@@ -174,5 +184,15 @@
     </div>
   </div>
 </div>
+<script src="js/JsBarcode.all.min.js"></script>
+<script>
+  document.querySelectorAll('svg.barcode').forEach(el => {
+    const tag = el.getAttribute('data-tag') || '';
+    if (!tag) return;
+    try {
+      JsBarcode(el, tag, { format: "CODE128", displayValue: false });
+    } catch (e) { console.error(e); }
+  });
+</script>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>
