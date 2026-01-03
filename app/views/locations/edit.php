@@ -42,6 +42,8 @@
   $users = $data['users'] ?? [];
   $children = $data['children'] ?? [];
   $audit = $data['audit'] ?? [];
+
+  $canManage = function_exists('canManageLocation') ? canManageLocation($data['id'], 'manage') : true;
 ?>
 
 <div class="container-fluid wrap py-4">
@@ -49,7 +51,7 @@
   <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2">
     <div>
       أنت تعدّل: <strong><?= htmlspecialchars($data['name_ar'] ?? '') ?></strong>
-      <span class="pill pill-primary ms-2"><?= htmlspecialchars($typeLabels[$data['type']] ?? $data['type']) ?></span>
+      <span class="pill pill-primary ms-2"><?= htmlspecialchars($typeLabels[$data['type']] ?? ($data['type'] ?? '')) ?></span>
     </div>
     <a class="btn btn-outline-secondary" href="index.php?page=locations/index">
       <i class="bi bi-arrow-right"></i> رجوع
@@ -57,163 +59,178 @@
   </div>
 
   <div class="row g-3">
+
     <!-- Left: Permissions -->
     <div class="col-12 col-lg-5">
       <div class="card shadow-sm">
         <div class="card-header bg-dark text-white">
           <i class="bi bi-shield-lock"></i> صلاحيات إدارة هذا الموقع
         </div>
+
         <div class="card-body">
-          <div class="hint mb-3">
-            هنا تحدد من يقدر يدير هذا الموقع (إضافة/تعديل/حذف/إضافة مواقع تابعة).
-          </div>
+          <?php if (!$canManage): ?>
+            <div class="alert alert-warning">
+              ليس لديك صلاحية لإدارة صلاحيات هذا الموقع.
+            </div>
+          <?php else: ?>
+            <div class="hint mb-3">
+              هنا تحدد من يقدر يدير هذا الموقع (إضافة/تعديل/حذف/إضافة مواقع تابعة).
+            </div>
 
-          <form method="post" action="index.php?page=locations/edit&id=<?= (int)$data['id'] ?>">
-            <input type="hidden" name="save_permissions" value="1">
+            <form method="post" action="index.php?page=locations/edit&id=<?= (int)$data['id'] ?>">
+              <input type="hidden" name="save_permissions" value="1">
 
-            <div class="mb-3">
-              <div class="fw-bold mb-2">صلاحيات حسب الدور (Role)</div>
+              <div class="mb-3">
+                <div class="fw-bold mb-2">صلاحيات حسب الدور (Role)</div>
 
-              <?php
-                $rolesUI = [
-                  'admin' => 'Admin',
-                  'manager' => 'Manager',
-                  'user' => 'User/Staff',
-                ];
-                foreach ($rolesUI as $role => $label):
-              ?>
-                <div class="border rounded-3 p-2 mb-2">
-                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div class="fw-bold"><?= $label ?></div>
-                    <span class="pill pill-dark"><?= $role ?></span>
+                <?php
+                  // أدوارك حسب جدول users
+                  $rolesUI = [
+                    'manager' => 'Manager',
+                    'user'    => 'User',
+                  ];
+                  foreach ($rolesUI as $role => $label):
+                ?>
+                  <div class="border rounded-3 p-2 mb-2">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <div class="fw-bold"><?= htmlspecialchars($label) ?></div>
+                      <span class="pill pill-dark"><?= htmlspecialchars($role) ?></span>
+                    </div>
+
+                    <div class="row g-2 mt-1">
+                      <div class="col-6">
+                        <label class="form-check">
+                          <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_manage" <?= $getRole($role,'can_manage') ? 'checked' : '' ?>>
+                          <span class="form-check-label">تحكم كامل</span>
+                        </label>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-check">
+                          <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_add" <?= $getRole($role,'can_add_children') ? 'checked' : '' ?>>
+                          <span class="form-check-label">إضافة مواقع تابعة</span>
+                        </label>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-check">
+                          <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_edit" <?= $getRole($role,'can_edit') ? 'checked' : '' ?>>
+                          <span class="form-check-label">تعديل</span>
+                        </label>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-check">
+                          <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_delete" <?= $getRole($role,'can_delete') ? 'checked' : '' ?>>
+                          <span class="form-check-label">حذف</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
-
-                  <div class="row g-2 mt-1">
-                    <div class="col-6">
-                      <label class="form-check">
-                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_manage" <?= $getRole($role,'can_manage') ? 'checked' : '' ?>>
-                        <span class="form-check-label">تحكم كامل</span>
-                      </label>
-                    </div>
-                    <div class="col-6">
-                      <label class="form-check">
-                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_add" <?= $getRole($role,'can_add_children') ? 'checked' : '' ?>>
-                        <span class="form-check-label">إضافة مواقع تابعة</span>
-                      </label>
-                    </div>
-                    <div class="col-6">
-                      <label class="form-check">
-                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_edit" <?= $getRole($role,'can_edit') ? 'checked' : '' ?>>
-                        <span class="form-check-label">تعديل</span>
-                      </label>
-                    </div>
-                    <div class="col-6">
-                      <label class="form-check">
-                        <input class="form-check-input" type="checkbox" name="role_<?= $role ?>_delete" <?= $getRole($role,'can_delete') ? 'checked' : '' ?>>
-                        <span class="form-check-label">حذف</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              <?php endforeach; ?>
-            </div>
-
-            <hr>
-
-            <div class="mb-2 fw-bold">إضافة/تحديث صلاحية لمستخدم معيّن</div>
-            <div class="row g-2 align-items-end">
-              <div class="col-12">
-                <label class="form-label">اختر المستخدم (اختياري)</label>
-                <select class="form-select" name="target_user_id">
-                  <option value="">— اختر المستخدم —</option>
-                  <?php foreach ($users as $u): ?>
-                    <option value="<?= (int)$u->id ?>">
-                      <?= htmlspecialchars($u->name ?? $u->username ?? $u->email ?? ('User#'.$u->id)) ?>
-                      (<?= htmlspecialchars($u->role ?? '') ?>)
-                    </option>
-                  <?php endforeach; ?>
-                </select>
+                <?php endforeach; ?>
               </div>
 
-              <div class="col-6">
-                <label class="form-check">
-                  <input class="form-check-input" type="checkbox" name="user_manage">
-                  <span class="form-check-label">تحكم كامل</span>
-                </label>
-              </div>
-              <div class="col-6">
-                <label class="form-check">
-                  <input class="form-check-input" type="checkbox" name="user_add">
-                  <span class="form-check-label">إضافة مواقع تابعة</span>
-                </label>
-              </div>
-              <div class="col-6">
-                <label class="form-check">
-                  <input class="form-check-input" type="checkbox" name="user_edit">
-                  <span class="form-check-label">تعديل</span>
-                </label>
-              </div>
-              <div class="col-6">
-                <label class="form-check">
-                  <input class="form-check-input" type="checkbox" name="user_delete">
-                  <span class="form-check-label">حذف</span>
-                </label>
-              </div>
-            </div>
+              <hr>
 
-            <div class="mt-3">
-              <button class="btn btn-primary btn-save" type="submit">
-                <i class="bi bi-save"></i> حفظ إعدادات الصلاحيات
-              </button>
-            </div>
-
-            <hr class="my-3">
-
-            <div class="fw-bold mb-2">الصلاحيات المضافة يدويًا للمستخدمين</div>
-
-            <?php if (empty($userPerms)): ?>
-              <div class="text-muted">لا توجد صلاحيات مخصصة لمستخدمين حتى الآن.</div>
-            <?php else: ?>
-              <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                  <thead>
-                    <tr>
-                      <th>المستخدم</th>
-                      <th>Manage</th>
-                      <th>Add</th>
-                      <th>Edit</th>
-                      <th>Delete</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <?php foreach ($userPerms as $p): ?>
-                      <tr>
-                        <td>
-                          <div class="fw-bold"><?= htmlspecialchars($p->name ?? '') ?></div>
-                          <div class="text-muted small"><?= htmlspecialchars($p->email ?? $p->username ?? '') ?></div>
-                        </td>
-                        <td><?= (int)$p->can_manage ?></td>
-                        <td><?= (int)$p->can_add_children ?></td>
-                        <td><?= (int)$p->can_edit ?></td>
-                        <td><?= (int)$p->can_delete ?></td>
-                        <td>
-                          <button class="btn btn-soft-danger btn-icon"
-                                  type="submit"
-                                  name="remove_user_id"
-                                  value="<?= (int)$p->user_id ?>"
-                                  title="حذف صلاحية المستخدم">
-                            <i class="bi bi-trash"></i>
-                          </button>
-                        </td>
-                      </tr>
+              <div class="mb-2 fw-bold">إضافة/تحديث صلاحية لمستخدم معيّن</div>
+              <div class="row g-2 align-items-end">
+                <div class="col-12">
+                  <label class="form-label">اختر المستخدم (اختياري)</label>
+                  <select class="form-select" name="target_user_id">
+                    <option value="">— اختر المستخدم —</option>
+                    <?php foreach ($users as $u): ?>
+                      <?php
+                        $label = $u->name ?? $u->username ?? $u->email ?? ('User#'.$u->id);
+                        $roleTxt = $u->role ?? '';
+                      ?>
+                      <option value="<?= (int)$u->id ?>">
+                        <?= htmlspecialchars($label) ?> (<?= htmlspecialchars($roleTxt) ?>)
+                      </option>
                     <?php endforeach; ?>
-                  </tbody>
-                </table>
-              </div>
-            <?php endif; ?>
+                  </select>
+                </div>
 
-          </form>
+                <div class="col-6">
+                  <label class="form-check">
+                    <input class="form-check-input" type="checkbox" name="user_manage">
+                    <span class="form-check-label">تحكم كامل</span>
+                  </label>
+                </div>
+                <div class="col-6">
+                  <label class="form-check">
+                    <input class="form-check-input" type="checkbox" name="user_add">
+                    <span class="form-check-label">إضافة مواقع تابعة</span>
+                  </label>
+                </div>
+                <div class="col-6">
+                  <label class="form-check">
+                    <input class="form-check-input" type="checkbox" name="user_edit">
+                    <span class="form-check-label">تعديل</span>
+                  </label>
+                </div>
+                <div class="col-6">
+                  <label class="form-check">
+                    <input class="form-check-input" type="checkbox" name="user_delete">
+                    <span class="form-check-label">حذف</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <button class="btn btn-primary btn-save" type="submit">
+                  <i class="bi bi-save"></i> حفظ إعدادات الصلاحيات
+                </button>
+              </div>
+
+              <hr class="my-3">
+
+              <div class="fw-bold mb-2">الصلاحيات المضافة يدويًا للمستخدمين</div>
+
+              <?php if (empty($userPerms)): ?>
+                <div class="text-muted">لا توجد صلاحيات مخصصة لمستخدمين حتى الآن.</div>
+              <?php else: ?>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle">
+                    <thead>
+                      <tr>
+                        <th>المستخدم</th>
+                        <th>Manage</th>
+                        <th>Add</th>
+                        <th>Edit</th>
+                        <th>Delete</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <?php foreach ($userPerms as $p): ?>
+                        <?php
+                          $name = $p->name ?? $p->username ?? $p->email ?? ('User#'.$p->user_id);
+                          $sub  = $p->email ?? $p->username ?? '';
+                        ?>
+                        <tr>
+                          <td>
+                            <div class="fw-bold"><?= htmlspecialchars($name) ?></div>
+                            <?php if ($sub): ?><div class="text-muted small"><?= htmlspecialchars($sub) ?></div><?php endif; ?>
+                          </td>
+                          <td><?= (int)$p->can_manage ?></td>
+                          <td><?= (int)$p->can_add_children ?></td>
+                          <td><?= (int)$p->can_edit ?></td>
+                          <td><?= (int)$p->can_delete ?></td>
+                          <td>
+                            <button class="btn btn-soft-danger btn-icon"
+                                    type="submit"
+                                    name="remove_user_id"
+                                    value="<?= (int)$p->user_id ?>"
+                                    title="حذف صلاحية المستخدم">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </td>
+                        </tr>
+                      <?php endforeach; ?>
+                    </tbody>
+                  </table>
+                </div>
+              <?php endif; ?>
+
+            </form>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -319,9 +336,12 @@
                 </thead>
                 <tbody>
                   <?php foreach ($audit as $a): ?>
+                    <?php
+                      $who = $a->name ?? $a->user_name ?? $a->username ?? $a->user_username ?? '—';
+                    ?>
                     <tr>
                       <td><?= htmlspecialchars($a->created_at ?? '') ?></td>
-                      <td><?= htmlspecialchars($a->name ?? '—') ?></td>
+                      <td><?= htmlspecialchars($who) ?></td>
                       <td><?= htmlspecialchars($a->action ?? '') ?></td>
                     </tr>
                   <?php endforeach; ?>
@@ -329,7 +349,7 @@
               </table>
             </div>
           <?php endif; ?>
-          <div class="hint">حاليًا يعرض آخر 20 عملية (شكل بسيط).</div>
+          <div class="hint">يعرض آخر 20 عملية.</div>
         </div>
       </div>
 

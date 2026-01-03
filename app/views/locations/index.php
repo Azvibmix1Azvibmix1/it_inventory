@@ -1,16 +1,14 @@
 <?php require APPROOT . '/views/inc/header.php'; ?>
 
 <style>
-  /* ===== RTL + Layout ===== */
-
-.form-row-rtl { flex-direction: row-reverse; }
-
   .org-wrap { direction: rtl; text-align: right; }
   .page-sub { color:#6c757d; }
   .card { border-radius: 12px; }
   .card-header { border-top-left-radius:12px; border-top-right-radius:12px; }
 
-  /* ===== Add link (top right) ===== */
+  /* فقط فورم الإضافة: ترتيب من يمين لليسار */
+  .form-row-rtl { flex-direction: row-reverse; }
+
   .link-add{
     color:#0d6efd;
     font-weight: 800;
@@ -21,7 +19,6 @@
   }
   .link-add:hover{ text-decoration: underline; }
 
-  /* ===== Form styling ===== */
   .form-hint { font-size:.9rem; color:#0d6efd; }
   .btn-save{
     border-radius: 10px !important;
@@ -29,30 +26,15 @@
     font-weight: 800;
   }
 
-  /* ===== Tree styling ===== */
   .tree-box{
     border:1px solid rgba(0,0,0,.08);
     border-radius: 12px;
     overflow:hidden;
     background:#fff;
   }
-  .tree-head{
-    background:#f8f9fa;
-    padding: 14px 16px;
-  }
-  .tree-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    flex-wrap:wrap;
-  }
-  .tree-title{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    font-weight: 800;
-  }
+  .tree-head{ background:#f8f9fa; padding: 14px 16px; }
+  .tree-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .tree-title{ display:flex; align-items:center; gap:10px; font-weight: 800; }
   .type-badge{
     background: rgba(13,110,253,.08);
     color:#0d6efd;
@@ -74,14 +56,12 @@
     gap:6px;
   }
   .tree-body{ padding: 14px 16px; background:#fff; }
-
   .indent{
     padding-right: 22px;
     border-right: 2px solid rgba(13,110,253,.15);
     margin-right: 10px;
   }
 
-  /* ===== Buttons (soft) ===== */
   .btn-icon{
     width: 36px;
     height: 36px;
@@ -119,7 +99,6 @@
   }
   .btn-soft-dark:hover{ background: rgba(33,37,41,.10) !important; }
 
-  /* ===== Floating add button ===== */
   .floating-add{
     position: fixed;
     bottom: 18px;
@@ -135,7 +114,6 @@
 </style>
 
 <?php
-  // فلاش رسائل (إذا موجودة)
   if (function_exists('flash')) {
     flash('location_msg');
     flash('access_denied');
@@ -143,7 +121,6 @@
 
   $locations = $data['locations'] ?? [];
 
-  // Build maps
   $byId = [];
   $children = [];
   foreach ($locations as $l) {
@@ -152,7 +129,6 @@
     $children[$pid][] = $l->id;
   }
 
-  // Types labels
   $typeLabels = [
     'College'     => 'كلية / فرع رئيسي',
     'Building'    => 'مبنى',
@@ -162,7 +138,7 @@
     'Other'       => 'أخرى',
   ];
 
-  // Ordered options for parent select
+  // خيارات الأب مرتبّة
   $orderedIds = [];
   $walk = function($parentId, $depth) use (&$walk, &$children, &$orderedIds) {
     foreach (($children[$parentId] ?? []) as $id) {
@@ -172,10 +148,12 @@
   };
   $walk(0, 0);
 
-  // Node renderer
+  // صلاحية إضافة Root (بدون أب)
+  $role = function_exists('currentRole') ? currentRole() : 'user';
+  $canAddRoot = in_array($role, ['superadmin','manager'], true);
+
   $renderNode = function($id, $depth = 0) use (&$renderNode, &$byId, &$children, $typeLabels) {
     if (!isset($byId[$id])) return;
-
     $loc = $byId[$id];
     $kidIds = $children[$id] ?? [];
     $hasKids = count($kidIds) > 0;
@@ -184,57 +162,56 @@
     $en   = trim($loc->name_en ?? '');
     $type = trim($loc->type ?? 'Other');
     $typeLabel = $typeLabels[$type] ?? $type;
-
     $collapseId = 'locCollapse_' . $loc->id;
-    $kidsCount  = count($kidIds);
 
-    ?>
+    $kidsCount = count($kidIds);
+
+    $canAdd    = function_exists('canManageLocation') ? canManageLocation($loc->id, 'add') : true;
+    $canEdit   = function_exists('canManageLocation') ? canManageLocation($loc->id, 'edit') : true;
+    $canDelete = function_exists('canManageLocation') ? canManageLocation($loc->id, 'delete') : true;
+?>
+
     <div class="<?= $depth > 0 ? 'indent' : '' ?>">
       <div class="tree-box mb-3">
         <div class="tree-head">
           <div class="tree-row">
-            <div class="tree-title">
-              <span class="text-primary"><i class="bi bi-building"></i></span>
-              <span><?= htmlspecialchars($name) ?></span>
-              <span class="type-badge"><?= htmlspecialchars($typeLabel) ?></span>
-              <?php if ($en !== ''): ?>
-                <span class="text-muted" style="font-weight:600;">(<?= htmlspecialchars($en) ?>)</span>
-              <?php endif; ?>
-            </div>
 
+            <!-- الأزرار يمين -->
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <span class="meta-badge" title="عدد المواقع التابعة">
                 <i class="bi bi-diagram-3"></i> <?= (int)$kidsCount ?>
               </span>
 
               <div class="d-flex align-items-center gap-2">
-                <!-- Add child -->
-                <button type="button"
-                        class="btn btn-soft-primary btn-icon"
-                        onclick="prefillParent(<?= (int)$loc->id ?>)"
-                        title="إضافة موقع تابع">
-                  <i class="bi bi-plus-lg"></i>
-                </button>
-
-                <!-- Edit -->
-                <a class="btn btn-soft-warning btn-icon"
-                   href="index.php?page=locations/edit&id=<?= (int)$loc->id ?>"
-                   title="تعديل">
-                  <i class="bi bi-pencil"></i>
-                </a>
-
-                <!-- Delete -->
-                <form class="d-inline"
-                      method="post"
-                      action="index.php?page=locations/delete"
-                      onsubmit="return confirm('متأكد من حذف هذا الموقع؟');">
-                  <input type="hidden" name="id" value="<?= (int)$loc->id ?>">
-                  <button class="btn btn-soft-danger btn-icon" type="submit" title="حذف">
-                    <i class="bi bi-trash"></i>
+                <?php if ($canAdd): ?>
+                  <button type="button"
+                          class="btn btn-soft-primary btn-icon"
+                          onclick="prefillParent(<?= (int)$loc->id ?>)"
+                          title="إضافة موقع تابع">
+                    <i class="bi bi-plus-lg"></i>
                   </button>
-                </form>
+                <?php endif; ?>
 
-                <!-- Collapse -->
+                <?php if ($canEdit): ?>
+                  <a class="btn btn-soft-warning btn-icon"
+                     href="index.php?page=locations/edit&id=<?= (int)$loc->id ?>"
+                     title="تعديل">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                <?php endif; ?>
+
+                <?php if ($canDelete): ?>
+                  <form class="d-inline"
+                        method="post"
+                        action="index.php?page=locations/delete"
+                        onsubmit="return confirm('متأكد من حذف هذا الموقع؟');">
+                    <input type="hidden" name="id" value="<?= (int)$loc->id ?>">
+                    <button class="btn btn-soft-danger btn-icon" type="submit" title="حذف">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                <?php endif; ?>
+
                 <?php if ($hasKids): ?>
                   <button class="btn btn-soft-dark btn-icon"
                           type="button"
@@ -248,6 +225,17 @@
                 <?php endif; ?>
               </div>
             </div>
+
+            <!-- العنوان يسار -->
+            <div class="tree-title">
+              <span class="text-primary"><i class="bi bi-building"></i></span>
+              <span><?= htmlspecialchars($name) ?></span>
+              <span class="type-badge"><?= htmlspecialchars($typeLabel) ?></span>
+              <?php if ($en !== ''): ?>
+                <span class="text-muted" style="font-weight:600;">(<?= htmlspecialchars($en) ?>)</span>
+              <?php endif; ?>
+            </div>
+
           </div>
         </div>
 
@@ -260,9 +248,8 @@
         <?php endif; ?>
       </div>
     </div>
-    <?php
-  };
-?>
+
+<?php }; ?>
 
 <div class="container-fluid org-wrap py-4">
   <div class="mb-3">
@@ -277,7 +264,6 @@
         </div>
       </div>
 
-      <!-- Link like screenshot -->
       <a href="javascript:void(0)" class="link-add" onclick="scrollToForm()">
         <i class="bi bi-plus-circle"></i> إضافة موقع جديد
       </a>
@@ -286,16 +272,17 @@
 
   <!-- Add form -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header bg-white">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
       <div class="fw-bold">إضافة موقع جديد</div>
+      <?php if (!$canAddRoot): ?>
+        <span class="text-muted small">إضافة مستوى أعلى للمدير/السوبر أدمن فقط</span>
+      <?php endif; ?>
     </div>
 
     <div class="card-body">
       <form method="post" action="index.php?page=locations/add" id="locationForm">
         <div class="row g-3 align-items-end form-row-rtl">
 
-
-          <!-- Parent -->
           <div class="col-12 col-lg-3">
             <label class="form-label">يتبع لـ (الموقع الأب)</label>
             <select class="form-select" name="parent_id" id="parentSelect">
@@ -317,7 +304,6 @@
             </div>
           </div>
 
-          <!-- Type -->
           <div class="col-12 col-lg-3">
             <label class="form-label">نوع المكان</label>
             <select class="form-select" name="type" id="typeSelect">
@@ -332,17 +318,12 @@
             </select>
           </div>
 
-          <!-- English -->
           <div class="col-12 col-lg-3">
             <label class="form-label">الاسم (إنجليزي)</label>
-            <input type="text"
-                   class="form-control"
-                   name="name_en"
-                   value="<?= htmlspecialchars($data['name_en'] ?? '') ?>"
-                   placeholder="Optional">
+            <input type="text" class="form-control" name="name_en"
+                   value="<?= htmlspecialchars($data['name_en'] ?? '') ?>" placeholder="Optional">
           </div>
 
-          <!-- Arabic -->
           <div class="col-12 col-lg-3">
             <label class="form-label">الاسم (عربي) <span class="text-danger">*</span></label>
             <input type="text"
@@ -361,6 +342,7 @@
             <i class="bi bi-floppy"></i> حفظ الموقع
           </button>
         </div>
+
       </form>
     </div>
   </div>
@@ -377,7 +359,6 @@
   </div>
 </div>
 
-<!-- Floating add -->
 <div class="floating-add">
   <button class="btn btn-primary" type="button" onclick="scrollToForm()">
     إضافة موقع جديد
@@ -389,13 +370,11 @@
     const el = document.getElementById('locationForm');
     if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
   }
-
   function prefillParent(parentId) {
     scrollToForm();
     const parentSelect = document.getElementById('parentSelect');
     if (parentSelect) parentSelect.value = String(parentId);
   }
-
   function syncParentByType() {
     const typeSel = document.getElementById('typeSelect');
     const parentSel = document.getElementById('parentSelect');
@@ -405,7 +384,6 @@
     parentSel.disabled = isTop;
     if (isTop) parentSel.value = '';
   }
-
   document.addEventListener('DOMContentLoaded', function () {
     syncParentByType();
     const typeSel = document.getElementById('typeSelect');

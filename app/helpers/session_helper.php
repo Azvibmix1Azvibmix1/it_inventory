@@ -233,11 +233,47 @@ function canManageLocation($locationId, $action = 'manage')
   }
 }
 
-function requireLocationPermission($locationId, $action = 'manage', $redirectTo = 'index.php?page=locations/index')
-{
+function requireLocationPermission($locationId, $action = 'manage', $redirectTo = 'index.php?page=locations/index'){
   requireLogin();
   if (!canManageLocation($locationId, $action)) {
     flash('access_denied', 'ليس لديك صلاحية لإدارة هذا الموقع', 'alert alert-danger');
+    redirect($redirectTo);
+  }
+}
+
+function canAccessLocationsModule()
+{
+  if (!isLoggedIn()) return false;
+
+  $role = currentRole();
+  // السوبر أدمن + المانجر دايمًا يشوفون صفحة المواقع
+  if (in_array($role, ['superadmin', 'manager'], true)) return true;
+
+  // user: لازم يكون له صلاحية على أي موقع
+  if (!class_exists('Database')) return false;
+
+  try {
+    $db = new Database();
+    $db->query("
+      SELECT 1
+      FROM locations_permissions
+      WHERE user_id = :uid
+        AND (can_manage=1 OR can_add_children=1 OR can_edit=1 OR can_delete=1)
+      LIMIT 1
+    ");
+    $db->bind(':uid', (int)$_SESSION['user_id']);
+    return (bool)$db->single();
+  } catch (Exception $e) {
+    return false;
+  }
+}
+
+function requireLocationsAccess($redirectTo = 'index.php?page=dashboard/index')
+{
+  requireLogin();
+
+  if (!canAccessLocationsModule()) {
+    flash('access_denied', 'ليس لديك صلاحية لعرض صفحة المواقع', 'alert alert-danger');
     redirect($redirectTo);
   }
 }
