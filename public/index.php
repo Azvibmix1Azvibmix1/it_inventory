@@ -1,208 +1,268 @@
 <?php
 // public/index.php
 
-// ✅ اقرأ config أولاً (هو اللي يعرّف APPROOT عادة)
+declare(strict_types=1);
+
+/**
+ * Front Controller + Simple Router
+ * - Reads config
+ * - Loads helpers
+ * - Autoloads Controllers/Models/Libraries
+ * - Dispatches based on ?page=controller/method
+ */
+
+// -------------------------
+// Basic bootstrap
+// -------------------------
+if (!defined('PUBLICROOT')) {
+  define('PUBLICROOT', __DIR__);
+}
+
+// Try load config first (defines APPROOT/URLROOT/DB_*)
 $cfg = dirname(__DIR__) . '/app/config/config.php';
 if (file_exists($cfg)) {
   require_once $cfg;
+}
+
+// Fallback APPROOT if not defined in config
+if (!defined('APPROOT')) {
+  define('APPROOT', dirname(__DIR__) . '/app');
+}
+
+// Safe error reporting (you can toggle via config if you have ENV/DEBUG)
+if (defined('APP_ENV') && APP_ENV === 'production') {
+  ini_set('display_errors', '0');
+  error_reporting(E_ALL);
 } else {
-  // fallback لو config غير موجود
-  if (!defined('APPROOT')) define('APPROOT', dirname(__DIR__) . '/app');
+  ini_set('display_errors', '1');
+  error_reporting(E_ALL);
 }
 
-// ✅ PUBLICROOT إذا تحتاجه
-if (!defined('PUBLICROOT')) define('PUBLICROOT', __DIR__);
+// -------------------------
+// Helpers (load only if exist)
+// -------------------------
+$helpers = [
+  APPROOT . '/helpers/session_helper.php',
+  APPROOT . '/helpers/url_helper.php',
+  APPROOT . '/helpers/flash_helper.php',
+];
 
-// ✅ session helper
-$sessionHelper = APPROOT . '/helpers/session_helper.php';
-if (file_exists($sessionHelper)) {
-  require_once $sessionHelper;
+foreach ($helpers as $h) {
+  if (file_exists($h)) require_once $h;
 }
 
+// If redirect() not defined, define a minimal one
+if (!function_exists('redirect')) {
+  function redirect(string $path): void {
+    header('Location: ' . $path);
+    exit;
+  }
+}
 
-// ✅ Autoload مرن: يشوف أكثر من مسار محتمل
-spl_autoload_register(function ($class) {
-  $paths = [
+// If flash() not defined, no-op fallback
+if (!function_exists('flash')) {
+  function flash(string $name, string $message = '', string $class = 'alert alert-success'): void {
+    // no-op fallback (project may already define flash in helper)
+  }
+}
+
+// -------------------------
+// Autoloader
+// -------------------------
+spl_autoload_register(function (string $class): void {
+  $candidates = [
     APPROOT . '/controllers/' . $class . '.php',
     APPROOT . '/models/' . $class . '.php',
-
-    // بعض المشاريع تسميها libraries أو core
     APPROOT . '/libraries/' . $class . '.php',
-    APPROOT . '/core/' . $class . '.php',
-
-    // أحياناً Helpers فيها كلاس
-    APPROOT . '/helpers/' . $class . '.php',
   ];
 
-  foreach ($paths as $file) {
+  foreach ($candidates as $file) {
     if (file_exists($file)) {
       require_once $file;
-      
       return;
     }
   }
 });
 
-// ✅ تحديد الصفحة
-$page = isset($_GET['page']) ? trim((string)$_GET['page']) : '';
-$page = $page !== '' ? $page : 'dashboard/index';
-$page = str_replace(['..', '\\'], ['', '/'], $page);
-$page = trim($page, "/ \t\n\r\0\x0B");
+// -------------------------
+// Routing utilities
+// -------------------------
+function normalize_route(string $route): string {
+  $route = urldecode($route);
+  $route = str_replace('\\', '/', $route);
+  $route = trim($route);
+  $route = trim($route, "/ \t\n\r\0\x0B");
 
-// ✅ Router
-switch ($page) {
+  // Collapse multiple slashes
+  $route = preg_replace('#/+#', '/', $route) ?? $route;
 
-  // --- Auth ---
-  case 'login':
-  case 'auth/login':
-  case 'users/login':
-    (new AuthController())->login();
-    break;
+  // Block traversal
+  if (str_contains($route, '..')) {
+    return 'dashboard/index';
+  }
 
-  case 'logout':
-  case 'auth/logout':
-    (new AuthController())->logout();
-    break;
+  return $route === '' ? 'dashboard/index' : $route;
+}
 
-  case 'register':
-  case 'auth/register':
-  case 'users/register':
-    (new AuthController())->register();
-    break;
+function safe_call(object $controller, string $method, string $fallbackRoute, string $missingMessage): void {
+  if (method_exists($controller, $method)) {
+    $controller->$method();
+    return;
+  }
 
-  // --- Dashboard ---
-  case 'dashboard':
-  case 'dashboard/index':
-    (new DashboardController())->index();
-    break;
+  flash('app_msg', $missingMessage, 'alert alert-warning');
+  redirect('index.php?page=' . $fallbackRoute);
+}
 
-  case 'dashboard/announce':
-    (new DashboardController())->add_announcement();
-    break;
+// -------------------------
+// Define routes
+// -------------------------
+$routes = [
+  // Auth
+  'login'          => [AuthController::class, 'login'],
+  'auth/login'     => [AuthController::class, 'login'],
+  'users/login'    => [AuthController::class, 'login'],
 
-  // --- Assets (الأجهزة) ---
-  case 'assets':
-  case 'assets/index':
-    (new AssetsController())->index();
-    break;
+  'logout'         => [AuthController::class, 'logout'],
+  'auth/logout'    => [AuthController::class, 'logout'],
 
-  case 'assets/add':
-    (new AssetsController())->add();
-    break;
+  'register'       => [AuthController::class, 'register'],
+  'auth/register'  => [AuthController::class, 'register'],
+  'users/register' => [AuthController::class, 'register'],
 
-  case 'assets/edit':
-    (new AssetsController())->edit();
-    break;
+  // Dashboard
+  'dashboard'          => [DashboardController::class, 'index'],
+  'dashboard/index'    => [DashboardController::class, 'index'],
+  'dashboard/announce' => [DashboardController::class, 'add_announcement'],
 
-  case 'assets/delete':
-    (new AssetsController())->delete();
-    break;
+  // Assets (الأجهزة)
+  'assets'           => [AssetsController::class, 'index'],
+  'assets/index'     => [AssetsController::class, 'index'],
+  'assets/add'       => [AssetsController::class, 'add'],
+  'assets/edit'      => [AssetsController::class, 'edit'],
+  'assets/delete'    => [AssetsController::class, 'delete'],
+  'assets/my'        => [AssetsController::class, 'my_assets'],
+  'assets/my_assets' => [AssetsController::class, 'my_assets'],
 
-  case 'assets/my':
-  case 'assets/my_assets':
-    (new AssetsController())->my_assets();
-    break;
+  // Locations
+  'locations'        => [LocationsController::class, 'index'],
+  'locations/index'  => [LocationsController::class, 'index'],
+  'locations/add'    => [LocationsController::class, 'add'],
+  'locations/edit'   => [LocationsController::class, 'edit'],
+  'locations/delete' => [LocationsController::class, 'delete'],
 
-  // ✅ طباعة الأجهزة (بدون Fatal لو الميثود غير موجودة)
-  case 'assets/print':
+  // Users
+  'users'         => [UsersController::class, 'index'],
+  'users/index'   => [UsersController::class, 'index'],
+  'users/add'     => [UsersController::class, 'add'],
+  'users/edit'    => [UsersController::class, 'edit'],
+  'users/delete'  => [UsersController::class, 'delete'],
+  'users/profile' => [UsersController::class, 'profile'],
+];
+
+// -------------------------
+// Dispatch
+// -------------------------
+$route = normalize_route((string)($_GET['page'] ?? 'dashboard/index'));
+$routeKey = strtolower($route);
+
+try {
+  // Special routes that need method_exists protection (print/labels)
+  if ($routeKey === 'assets/print') {
     $c = new AssetsController();
-    if (method_exists($c, 'print_list')) {
-      $c->print_list();
-    } else {
-      if (function_exists('flash')) flash('asset_msg', 'ميزة الطباعة غير موجودة داخل AssetsController (print_list).', 'alert alert-warning');
-      if (function_exists('redirect')) redirect('index.php?page=assets/index');
-      else echo 'print_list not found';
-    }
-    break;
+    safe_call(
+      $c,
+      'print_list',
+      'assets/index',
+      'ميزة الطباعة غير موجودة داخل AssetsController (print_list).'
+    );
+    exit;
+  }
 
-  case 'assets/labels':
+  if ($routeKey === 'assets/labels') {
     $c = new AssetsController();
-    if (method_exists($c, 'print_labels')) {
-      $c->print_labels();
+    safe_call(
+      $c,
+      'print_labels',
+      'assets/index',
+      'ميزة الملصقات غير موجودة داخل AssetsController (print_labels).'
+    );
+    exit;
+  }
+
+  // Tickets / Spare Parts (optional controllers)
+  if (in_array($routeKey, ['tickets', 'tickets/index', 'tickets/index'], true)) {
+    if (class_exists('TicketsController')) {
+      (new TicketsController())->index();
     } else {
-      if (function_exists('flash')) flash('asset_msg', 'ميزة الملصقات غير موجودة داخل AssetsController (print_labels).', 'alert alert-warning');
-      if (function_exists('redirect')) redirect('index.php?page=assets/index');
-      else echo 'print_labels not found';
+      (new DashboardController())->index();
     }
-    break;
+    exit;
+  }
 
-  // --- Locations ---
-  case 'locations':
-  case 'locations/index':
-    (new LocationsController())->index();
-    break;
+  if (in_array($routeKey, ['spare_parts', 'spareparts', 'spare_parts/index', 'spareparts/index'], true)) {
+    if (class_exists('SparePartsController')) {
+      (new SparePartsController())->index();
+    } else {
+      (new DashboardController())->index();
+    }
+    exit;
+  }
 
-  case 'locations/add':
-    (new LocationsController())->add();
-    break;
+  if (in_array($routeKey, ['spare_parts/add', 'spareparts/add'], true)) {
+    if (class_exists('SparePartsController')) {
+      (new SparePartsController())->add();
+    } else {
+      (new DashboardController())->index();
+    }
+    exit;
+  }
 
-  case 'locations/edit':
-    (new LocationsController())->edit();
-    break;
+  if (in_array($routeKey, ['spare_parts/edit', 'spareparts/edit'], true)) {
+    if (class_exists('SparePartsController')) {
+      (new SparePartsController())->edit();
+    } else {
+      (new DashboardController())->index();
+    }
+    exit;
+  }
 
-  case 'locations/delete':
-    (new LocationsController())->delete();
-    break;
+  if (in_array($routeKey, ['spare_parts/delete', 'spareparts/delete'], true)) {
+    if (class_exists('SparePartsController')) {
+      (new SparePartsController())->delete();
+    } else {
+      (new DashboardController())->index();
+    }
+    exit;
+  }
 
-  // --- Users ---
-  case 'users':
-  case 'users/index':
-    (new UsersController())->index();
-    break;
+  // Normal routes
+  if (isset($routes[$routeKey])) {
+    [$class, $method] = $routes[$routeKey];
 
-  case 'users/add':
-    (new UsersController())->add();
-    break;
+    if (!class_exists($class)) {
+      throw new RuntimeException("Controller not found: {$class}");
+    }
 
-  case 'users/edit':
-    (new UsersController())->edit();
-    break;
+    $controller = new $class();
 
-  case 'users/delete':
-    (new UsersController())->delete();
-    break;
+    if (!method_exists($controller, $method)) {
+      throw new RuntimeException("Method not found: {$class}::{$method}()");
+    }
 
-  case 'users/profile':
-    (new UsersController())->profile();
-    break;
-
-  // --- Tickets (إذا موجودة) ---
-  case 'tickets':
-  case 'tickets/index':
-  case 'Tickets/index':
-    if (class_exists('TicketsController')) (new TicketsController())->index();
-    else (new DashboardController())->index();
-    break;
-
-  // --- Spare Parts (إذا موجودة) ---
-  case 'spare_parts':
-  case 'spareparts':
-  case 'spare_parts/index':
-  case 'SpareParts/index':
-    if (class_exists('SparePartsController')) (new SparePartsController())->index();
-    else (new DashboardController())->index();
-    break;
-
-  case 'spare_parts/add':
-  case 'SpareParts/add':
-    if (class_exists('SparePartsController')) (new SparePartsController())->add();
-    else (new DashboardController())->index();
-    break;
-
-  case 'spare_parts/edit':
-  case 'SpareParts/edit':
-    if (class_exists('SparePartsController')) (new SparePartsController())->edit();
-    else (new DashboardController())->index();
-    break;
-
-  case 'spare_parts/delete':
-  case 'SpareParts/delete':
-    if (class_exists('SparePartsController')) (new SparePartsController())->delete();
-    else (new DashboardController())->index();
-    break;
-
-  // --- Default ---
-  default:
+    $controller->$method();
+  } else {
+    // Default fallback
     (new DashboardController())->index();
-    break;
+  }
+} catch (Throwable $e) {
+  // Friendly error message (and keep debug info if in dev)
+  if (defined('APP_ENV') && APP_ENV === 'production') {
+    echo "<h3>حدث خطأ غير متوقع</h3>";
+    echo "<p>حاول مرة ثانية أو راجع مدير النظام.</p>";
+  } else {
+    echo "<h3>Router Error</h3>";
+    echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
+    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+  }
 }

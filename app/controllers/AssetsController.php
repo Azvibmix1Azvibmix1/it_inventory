@@ -96,7 +96,20 @@ class AssetsController extends Controller
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-      $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+     $_POST = filter_input_array(INPUT_POST, [
+  'asset_tag' => FILTER_UNSAFE_RAW,
+  'serial_no' => FILTER_UNSAFE_RAW,
+  'brand' => FILTER_UNSAFE_RAW,
+  'model' => FILTER_UNSAFE_RAW,
+  'type' => FILTER_UNSAFE_RAW,
+  'status' => FILTER_UNSAFE_RAW,
+  'purchase_date' => FILTER_UNSAFE_RAW,
+  'warranty_expiry' => FILTER_UNSAFE_RAW,
+  'notes' => FILTER_UNSAFE_RAW,
+  'location_id' => FILTER_VALIDATE_INT,
+  'assigned_to' => FILTER_VALIDATE_INT,
+]);
+
 
       $locationId = !empty($_POST['location_id']) ? (int)$_POST['location_id'] : 0;
 
@@ -112,20 +125,25 @@ class AssetsController extends Controller
       }
 
       $data = [
-        'asset_tag'   => trim($_POST['asset_tag'] ?? ''),
-        'serial_no'   => trim($_POST['serial_no'] ?? ''),
-        'brand'       => trim($_POST['brand'] ?? ''),
-        'model'       => trim($_POST['model'] ?? ''),
-        'type'        => trim($_POST['type'] ?? ''),
-        'location_id' => $locationId > 0 ? $locationId : null,
-        'assigned_to' => $assignedTo > 0 ? $assignedTo : null,
-        'status'      => 'Active',
-        'created_by'  => (int)($_SESSION['user_id'] ?? 0),
+  'asset_tag'       => trim($_POST['asset_tag'] ?? ''),
+  'serial_no'       => trim($_POST['serial_no'] ?? ($_POST['serial'] ?? '')), // دعم أي اسم قديم
+  'brand'           => trim($_POST['brand'] ?? ''),
+  'model'           => trim($_POST['model'] ?? ''),
+  'type'            => trim($_POST['type'] ?? ''),
 
-        'users_list'  => $users_list,
-        'locations'   => $locationsForAdd,
-        'asset_err'   => ''
-      ];
+  'purchase_date'   => !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null,
+  'warranty_expiry' => !empty($_POST['warranty_expiry']) ? $_POST['warranty_expiry'] : null,
+
+  'status'          => $_POST['status'] ?? 'Active',
+  'location_id'     => !empty($_POST['location_id']) ? (int)$_POST['location_id'] : null,
+  'assigned_to'     => !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null,
+
+  'notes'           => isset($_POST['notes']) ? trim($_POST['notes']) : null,
+
+  // الأهم: created_by من السشن
+  'created_by'      => !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null,
+];
+
 
       if (empty($data['asset_tag']) || empty($data['type']) || empty($locationId)) {
         $data['asset_err'] = 'الرجاء تعبئة الحقول الأساسية (التاق/النوع/الموقع)';
