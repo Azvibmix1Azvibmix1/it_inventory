@@ -651,5 +651,44 @@ class AssetsController extends Controller
   return 'AST-' . date('Ymd-His') . '-' . strtoupper(bin2hex(random_bytes(3)));
 }
 
+public function show()
+{
+  $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+  if ($id <= 0) {
+    flash('asset_msg', 'معرّف الجهاز غير صحيح', 'alert alert-danger');
+    redirect('index.php?page=assets/index');
+    return;
+  }
+
+  // جلب الجهاز
+  if (!method_exists($this->assetModel, 'getById')) {
+    die('Asset model missing getById()');
+  }
+  $asset = $this->assetModel->getById($id);
+
+  if (!$asset) {
+    flash('asset_msg', 'الجهاز غير موجود', 'alert alert-danger');
+    redirect('index.php?page=assets/index');
+    return;
+  }
+
+  // جلب اسم الموقع
+  $locationName = '';
+  if (!empty($asset->location_name)) {
+    $locationName = $asset->location_name;
+  } elseif (!empty($asset->location_id) && method_exists($this->locationModel, 'getById')) {
+    $loc = $this->locationModel->getById((int)$asset->location_id);
+    $locationName = $loc->name_ar ?? ('موقع #' . (int)$asset->location_id);
+  } else {
+    $locationName = '—';
+  }
+
+  $data = [
+    'asset' => $asset,
+    'location_name' => $locationName,
+  ];
+
+  $this->view('assets/show', $data);
+}
 
 }

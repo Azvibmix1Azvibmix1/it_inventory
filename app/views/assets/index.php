@@ -1,19 +1,92 @@
 <?php require APPROOT . '/views/inc/header.php'; ?>
 
 <style>
-
   .no-print { display: inline-block; }
-  .barcode-cell svg { max-width: 220px; height: 48px; }
+
+  .assets-table { table-layout: fixed; width: 100%; }
+  .assets-table th, .assets-table td { vertical-align: middle; }
+  .assets-table th { white-space: nowrap; }
+  .assets-table td { overflow: hidden; text-overflow: ellipsis; }
+
+  /* أحجام الأعمدة */
+  .col-actions { width: 140px; }
+  .col-status  { width: 90px; }
+  .col-loc     { width: 140px; }
+  .col-serial  { width: 160px; }
+  .col-brand   { width: 190px; }
+  .col-type    { width: 120px; }
+  .col-tag     { width: 280px; font-weight: 700; }
+
+  /* QR */
+  .col-qr { width: 90px; text-align: center; }
+  .qr { width: 64px; height: 64px; margin: 0 auto; }
+  .qr img, .qr canvas { width: 64px !important; height: 64px !important; display:block; margin:0 auto; }
+
+  /* إجراءات مرتبة */
+  .actions-wrap { display: flex; gap: 6px; justify-content: flex-start; align-items: center; }
+  .actions-wrap form { margin: 0; }
+
+  /* خلّي التاغ ينكسر سطرين بدل ما يخرب الصف */
+  .tag-wrap { white-space: normal; line-height: 1.2; }
+
+  /* خط فاصل خفيف */
+  .assets-table tbody tr { border-bottom: 1px solid rgba(0,0,0,.06); }
+
+  /* ✅ توحيد خلفية كل الخلايا (حل مشكلة عمود الإجراءات/الـ QR اللي يطلع كأنه منفصل) */
+  .assets-table tbody tr > td,
+  .assets-table tbody tr > th {
+    background-color: inherit !important;
+  }
+
+  /* ✅ طبّق الـ striped على كل الخلايا فعليًا (مش بس بعض الأعمدة) */
+  .assets-table.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(0,0,0,.03) !important;
+  }
+  .assets-table.table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: transparent !important;
+  }
+
+  /* ✅ امنع العناصر داخل الخلايا من عمل خلفية مختلفة */
+  .assets-table .actions-wrap,
+  .assets-table .actions-wrap a,
+  .assets-table .actions-wrap button,
+  .assets-table .qr,
+  .assets-table .qr img,
+  .assets-table .qr canvas {
+    background-color: transparent !important;
+  }
+
+  /* طباعة */
   @media print {
     .no-print, .no-print * { display: none !important; }
-    .table { font-size: 12px; }
-    .barcode-cell svg { max-width: 260px; height: 56px; }
+    .assets-table { font-size: 12px; }
+    .qr { width: 80px; height: 80px; }
+    .qr img, .qr canvas { width: 80px !important; height: 80px !important; }
   }
-  .qr-cell { width: 110px; }
-.qr { width: 90px; height: 90px; margin: 0 auto; }
-.qr img, .qr canvas { width: 90px !important; height: 90px !important; }
+
+
+  /* ✅ Stripes من الجذور (بدون Bootstrap) */
+.assets-table tbody tr.row-odd > td,
+.assets-table tbody tr.row-odd > th {
+  background: rgba(0,0,0,.04) !important;
+}
+
+.assets-table tbody tr.row-even > td,
+.assets-table tbody tr.row-even > th {
+  background: #fff !important;
+}
+
+/* حتى العناصر داخل الإجراءات/QR ما تغطي الخلفية */
+.assets-table td, .assets-table th { background-clip: padding-box; }
+.assets-table .actions-wrap,
+.assets-table .actions-wrap * ,
+.assets-table .qr,
+.assets-table .qr * {
+  background: transparent !important;
+}
 
 </style>
+
 
 <?php
   $assets = $data['assets'] ?? [];
@@ -28,6 +101,11 @@
 
   $role = function_exists('currentRole') ? currentRole() : ($_SESSION['user_role'] ?? 'user');
   $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
+
+  // base path لبناء روابط كاملة (عشان الجوال يفتحها)
+  $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+  $basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+  $baseUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $basePath;
 ?>
 
 <div class="container-fluid py-3" dir="rtl">
@@ -98,20 +176,21 @@
   <div class="card">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-striped align-middle mb-0">
-          <thead>
-  <tr>
-    <th>إجراءات</th>
-    <th>الحالة</th>
-    <th>الموقع</th>
-    <th>Serial</th>
-    <th>الماركة / الموديل</th>
-    <th>النوع</th>
-    <th>Tag</th>
-    <th>QR</th>
-  </tr>
-</thead>
+          <table class="table table-hover table-sm align-middle mb-0 assets-table">
+          <thead class="table-light">
+            <tr>
+             <tr>
+  <th class="col-actions">إجراءات</th>
+  <th class="col-status">الحالة</th>
+  <th class="col-loc">الموقع</th>
+  <th class="col-serial">Serial</th>
+  <th class="col-brand">الماركة / الموديل</th>
+  <th class="col-type">النوع</th>
+  <th class="col-tag">Tag</th>
+  <th class="col-qr">QR</th>
+</tr>
 
+          </thead>
 
           <tbody>
             <?php if (empty($assets)): ?>
@@ -119,12 +198,14 @@
                 <td colspan="8" class="text-center text-muted p-4">لا توجد أجهزة مطابقة للفلاتر الحالية.</td>
               </tr>
             <?php else: ?>
-              <?php foreach ($assets as $a): ?>
+              <?php foreach ($assets as $idx => $a): ?>
+              <tr class="<?= ($idx % 2 === 0) ? 'row-even' : 'row-odd' ?>">
+
                 <?php
                   $id = (int)($a->id ?? 0);
                   $locId = (int)($a->location_id ?? 0);
 
-                  $tag = (string)($a->asset_tag ?? '');
+                  $tag = trim((string)($a->asset_tag ?? ''));
                   $type = (string)($a->type ?? '');
                   $brandModel = trim(($a->brand ?? '') . ' - ' . ($a->model ?? ''));
                   $serial = (string)($a->serial_no ?? '');
@@ -143,44 +224,51 @@
                   $canDelete = function_exists('canManageLocation')
                     ? (canManageLocation($locId, 'delete') || canManageLocation($locId, 'manage'))
                     : true;
+
+                  // ✅ QR يفتح رابط فلترة الأجهزة بالتاغ (مضمون موجود)
+                  $qrUrl = $baseUrl . '/index.php?page=assets/show&id=' . $id;
+
                 ?>
 
                 <tr>
-  <td class="no-print">
-    <div class="d-flex gap-2 flex-wrap">
-      <?php if ($canEdit): ?>
-        <a class="btn btn-sm btn-outline-warning btn-round" href="index.php?page=assets/edit&id=<?= (int)$a->id ?>">تعديل</a>
-      <?php endif; ?>
+                  <td class="no-print col-actions">
+                    <div class="actions-wrap">
+                      <?php if ($canEdit): ?>
+                        <a class="btn btn-sm btn-outline-warning" href="index.php?page=assets/edit&id=<?= $id ?>">تعديل</a>
+                      <?php endif; ?>
 
-      <?php if ($canDelete): ?>
-        <form method="post" action="index.php?page=assets/delete"
-              onsubmit="return confirm('هل أنت متأكد من الحذف؟');"
-              style="display:inline-block; margin:0;">
-          <input type="hidden" name="id" value="<?= (int)$a->id ?>">
-          <button type="submit" class="btn btn-sm btn-outline-danger btn-round">حذف</button>
-        </form>
-      <?php endif; ?>
-    </div>
-  </td>
+                      <?php if ($canDelete): ?>
+                        <form method="post" action="index.php?page=assets/delete"
+                              onsubmit="return confirm('هل أنت متأكد من الحذف؟');">
+                          <input type="hidden" name="id" value="<?= $id ?>">
+                          <button type="submit" class="btn btn-sm btn-outline-danger">حذف</button>
+                        </form>
+                      <?php endif; ?>
+                    </div>
+                  </td>
 
-  <td>
-    <span class="badge bg-<?= (($a->status ?? 'Active') === 'Active') ? 'success' : 'secondary' ?>">
-      <?= htmlspecialchars($a->status ?? 'Active') ?>
-    </span>
-  </td>
+                  <td>
+                    <span class="badge bg-<?= ($status === 'Active') ? 'success' : 'secondary' ?>">
+                      <?= htmlspecialchars($status) ?>
+                    </span>
+                  </td>
 
-  <td><?= htmlspecialchars($locationName) ?></td>
-  <td><?= htmlspecialchars($a->serial_no ?? '') ?></td>
-  <td><?= htmlspecialchars(trim(($a->brand ?? '').' - '.($a->model ?? '')) ?: '-') ?></td>
-  <td><?= htmlspecialchars($a->type ?? '') ?></td>
-  <td class="fw-bold"><?= htmlspecialchars($a->asset_tag ?? '') ?></td>
+                  <td><?= htmlspecialchars($locationName) ?></td>
 
-  <!-- QR آخر عمود (يسار) -->
-  <td class="qr-cell">
-    <div class="qr" data-text="<?= htmlspecialchars($a->asset_tag ?? '') ?>"></div>
-  </td>
-</tr>
+                  <td class="d-none d-lg-table-cell"><?= htmlspecialchars($serial) ?></td>
 
+                  <td class="d-none d-md-table-cell">
+                    <?= htmlspecialchars($brandModel !== '' ? $brandModel : '-') ?>
+                  </td>
+
+                  <td><?= htmlspecialchars($type) ?></td>
+
+                  <td class="fw-bold col-tag"><?= htmlspecialchars($tag) ?></td>
+
+                  <td class="col-qr">
+                    <div class="qr" data-text="<?= htmlspecialchars($qrUrl) ?>" title="<?= htmlspecialchars($qrUrl) ?>"></div>
+                  </td>
+                </tr>
 
               <?php endforeach; ?>
             <?php endif; ?>
@@ -189,49 +277,23 @@
       </div>
 
       <div class="p-3 text-muted small">
-        ملاحظة: “طباعة القائمة” تطبع النتائج الحالية. (نقدر نضيف صفحة ملصقات باركود للطباعة لاحقًا).
+        ملاحظة: “طباعة القائمة” تطبع النتائج الحالية. (نقدر نضيف صفحة ملصقات QR للطباعة لاحقًا).
       </div>
-
     </div>
   </div>
 </div>
 
-<!-- JsBarcode محلي (لا يعتمد على إنترنت) -->
-<script src="js/JsBarcode.all.min.js"></script>
-<script>
-  (function(){
-    const els = document.querySelectorAll('svg.barcode');
-    els.forEach(el => {
-      const tag = (el.getAttribute('data-tag') || '').trim();
-      if (!tag) return;
-      try {
-        JsBarcode(el, tag, { format: "CODE128", displayValue: false });
-      } catch (e) {
-        console.error('Barcode error', e);
-      }
-    });
-  })();
-</script>
+<!-- QR Code (CDN) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   window.addEventListener('load', function () {
     document.querySelectorAll('.qr').forEach(el => {
       const text = (el.getAttribute('data-text') || '').trim();
       if (!text) return;
-
-      // نظّف العنصر قبل إعادة الرسم
       el.innerHTML = '';
-
-      new QRCode(el, {
-        text: text,
-        width: 90,
-        height: 90,
-        correctLevel: QRCode.CorrectLevel.M
-      });
+      new QRCode(el, { text, width: 70, height: 70, correctLevel: QRCode.CorrectLevel.M });
     });
   });
 </script>
-
-
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>

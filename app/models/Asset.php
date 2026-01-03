@@ -289,5 +289,17 @@ public function assetTagExists(string $tag): bool
   $row = $this->db->single();
   return !empty($row);
 }
+public function getById(int $id)
+{
+  $sql = "SELECT a.*,
+                 l.name_ar AS location_name
+          FROM assets a
+          LEFT JOIN locations l ON l.id = a.location_id
+          WHERE a.id = :id
+          LIMIT 1";
+  $this->db->query($sql);
+  $this->db->bind(':id', $id);
+  return $this->db->single();
+}
 
 }
