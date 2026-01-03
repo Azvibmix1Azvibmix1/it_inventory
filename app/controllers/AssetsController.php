@@ -70,113 +70,145 @@ class AssetsController extends Controller
   }
 
   public function add()
-  {
-    $role = function_exists('currentRole') ? currentRole() : ($_SESSION['user_role'] ?? 'user');
+{
+  $role = function_exists('currentRole') ? currentRole() : ($_SESSION['user_role'] ?? 'user');
 
-    $locationsAll = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
-    [$childrenMap, $parentMap] = $this->buildLocationMaps($locationsAll);
+  $locationsAll = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
+  [$childrenMap, $parentMap] = $this->buildLocationMaps($locationsAll);
 
-    // المواقع المسموح الإضافة عليها (مع توابعها)
-    $addableLocationIds = $this->getAddableLocationIdsForUser();
-    if (is_array($addableLocationIds)) {
-      $addableLocationIds = $this->expandIdsWithDescendants($addableLocationIds, $childrenMap);
-    }
+  // المواقع المسموح الإضافة عليها (مع توابعها)
+  $addableLocationIds = $this->getAddableLocationIdsForUser();
+  if (is_array($addableLocationIds)) {
+    $addableLocationIds = $this->expandIdsWithDescendants($addableLocationIds, $childrenMap);
+  }
 
-    $locationsForAdd = $locationsAll;
-    if (is_array($addableLocationIds)) {
-      $locationsForAdd = array_values(array_filter($locationsAll, function ($loc) use ($addableLocationIds) {
-        return in_array((int)$loc->id, $addableLocationIds, true);
-      }));
-    }
+  $locationsForAdd = $locationsAll;
+  if (is_array($addableLocationIds)) {
+    $locationsForAdd = array_values(array_filter($locationsAll, function ($loc) use ($addableLocationIds) {
+      return in_array((int)$loc->id, $addableLocationIds, true);
+    }));
+  }
 
-    $users_list = [];
-    if (in_array($role, ['superadmin', 'manager'], true) && method_exists($this->userModel, 'getUsers')) {
-      $users_list = $this->userModel->getUsers();
-    }
+  $users_list = [];
+  if (in_array($role, ['superadmin', 'manager'], true) && method_exists($this->userModel, 'getUsers')) {
+    $users_list = $this->userModel->getUsers();
+  }
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-     $_POST = filter_input_array(INPUT_POST, [
-  'asset_tag' => FILTER_UNSAFE_RAW,
-  'serial_no' => FILTER_UNSAFE_RAW,
-  'brand' => FILTER_UNSAFE_RAW,
-  'model' => FILTER_UNSAFE_RAW,
-  'type' => FILTER_UNSAFE_RAW,
-  'status' => FILTER_UNSAFE_RAW,
-  'purchase_date' => FILTER_UNSAFE_RAW,
-  'warranty_expiry' => FILTER_UNSAFE_RAW,
-  'notes' => FILTER_UNSAFE_RAW,
-  'location_id' => FILTER_VALIDATE_INT,
-  'assigned_to' => FILTER_VALIDATE_INT,
-]);
+  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
+    $_POST = filter_input_array(INPUT_POST, [
+      'asset_tag' => FILTER_UNSAFE_RAW,
+      'serial_no' => FILTER_UNSAFE_RAW,
+      'brand' => FILTER_UNSAFE_RAW,
+      'model' => FILTER_UNSAFE_RAW,
+      'type' => FILTER_UNSAFE_RAW,
+      'status' => FILTER_UNSAFE_RAW,
+      'purchase_date' => FILTER_UNSAFE_RAW,
+      'warranty_expiry' => FILTER_UNSAFE_RAW,
+      'notes' => FILTER_UNSAFE_RAW,
+      'location_id' => FILTER_VALIDATE_INT,
+      'assigned_to' => FILTER_VALIDATE_INT,
+    ]);
 
-      $locationId = !empty($_POST['location_id']) ? (int)$_POST['location_id'] : 0;
+    $locationId = !empty($_POST['location_id']) ? (int)$_POST['location_id'] : 0;
 
-      if (!$this->canAddAssetToLocation($locationId, $parentMap)) {
-        flash('asset_msg', 'ليس لديك صلاحية لإضافة جهاز لهذا الموقع', 'alert alert-danger');
-        redirect('index.php?page=assets/index');
-        return;
-      }
-
-      $assignedTo = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : 0;
-      if (!in_array($role, ['superadmin', 'manager'], true)) {
-        $assignedTo = (int)($_SESSION['user_id'] ?? 0);
-      }
-
-      $data = [
-  'asset_tag'       => trim($_POST['asset_tag'] ?? ''),
-  'serial_no'       => trim($_POST['serial_no'] ?? ($_POST['serial'] ?? '')), // دعم أي اسم قديم
-  'brand'           => trim($_POST['brand'] ?? ''),
-  'model'           => trim($_POST['model'] ?? ''),
-  'type'            => trim($_POST['type'] ?? ''),
-
-  'purchase_date'   => !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null,
-  'warranty_expiry' => !empty($_POST['warranty_expiry']) ? $_POST['warranty_expiry'] : null,
-
-  'status'          => $_POST['status'] ?? 'Active',
-  'location_id'     => !empty($_POST['location_id']) ? (int)$_POST['location_id'] : null,
-  'assigned_to'     => !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : null,
-
-  'notes'           => isset($_POST['notes']) ? trim($_POST['notes']) : null,
-
-  // الأهم: created_by من السشن
-  'created_by'      => !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null,
-];
-
-
-      if (empty($data['asset_tag']) || empty($data['type']) || empty($locationId)) {
-        $data['asset_err'] = 'الرجاء تعبئة الحقول الأساسية (التاق/النوع/الموقع)';
-      }
-
-      if (!empty($data['asset_err'])) {
-        $this->view('assets/add', $data);
-        return;
-      }
-
-      if ($this->assetModel->add($data)) {
-        flash('asset_msg', 'تمت إضافة الجهاز بنجاح');
-        redirect('index.php?page=assets/index');
-      } else {
-        die('حدث خطأ أثناء الإضافة في قاعدة البيانات');
-      }
+    if (!$this->canAddAssetToLocation($locationId, $parentMap)) {
+      flash('asset_msg', 'ليس لديك صلاحية لإضافة جهاز لهذا الموقع', 'alert alert-danger');
+      redirect('index.php?page=assets/index');
       return;
     }
 
+    $assignedTo = !empty($_POST['assigned_to']) ? (int)$_POST['assigned_to'] : 0;
+    if (!in_array($role, ['superadmin', 'manager'], true)) {
+      $assignedTo = (int)($_SESSION['user_id'] ?? 0);
+    }
+
     $data = [
-      'asset_tag'   => '',
-      'serial_no'   => '',
-      'brand'       => '',
-      'model'       => '',
-      'type'        => '',
-      'location_id' => '',
-      'assigned_to' => '',
-      'users_list'  => $users_list,
-      'locations'   => $locationsForAdd,
-      'asset_err'   => ''
+      'asset_tag'       => trim($_POST['asset_tag'] ?? ''),
+      'serial_no'       => trim($_POST['serial_no'] ?? ($_POST['serial'] ?? '')),
+      'brand'           => trim($_POST['brand'] ?? ''),
+      'model'           => trim($_POST['model'] ?? ''),
+      'type'            => trim($_POST['type'] ?? ''),
+
+      'purchase_date'   => !empty($_POST['purchase_date']) ? $_POST['purchase_date'] : null,
+      'warranty_expiry' => !empty($_POST['warranty_expiry']) ? $_POST['warranty_expiry'] : null,
+
+      'status'          => $_POST['status'] ?? 'Active',
+      'location_id'     => $locationId > 0 ? $locationId : null,
+      'assigned_to'     => $assignedTo > 0 ? $assignedTo : null,
+
+      'notes'           => isset($_POST['notes']) ? trim($_POST['notes']) : null,
+      'created_by'      => !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null,
+
+      // عشان لو رجعنا الفورم لوجود خطأ
+      'users_list'      => $users_list,
+      'locations'       => $locationsForAdd,
+      'asset_err'       => ''
     ];
 
+    // ✅ لو التاق فاضي: ولّده تلقائيًا
+    if (empty($data['asset_tag'])) {
+      $data['asset_tag'] = $this->generateUniqueAssetTag();
+    }
+
+    if (empty($data['type']) || empty($locationId)) {
+      $data['asset_err'] = 'الرجاء تعبئة الحقول الأساسية (النوع/الموقع)';
+    }
+
+    if (!empty($data['asset_err'])) {
+      $this->view('assets/add', $data);
+      return;
+    }
+
+    // ✅ محاولة إدخال مع معالجة duplicate asset_tag (اختياري لكن مفيد)
+    for ($try = 0; $try < 5; $try++) {
+      try {
+        if ($try > 0) {
+          $data['asset_tag'] = $this->generateUniqueAssetTag();
+        }
+
+        if ($this->assetModel->add($data)) {
+          flash('asset_msg', 'تمت إضافة الجهاز بنجاح');
+          redirect('index.php?page=assets/index');
+          return;
+        }
+
+        $data['asset_err'] = 'حدث خطأ أثناء الإضافة في قاعدة البيانات';
+        $this->view('assets/add', $data);
+        return;
+
+      } catch (Throwable $e) {
+        $msg = $e->getMessage();
+        if (stripos($msg, 'Duplicate entry') !== false && stripos($msg, 'asset_tag') !== false) {
+          continue;
+        }
+        throw $e;
+      }
+    }
+
+    $data['asset_err'] = 'تعذر توليد Tag فريد، حاول مرة أخرى';
     $this->view('assets/add', $data);
+    return;
   }
+
+  // ✅ GET: يولّد Tag جاهز للفورم
+  $data = [
+    'asset_tag'   => $this->generateUniqueAssetTag(),
+    'serial_no'   => '',
+    'brand'       => '',
+    'model'       => '',
+    'type'        => '',
+    'location_id' => '',
+    'assigned_to' => '',
+    'users_list'  => $users_list,
+    'locations'   => $locationsForAdd,
+    'asset_err'   => ''
+  ];
+
+  $this->view('assets/add', $data);
+}
+
+  
 
   public function edit($id = null)
   {
@@ -398,6 +430,14 @@ class AssetsController extends Controller
     ];
     $this->view('assets/print', $data);
   }
+  public function generate_tag()
+{
+  requireLogin();
+
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode(['tag' => $this->generateUniqueAssetTag()]);
+  exit;
+}
 
   /* ==========================
    * Helpers (صلاحيات + مواقع)
@@ -593,20 +633,23 @@ class AssetsController extends Controller
     return $out;
   }
 
-  private function generateUniqueAssetTag(): string
+ private function generateUniqueAssetTag(): string
 {
-  // مثال: AST-20260103-182112-A1B2
+  // AST-20260103-182112-A1B2
   for ($i = 0; $i < 10; $i++) {
-    $rand = strtoupper(bin2hex(random_bytes(2))); // 4 chars
+    $rand = strtoupper(bin2hex(random_bytes(2)));
     $tag  = 'AST-' . date('Ymd-His') . '-' . $rand;
 
-    if (!$this->assetModel->assetTagExists($tag)) {
+    // لو عندك دالة في الموديل تفحص وجود التاق
+    if (method_exists($this->assetModel, 'assetTagExists')) {
+      if (!$this->assetModel->assetTagExists($tag)) return $tag;
+    } else {
+      // إذا ما عندك فحص، رجّعه (التصادم شبه مستحيل)
       return $tag;
     }
   }
-
-  // fallback نادر جدًا
   return 'AST-' . date('Ymd-His') . '-' . strtoupper(bin2hex(random_bytes(3)));
 }
+
 
 }

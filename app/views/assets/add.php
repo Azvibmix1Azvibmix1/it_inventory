@@ -4,6 +4,8 @@
   .wrap{ direction: rtl; text-align: right; }
   .card{ border-radius:12px; }
   .btn-round{ border-radius:10px !important; }
+  .barcode-box{ border:1px dashed #ccc; border-radius:12px; padding:10px; background:#fafafa; text-align:center; }
+  .barcode-box svg{ max-width:100%; height:auto; }
 </style>
 
 <div class="container-fluid wrap py-3">
@@ -54,10 +56,37 @@
         <?php endif; ?>
 
         <div class="row g-3">
+
+          <!-- TAG + BARCODE -->
           <div class="col-12 col-lg-4">
             <label class="form-label">Tag (رقم الجهاز) <span class="text-danger">*</span></label>
-            <input class="form-control" name="asset_tag" required
-                   value="<?= htmlspecialchars($data['asset_tag'] ?? '') ?>">
+
+            <div class="input-group">
+              <input
+                class="form-control"
+                id="asset_tag"
+                name="asset_tag"
+                required
+                readonly
+                value="<?= htmlspecialchars($data['asset_tag'] ?? '') ?>"
+              >
+              <button class="btn btn-outline-secondary" type="button" id="regen_tag">
+                توليد جديد
+              </button>
+            </div>
+
+            <div class="barcode-box mt-2">
+              <svg id="tag_barcode"></svg>
+              <div class="small text-muted mt-1">Barcode (CODE128)</div>
+
+              <button class="btn btn-sm btn-outline-primary mt-2" type="button" id="print_barcode">
+                طباعة الباركود
+              </button>
+            </div>
+
+            <div class="text-muted small mt-1">
+              يتم توليد التاق تلقائيًا لتفادي التكرار.
+            </div>
           </div>
 
           <div class="col-12 col-lg-4">
@@ -138,5 +167,92 @@
     </div>
   </div>
 </div>
+
+<!-- JsBarcode (بدون مكتبات PHP) -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+  const tagInput = document.getElementById('asset_tag');
+  const regenBtn = document.getElementById('regen_tag');
+  const printBtn = document.getElementById('print_barcode');
+
+  function renderBarcode(tag) {
+    if (!tag) return;
+    try {
+      JsBarcode("#tag_barcode", tag, {
+        format: "CODE128",
+        displayValue: true
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function fetchNewTag() {
+    const res = await fetch('index.php?page=assets/generate_tag', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Failed to generate tag');
+    const json = await res.json();
+    return (json && json.tag) ? json.tag : '';
+  }
+
+  async function ensureTagAndBarcode() {
+    let tag = (tagInput.value || '').trim();
+    if (!tag) {
+      try {
+        tag = await fetchNewTag();
+        tagInput.value = tag;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    renderBarcode(tag);
+  }
+
+  regenBtn.addEventListener('click', async () => {
+    regenBtn.disabled = true;
+    try {
+      const tag = await fetchNewTag();
+      tagInput.value = tag;
+      renderBarcode(tag);
+    } catch (e) {
+      alert('تعذر توليد Tag جديد. تأكد أن route assets/generate_tag يعمل.');
+    } finally {
+      regenBtn.disabled = false;
+    }
+  });
+
+  printBtn.addEventListener('click', () => {
+    const tag = (tagInput.value || '').trim();
+    if (!tag) return;
+
+    // اطبع ملصق بسيط
+    const svg = document.getElementById('tag_barcode').outerHTML;
+    const w = window.open('', '_blank', 'width=520,height=420');
+    w.document.open();
+    w.document.write(`
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Barcode</title>
+          <style>
+            body{ font-family: Arial, sans-serif; margin: 20px; text-align:center; }
+            .box{ border:1px dashed #999; padding:14px; border-radius:12px; display:inline-block; }
+          </style>
+        </head>
+        <body>
+          <div class="box">
+            ${svg}
+          </div>
+          <script>
+            window.onload = function(){ window.print(); };
+          <\/script>
+        </body>
+      </html>
+    `);
+    w.document.close();
+  });
+
+  // on load
+  ensureTagAndBarcode();
+</script>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>
