@@ -1,142 +1,83 @@
-<!DOCTYPE html>
+<?php
+// تأكد أن session_helper متحمّل عندك من bootstrap
+$canLocations = function_exists('canAccessLocationsModule') ? canAccessLocationsModule() : false;
+$logged = function_exists('isLoggedIn') ? isLoggedIn() : false;
+?>
+
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?></title>
 
-    <title><?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?></title>
+  <!-- Bootstrap CSS (إذا عندك ملفك الخاص خليه) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
-    <!-- Bootstrap & Icons -->
-     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        body {
-            font-family: "Cairo", sans-serif;
-            background: #f8f9fa;
-        }
-        .navbar-brand {
-            font-weight: 700;
-            letter-spacing: .3px;
-        }
-        .nav-link {
-            font-weight: 600;
-        }
-        .container-main {
-            padding-top: 22px;
-            padding-bottom: 22px;
-        }
-    </style>
+  <style>
+    body { background:#f6f7fb; }
+    .navbar-brand{ font-weight:900; }
+    .nav-link{ font-weight:700; }
+  </style>
 </head>
-<body class="d-flex min-vh-100 flex-column">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
-    <div class="container">
-        <a class="navbar-brand d-flex align-items-center gap-2" href="<?php echo URLROOT; ?>/index.php?page=dashboard">
-            <img src="<?php echo URLROOT; ?>/img/logo.png" alt="Logo" style="height:32px; width:auto;">
-            <span><?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?></span>
-        </a>
+<body>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
 
-        <?php $role = $_SESSION['user_role'] ?? 'user'; ?>
+    <a class="navbar-brand" href="index.php?page=dashboard/index">
+      <?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?>
+    </a>
 
-        <div class="collapse navbar-collapse" id="mainNav">
-            <!-- الروابط الرئيسية -->
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNav" aria-controls="topNav" aria-expanded="false">
+      <span class="navbar-toggler-icon"></span>
+    </button>
 
-                    <!-- الرئيسية -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=dashboard">
-                            <i class="fa fa-home"></i> الرئيسية
-                        </a>
-                    </li>
+    <div class="collapse navbar-collapse" id="topNav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
 
-                    <!-- الأجهزة والعهد -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=assets/index">
-                            <i class="fa fa-desktop"></i> الأجهزة والعهد
-                        </a>
-                    </li>
+        <li class="nav-item"><a class="nav-link" href="index.php?page=dashboard/index">الرئيسية</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.php?page=assets/index">الأجهزة والعهد</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.php?page=spareparts/index">قطع الغيار</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.php?page=tickets/index">التذاكر</a></li>
 
-                    <!-- قطع الغيار -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=spare_parts/index">
-                            <i class="fa fa-toolbox"></i> قطع الغيار
-                        </a>
-                    </li>
+        <!-- ✅ المواقع والمباني تظهر فقط لمن عنده صلاحية -->
+        <?php if ($canLocations): ?>
+          <li class="nav-item">
+            <a class="nav-link" href="index.php?page=locations/index">المواقع والمباني</a>
+          </li>
+        <?php endif; ?>
 
-                    <!-- التذاكر -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=tickets/index">
-                            <i class="fa fa-ticket-alt"></i> التذاكر
-                        </a>
-                    </li>
+        <!-- المستخدمين (مثال: للمدير/السوبر أدمن) -->
+        <?php if (function_exists('currentRole') && in_array(currentRole(), ['superadmin','manager'], true)): ?>
+          <li class="nav-item"><a class="nav-link" href="index.php?page=users/index">المستخدمين</a></li>
+        <?php endif; ?>
 
-                    <!-- المواقع: أي دور أعلى من user -->
-                    <?php if ($role !== 'user'): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=locations/index">
-                                <i class="fa fa-map-marker-alt"></i> المواقع والمباني
-                            </a>
-                        </li>
-                    <?php endif; ?>
+      </ul>
 
-                    <!-- المستخدمين: للـ admin أو superadmin -->
-                    <?php if ($role === 'admin' || $role === 'superadmin'): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
-                                <i class="fa fa-users-cog"></i> المستخدمين
-                            </a>
-                        </li>
-                    <?php endif; ?>
-
-                <?php endif; ?>
+      <ul class="navbar-nav ms-auto">
+        <?php if ($logged): ?>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+              <i class="bi bi-person-circle"></i>
+              <?php echo htmlspecialchars($_SESSION['user_name'] ?? $_SESSION['user_email'] ?? 'حسابي'); ?>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="index.php?page=users/profile">ملفي الشخصي</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="index.php?page=logout">تسجيل خروج</a></li>
             </ul>
+          </li>
+        <?php else: ?>
+          <li class="nav-item"><a class="nav-link" href="index.php?page=register">تسجيل جديد</a></li>
+          <li class="nav-item"><a class="nav-link" href="index.php?page=login">دخول</a></li>
+        <?php endif; ?>
+      </ul>
 
-            <!-- يمين النافبار -->
-            <ul class="navbar-nav ms-auto">
-                <?php if (function_exists('isLoggedIn') && isLoggedIn()): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa fa-user-circle"></i>
-                            <?php echo isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'حسابي'; ?>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                                <a class="dropdown-item" href="<?php echo URLROOT; ?>/index.php?page=users/profile">
-                                    <i class="fa fa-id-card"></i> ملفي الشخصي
-                                </a>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item text-danger" href="<?php echo URLROOT; ?>/index.php?page=logout">
-                                    <i class="fa fa-sign-out-alt"></i> تسجيل خروج
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                <?php else: ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=auth/register">
-                            <i class="fa fa-user-plus"></i> تسجيل جديد
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=login">
-                            <i class="fa fa-sign-in-alt"></i> دخول
-                        </a>
-                    </li>
-                <?php endif; ?>
-            </ul>
-        </div>
     </div>
+  </div>
 </nav>
 
-<main class="flex-grow-1">
-    <div class="container container-main">
+<div class="container-fluid pt-3">

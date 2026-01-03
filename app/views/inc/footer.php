@@ -1,2 +1,2 @@
 <?php
-require_once APPROOT . '/views/layouts/footer.php';
+require APPROOT . '/views/layouts/footer.php';

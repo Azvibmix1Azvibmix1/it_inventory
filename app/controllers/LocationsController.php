@@ -13,12 +13,13 @@ class LocationsController extends Controller
     }
   }
 
-  public function index(){
-
+  public function index()
+  {
+    // ✅ ما يدخل صفحة المواقع إلا إذا كان (superadmin/manager) أو عنده صلاحية موقع
     if (function_exists('requireLocationsAccess')) {
-    requireLocationsAccess('index.php?page=dashboard/index');
-  }
-    // عرض الهيكل لأي مستخدم مسجل دخول
+      requireLocationsAccess('index.php?page=dashboard/index');
+    }
+
     $locations = $this->locationModel->getAll();
 
     $data = [
@@ -31,7 +32,6 @@ class LocationsController extends Controller
     ];
 
     $this->view('locations/index', $data);
-    $locations = $this->locationModel->getAll();
   }
 
   public function add()
@@ -46,22 +46,13 @@ class LocationsController extends Controller
     $parentId = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null;
 
     // ✅ صلاحية الإضافة:
-    // - إذا تابع لموقع أب: لازم صلاحية add على الأب
-    // - إذا مستوى أعلى (بدون أب): فقط super_admin/manager
+    // - إذا تابع لموقع أب => لازم صلاحية add على الأب
+    // - إذا Root (بدون أب) => فقط manager/superadmin
     if ($parentId) {
-      if (function_exists('requireLocationPermission')) {
-        requireLocationPermission($parentId, 'add', 'index.php?page=locations/index');
-      } else {
-        // fallback
-        if (!in_array(currentRole(), ['superadmin','manager'], true)) {
-          flash('access_denied', 'ليس لديك صلاحية لإضافة موقع تابع', 'alert alert-danger');
-          redirect('index.php?page=locations/index');
-          return;
-        }
-      }
+      requireLocationPermission($parentId, 'add', 'index.php?page=locations/index');
     } else {
-      if (!in_array(currentRole(), ['superadmin','manager'], true)) {
-        flash('access_denied', 'إضافة المستوى الأعلى مسموحة للمدير/السوبر أدمن فقط', 'alert alert-danger');
+      if (!in_array(currentRole(), ['superadmin', 'manager'], true)) {
+        flash('access_denied', 'إضافة مستوى أعلى مسموحة للمدير/السوبر أدمن فقط', 'alert alert-danger');
         redirect('index.php?page=locations/index');
         return;
       }
@@ -87,12 +78,7 @@ class LocationsController extends Controller
 
     if ($this->locationModel->add($data)) {
       if (method_exists($this->locationModel, 'audit')) {
-        $this->locationModel->audit(
-          $parentId ?: 0,
-          $_SESSION['user_id'] ?? null,
-          'add_location',
-          json_encode($data, JSON_UNESCAPED_UNICODE)
-        );
+        $this->locationModel->audit($parentId ?: 0, $_SESSION['user_id'] ?? null, 'add_location', json_encode($data, JSON_UNESCAPED_UNICODE));
       }
       flash('location_msg', 'تم إضافة الموقع بنجاح');
       redirect('index.php?page=locations/index');
@@ -114,17 +100,8 @@ class LocationsController extends Controller
       return;
     }
 
-    // ✅ لازم صلاحية تعديل على هذا الموقع (per-location)
-    if (function_exists('requireLocationPermission')) {
-      requireLocationPermission($id, 'edit', 'index.php?page=locations/index');
-    } else {
-      // fallback
-      if (!in_array(currentRole(), ['superadmin','manager'], true)) {
-        flash('access_denied', 'تعديل المواقع مسموح للمدير/السوبر أدمن فقط', 'alert alert-danger');
-        redirect('index.php?page=locations/index');
-        return;
-      }
-    }
+    // ✅ لازم صلاحية edit على الموقع
+    requireLocationPermission($id, 'edit', 'index.php?page=locations/index');
 
     $location = $this->locationModel->getLocationById($id);
     if (!$location) {
@@ -133,13 +110,12 @@ class LocationsController extends Controller
       return;
     }
 
-    // POST
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
 
-      // 1) حفظ بيانات الموقع
+      // حفظ بيانات الموقع
       if (isset($_POST['save_location'])) {
-        $data = [
+        $payload = [
           'id'        => $id,
           'name_ar'   => trim($_POST['name_ar'] ?? ''),
           'name_en'   => trim($_POST['name_en'] ?? ''),
@@ -147,20 +123,19 @@ class LocationsController extends Controller
           'parent_id' => !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null,
         ];
 
-        // ممنوع يخلي نفسه أب لنفسه
-        if (!empty($data['parent_id']) && (int)$data['parent_id'] === $id) {
-          $data['parent_id'] = null;
+        if (!empty($payload['parent_id']) && (int)$payload['parent_id'] === $id) {
+          $payload['parent_id'] = null;
         }
 
-        if (empty($data['name_ar'])) {
+        if (empty($payload['name_ar'])) {
           flash('location_msg', 'الاسم العربي مطلوب', 'alert alert-danger');
           redirect("index.php?page=locations/edit&id=$id");
           return;
         }
 
-        if ($this->locationModel->update($data)) {
+        if ($this->locationModel->update($payload)) {
           if (method_exists($this->locationModel, 'audit')) {
-            $this->locationModel->audit($id, $_SESSION['user_id'] ?? null, 'update_location', json_encode($data, JSON_UNESCAPED_UNICODE));
+            $this->locationModel->audit($id, $_SESSION['user_id'] ?? null, 'update_location', json_encode($payload, JSON_UNESCAPED_UNICODE));
           }
           flash('location_msg', 'تم تحديث بيانات الموقع بنجاح');
         } else {
@@ -171,22 +146,12 @@ class LocationsController extends Controller
         return;
       }
 
-      // 2) حفظ الصلاحيات
+      // حفظ الصلاحيات (لازم manage)
       if (isset($_POST['save_permissions'])) {
-        // لازم manage عشان يغير الصلاحيات
-        if (function_exists('requireLocationPermission')) {
-          requireLocationPermission($id, 'manage', "index.php?page=locations/edit&id=$id");
-        } else {
-          if (currentRole() !== 'superadmin') {
-            flash('access_denied', 'تعديل صلاحيات الموقع للسوبر أدمن فقط', 'alert alert-danger');
-            redirect("index.php?page=locations/edit&id=$id");
-            return;
-          }
-        }
+        requireLocationPermission($id, 'manage', "index.php?page=locations/edit&id=$id");
 
-        // أدوار نظامك حسب جدول users
+        // أدوارك حسب DB: manager, user
         $roles = ['manager', 'user'];
-
         foreach ($roles as $role) {
           $perms = [
             'can_manage'       => isset($_POST["role_{$role}_manage"]) ? 1 : 0,
@@ -197,7 +162,7 @@ class LocationsController extends Controller
           $this->locationModel->saveRolePerms($id, $role, $perms);
         }
 
-        // صلاحية لمستخدم محدد (اختياري)
+        // صلاحية لمستخدم محدد
         $targetUser = !empty($_POST['target_user_id']) ? (int)$_POST['target_user_id'] : 0;
         if ($targetUser > 0) {
           $uPerms = [
@@ -223,12 +188,11 @@ class LocationsController extends Controller
         return;
       }
 
-      // أي POST غير معروف
       redirect("index.php?page=locations/edit&id=$id");
       return;
     }
 
-    // GET: بيانات الصفحة
+    // GET بيانات الصفحة (للـ edit.php)
     $locations = $this->locationModel->getAll();
 
     $children  = method_exists($this->locationModel, 'getChildren') ? $this->locationModel->getChildren($id) : [];
@@ -245,7 +209,6 @@ class LocationsController extends Controller
       'parent_id' => $location->parent_id,
 
       'locations' => $locations,
-
       'children'  => $children,
       'rolePerms' => $rolePerms,
       'userPerms' => $userPerms,
@@ -275,16 +238,8 @@ class LocationsController extends Controller
       return;
     }
 
-    // ✅ صلاحية حذف per-location
-    if (function_exists('requireLocationPermission')) {
-      requireLocationPermission($id, 'delete', 'index.php?page=locations/index');
-    } else {
-      if (!in_array(currentRole(), ['superadmin','manager'], true)) {
-        flash('access_denied', 'حذف المواقع مسموح للمدير/السوبر أدمن فقط', 'alert alert-danger');
-        redirect('index.php?page=locations/index');
-        return;
-      }
-    }
+    // ✅ لازم delete على الموقع
+    requireLocationPermission($id, 'delete', 'index.php?page=locations/index');
 
     if ($this->locationModel->delete($id)) {
       if (method_exists($this->locationModel, 'audit')) {

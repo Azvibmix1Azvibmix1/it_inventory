@@ -21,9 +21,6 @@ function flash($name, $message = '', $class = 'alert alert-success')
   }
 }
 
-/**
- * Redirect helper
- */
 function redirect($location)
 {
   header('Location: ' . $location);
@@ -31,23 +28,13 @@ function redirect($location)
 }
 
 /**
- * Auth helpers
+ * Auth
  */
 function isLoggedIn()
 {
   return isset($_SESSION['user_id']);
 }
 
-function requireLogin()
-{
-  if (!isLoggedIn()) {
-    redirect('index.php?page=login');
-  }
-}
-
-/**
- * Role helpers
- */
 function normalizeRole($role)
 {
   $role = $role ?? 'user';
@@ -55,12 +42,22 @@ function normalizeRole($role)
   return $role;
 }
 
-function currentRole() {
-  $r = $_SESSION['user_role'] ?? 'user';
-  return ($r === 'super_admin') ? 'superadmin' : $r;
+function currentRole()
+{
+  return normalizeRole($_SESSION['user_role'] ?? 'user');
 }
 
+function requireLogin()
+{
+  if (!isLoggedIn()) {
+    // ✅ عندك صفحة دخول على page=login
+    redirect('index.php?page=login');
+  }
+}
 
+/**
+ * Role checks (حسب جدول users عندك: super_admin, manager, user)
+ */
 function isUser()
 {
   return currentRole() === 'user';
@@ -68,8 +65,7 @@ function isUser()
 
 function isManager()
 {
-  $role = currentRole();
-  return ($role === 'manager' || $role === 'admin');
+  return currentRole() === 'manager';
 }
 
 function isSuperAdmin()
@@ -78,8 +74,7 @@ function isSuperAdmin()
 }
 
 /**
- * ✅ تحديث دور المستخدم من قاعدة البيانات لو تغيّر
- * مهم: لا ننفّذه إلا إذا Database محمّل
+ * تحديث الرول من DB (اختياري، آمن)
  */
 function syncSessionRole()
 {
@@ -93,10 +88,7 @@ function syncSessionRole()
     $row = $db->single();
 
     if ($row && isset($row->role)) {
-      $newRole = normalizeRole($row->role);
-      if (normalizeRole($_SESSION['user_role'] ?? null) !== $newRole) {
-        $_SESSION['user_role'] = $newRole;
-      }
+      $_SESSION['user_role'] = normalizeRole($row->role);
     }
   } catch (Exception $e) {
     // لا نكسر الموقع
@@ -104,9 +96,7 @@ function syncSessionRole()
 }
 
 /**
- * ✅ صلاحيات عامة:
- * - تمرير Array أدوار: requirePermission(['admin','manager'])
- * - تمرير Permission key: requirePermission('locations.edit')
+ * صلاحيات عامة (لو احتجتها)
  */
 function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=dashboard/index')
 {
@@ -129,27 +119,11 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
   $permission = (string)$permissionOrRoles;
 
   $map = [
-    // Users
-    'users.manage' => ['superadmin', 'admin', 'manager'],
-
-    // Locations (عام)
-    'locations.view'   => ['superadmin', 'admin', 'manager', 'user'],
-    'locations.add'    => ['superadmin', 'admin', 'manager'],
-    'locations.edit'   => ['superadmin', 'admin', 'manager'],
-    'locations.delete' => ['superadmin', 'admin'],
-    'locations.manage' => ['superadmin', 'admin'],
-
-    // Assets
-    'assets.manage' => ['superadmin', 'admin', 'manager'],
-    'assets.assign' => ['superadmin', 'admin', 'manager'],
-    'assets.edit'   => ['superadmin', 'admin', 'manager'],
-    'assets.delete' => ['superadmin', 'admin'],
-
-    // Spare parts
-    'spareparts.manage' => ['superadmin', 'admin', 'manager'],
-
-    // Tickets
-    'tickets.manage' => ['superadmin', 'admin', 'manager'],
+    'users.manage'      => ['superadmin', 'manager'],
+    'locations.manage'  => ['superadmin', 'manager'],
+    'assets.manage'     => ['superadmin', 'manager'],
+    'spareparts.manage' => ['superadmin', 'manager'],
+    'tickets.manage'    => ['superadmin', 'manager'],
   ];
 
   $allowed = $map[$permission] ?? ['superadmin'];
@@ -163,25 +137,22 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
 
 /**
  * ===========================
- * ✅ صلاحيات على مستوى "الموقع"
+ * صلاحيات المواقع (Per-Location)
  * ===========================
- * تعتمد على جدول locations_permissions
  */
 function canManageLocation($locationId, $action = 'manage')
 {
   if (!isLoggedIn()) return false;
 
   $role = currentRole();
-
-  // سوبر أدمن دائمًا
   if ($role === 'superadmin') return true;
 
   $locationId = (int)$locationId;
   if ($locationId <= 0) return false;
 
-  // إذا Database غير محمّل: لا نكسر الصفحة، نخلي admin/manager فقط
+  // لو Database غير متاح لأي سبب
   if (!class_exists('Database')) {
-    return ($role === 'admin' || $role === 'manager');
+    return ($role === 'manager');
   }
 
   try {
@@ -225,15 +196,16 @@ function canManageLocation($locationId, $action = 'manage')
       }
     }
 
-    // افتراضي: admin/manager مسموح لهم إذا ما فيه إعدادات
-    return ($role === 'admin' || $role === 'manager');
+    // ✅ افتراضي: manager يقدر إذا ما فيه إعدادات (تقدر تخليها false لو تبغاها صارمة)
+    return ($role === 'manager');
 
   } catch (Exception $e) {
-    return ($role === 'admin' || $role === 'manager');
+    return ($role === 'manager');
   }
 }
 
-function requireLocationPermission($locationId, $action = 'manage', $redirectTo = 'index.php?page=locations/index'){
+function requireLocationPermission($locationId, $action = 'manage', $redirectTo = 'index.php?page=locations/index')
+{
   requireLogin();
   if (!canManageLocation($locationId, $action)) {
     flash('access_denied', 'ليس لديك صلاحية لإدارة هذا الموقع', 'alert alert-danger');
@@ -241,15 +213,18 @@ function requireLocationPermission($locationId, $action = 'manage', $redirectTo 
   }
 }
 
+/**
+ * ✅ صلاحية “دخول صفحة المواقع” كـ Module
+ * - superadmin/manager: دايم
+ * - user: لازم يكون عنده صلاحية على أي موقع (user_id) داخل locations_permissions
+ */
 function canAccessLocationsModule()
 {
   if (!isLoggedIn()) return false;
 
   $role = currentRole();
-  // السوبر أدمن + المانجر دايمًا يشوفون صفحة المواقع
   if (in_array($role, ['superadmin', 'manager'], true)) return true;
 
-  // user: لازم يكون له صلاحية على أي موقع
   if (!class_exists('Database')) return false;
 
   try {
@@ -271,7 +246,6 @@ function canAccessLocationsModule()
 function requireLocationsAccess($redirectTo = 'index.php?page=dashboard/index')
 {
   requireLogin();
-
   if (!canAccessLocationsModule()) {
     flash('access_denied', 'ليس لديك صلاحية لعرض صفحة المواقع', 'alert alert-danger');
     redirect($redirectTo);

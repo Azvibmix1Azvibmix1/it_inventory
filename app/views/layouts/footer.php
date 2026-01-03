@@ -1,13 +1,19 @@
-    </div><!-- .container-main -->
-</main>
+    </div> <!-- /container-fluid pt-3 -->
 
-<footer class="bg-light border-top mt-auto py-3">
-    <div class="container text-center small text-muted">
-        &copy; <?php echo date('Y'); ?> جامعة جدة - نظام إدارة العهد. جميع الحقوق محفوظة.
-        <span class="ms-2">Version 1.0</span>
-    </div>
-</footer>
+    <footer class="py-3 mt-4 border-top bg-white">
+      <div class="container-fluid">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="text-muted small">
+            © جامعة جدة - نظام إدارة العهد. جميع الحقوق محفوظة.
+          </div>
+          <div class="text-muted small">
+            Version 1.0
+          </div>
+        </div>
+      </div>
+    </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+    <!-- Bootstrap JS (ضروري للقائمة/Collapse/Dropdown) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
 </html>
