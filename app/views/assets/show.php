@@ -1,90 +1,199 @@
 <?php require APPROOT . '/views/inc/header.php'; ?>
+
+<?php
+// نحاول نجيب الـ asset بأي شكل (حسب مشروعك)
+$asset = $data['asset'] ?? ($asset ?? null);
+
+// لو ما فيه بيانات
+if (!$asset) {
+  echo '<div class="container py-4"><div class="alert alert-danger">لا توجد بيانات للجهاز.</div></div>';
+  require APPROOT . '/views/inc/footer.php';
+  exit;
+}
+
+// رابط صفحة الجهاز (هذا اللي بنحطه داخل الـ QR)
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+// مسار مجلد public (لأن عندك index.php داخل public)
+$basePath = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/')), '/');
+$assetId  = (int)($asset->id ?? 0);
+
+// رابط ثابت للعرض
+$assetUrl = $scheme . '://' . $host . $basePath . '/index.php?page=assets/show&id=' . $assetId;
+
+// QR كصورة (يشتغل طالما عندك انترنت)
+$qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' . urlencode($assetUrl);
+
+// مساعدات عرض
+function e($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+?>
+
 <style>
-  .qr-box { width: 220px; }
-  .qr { width: 180px; height: 180px; margin: 0 auto; }
-  .qr img, .qr canvas { width: 180px !important; height: 180px !important; display:block; margin:0 auto; }
   @media print {
-    .no-print, .no-print * { display:none !important; }
-    .card { border: none !important; box-shadow: none !important; }
+    .no-print, .no-print * { display: none !important; }
+    body { background: #fff !important; }
+    .print-area { box-shadow: none !important; border: none !important; }
+  }
+
+  .qr-box {
+    width: 180px;
+    text-align: center;
+  }
+  .qr-box img {
+    width: 160px;
+    height: 160px;
+    display: block;
+    margin: 0 auto;
+    border: 1px solid rgba(0,0,0,.1);
+    padding: 6px;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .tag-big {
+    font-weight: 800;
+    letter-spacing: .5px;
+  }
+
+  /* ملصق للطباعة */
+  .sticker {
+    width: 320px;
+    border: 1px dashed rgba(0,0,0,.25);
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+  }
+  .sticker .rowx {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .sticker .qr-sm img {
+    width: 110px;
+    height: 110px;
+    border: 1px solid rgba(0,0,0,.12);
+    padding: 4px;
+    border-radius: 8px;
+    background: #fff;
+  }
+  .sticker .meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .sticker .meta .tag {
+    font-weight: 900;
+    font-size: 14px;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .sticker .meta .sub {
+    font-size: 12px;
+    color: #555;
+    margin-top: 6px;
   }
 </style>
 
-<?php
-  $a = $data['asset'] ?? null;
-  if (!$a) { die('Asset not found'); }
+<div class="container py-3" dir="rtl">
 
-  $qrUrl = $data['qrUrl'] ?? '';
-?>
-
-<div class="container py-4" dir="rtl">
   <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-    <a class="btn btn-outline-secondary" href="index.php?page=assets/index">رجوع</a>
-    <button class="btn btn-primary" onclick="window.print()">طباعة ملصق</button>
+    <h4 class="mb-0">تفاصيل الجهاز</h4>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="index.php?page=assets/index">رجوع</a>
+
+      <a class="btn btn-outline-primary" href="index.php?page=assets/edit&id=<?= (int)$asset->id ?>">
+        تعديل
+      </a>
+
+      <button class="btn btn-success" onclick="window.print()">طباعة الملصق</button>
+    </div>
   </div>
 
-  <div class="card">
+  <div class="card mb-3 print-area">
     <div class="card-body">
-      <div class="row g-4 align-items-start">
+      <div class="d-flex flex-wrap gap-4 justify-content-between align-items-start">
 
-        <div class="col-12 col-md-8">
-          <h4 class="fw-bold mb-3">تفاصيل الجهاز</h4>
+        <div class="flex-grow-1">
+          <div class="mb-2 tag-big">Tag: <?= e($asset->asset_tag ?? '-') ?></div>
 
-          <div class="mb-2"><b>Tag:</b> <?= htmlspecialchars($a->asset_tag ?? '') ?></div>
-          <div class="mb-2"><b>النوع:</b> <?= htmlspecialchars($a->type ?? '') ?></div>
-          <div class="mb-2"><b>الماركة:</b> <?= htmlspecialchars($a->brand ?? '-') ?></div>
-          <div class="mb-2"><b>الموديل:</b> <?= htmlspecialchars($a->model ?? '-') ?></div>
-          <div class="mb-2"><b>Serial:</b> <?= htmlspecialchars($a->serial_no ?? '-') ?></div>
-          <div class="mb-2"><b>الموقع:</b> <?= htmlspecialchars($a->location_name ?? ('موقع #' . (int)($a->location_id ?? 0))) ?></div>
-          <div class="mb-2"><b>الحالة:</b> <?= htmlspecialchars($a->status ?? '-') ?></div>
-
-          <?php if (!empty($a->assigned_name) || !empty($a->assigned_email)): ?>
-            <div class="mb-2"><b>مُسند إلى:</b>
-              <?= htmlspecialchars(trim(($a->assigned_name ?? '') . ' ' . ($a->assigned_email ? '(' . $a->assigned_email . ')' : ''))) ?>
-            </div>
-          <?php endif; ?>
-
-          <?php if (!empty($a->purchase_date)): ?>
-            <div class="mb-2"><b>تاريخ الشراء:</b> <?= htmlspecialchars($a->purchase_date) ?></div>
-          <?php endif; ?>
-
-          <?php if (!empty($a->warranty_expiry)): ?>
-            <div class="mb-2"><b>انتهاء الضمان:</b> <?= htmlspecialchars($a->warranty_expiry) ?></div>
-          <?php endif; ?>
-
-          <?php if (!empty($a->notes)): ?>
-            <div class="mt-3">
-              <b>ملاحظات:</b>
-              <div class="border rounded p-2 mt-1"><?= nl2br(htmlspecialchars($a->notes)) ?></div>
-            </div>
-          <?php endif; ?>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <tbody>
+                <tr>
+                  <th style="width:180px;">الحالة</th>
+                  <td><?= e($asset->status ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>الموقع</th>
+                  <td><?= e($asset->location_name ?? $asset->location ?? $asset->name_ar ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>النوع</th>
+                  <td><?= e($asset->type ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>الماركة</th>
+                  <td><?= e($asset->brand ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>الموديل</th>
+                  <td><?= e($asset->model ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>Serial</th>
+                  <td><?= e($asset->serial_no ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>تاريخ الشراء</th>
+                  <td><?= e($asset->purchase_date ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>انتهاء الضمان</th>
+                  <td><?= e($asset->warranty_expiry ?? '-') ?></td>
+                </tr>
+                <tr>
+                  <th>ملاحظات</th>
+                  <td><?= e($asset->notes ?? '-') ?></td>
+                </tr>
+                <tr class="no-print">
+                  <th>رابط QR</th>
+                  <td>
+                    <a href="<?= e($assetUrl) ?>" target="_blank"><?= e($assetUrl) ?></a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="col-12 col-md-4">
-          <div class="card qr-box">
-            <div class="card-body text-center">
-              <div class="fw-bold mb-2">QR</div>
-              <div class="qr" id="qr" data-text="<?= htmlspecialchars($qrUrl) ?>"></div>
-              <div class="small text-muted mt-2">يمسح ويعرض تفاصيل الجهاز</div>
-              <div class="small text-muted mt-1" style="word-break: break-all;"><?= htmlspecialchars($qrUrl) ?></div>
-            </div>
-          </div>
+        <div class="qr-box">
+          <div class="fw-bold mb-2">QR (رابط الجهاز)</div>
+          <img src="<?= e($qrImg) ?>" alt="QR">
+          <div class="small text-muted mt-2">امسحه لفتح صفحة الجهاز</div>
         </div>
 
       </div>
     </div>
   </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script>
-  window.addEventListener('load', function () {
-    const el = document.getElementById('qr');
-    if (!el) return;
-    const text = (el.getAttribute('data-text') || '').trim();
-    if (!text) return;
-    el.innerHTML = '';
-    new QRCode(el, { text, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
-  });
-</script>
+  <!-- ملصق بسيط للطباعة -->
+  <div class="sticker print-area">
+    <div class="rowx">
+      <div class="qr-sm">
+        <img src="<?= e($qrImg) ?>" alt="QR">
+      </div>
+
+      <div class="meta">
+        <div class="tag"><?= e($asset->asset_tag ?? '-') ?></div>
+        <div class="sub">
+          <div>النوع: <?= e($asset->type ?? '-') ?></div>
+          <div>الموقع: <?= e($asset->location_name ?? $asset->location ?? '-') ?></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>

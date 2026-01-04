@@ -5,11 +5,12 @@ $logged = function_exists('isLoggedIn') ? isLoggedIn() : false;
 
 <!doctype html>
 <html lang="ar" dir="rtl">
+  
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title><?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?></title>
+  <title><?php echo defined('SITENAME') ? SITENAME : 'إدارة الوسائل'; ?></title>
 
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -32,9 +33,19 @@ $logged = function_exists('isLoggedIn') ? isLoggedIn() : false;
     main.site-content { flex: 1; }
 
     /* Navbar tweaks */
-    .navbar-brand { font-weight: 900; }
-    .nav-link { font-weight: 700; }
   </style>
+   <style>
+/* ===== Fix RTL date inputs (Chrome) ===== */
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"] {
+  direction: ltr;
+  unicode-bidi: plaintext;
+  text-align: right; /* لو تبغاه يسار غيّرها left */
+}
+</style>
+
 </head>
 
 <body>
