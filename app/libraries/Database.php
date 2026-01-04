@@ -62,7 +62,7 @@ class Database {
     public function execute() {
         return $this->stmt->execute();
     }
-
+    
     // Get result set as array of objects
     public function resultSet() {
         $this->execute();
@@ -79,4 +79,26 @@ class Database {
     public function rowCount() {
         return $this->stmt->rowCount();
     }
+
+    public function lastInsertId()
+{
+  return $this->dbh->lastInsertId();
+}
+
+public function beginTransaction()
+{
+  return $this->dbh->beginTransaction();
+}
+
+public function commit()
+{
+  return $this->dbh->commit();
+}
+
+public function rollBack()
+{
+  return $this->dbh->rollBack();
+}
+
+
 }

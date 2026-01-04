@@ -183,27 +183,27 @@ class Asset
    * ========================= */
 
   public function add($data)
-  {
-    // ✅ Backward compatibility: لو جاءك name/serial_number من أي كود قديم
-    if (empty($data['asset_tag']) && !empty($data['name'])) {
-      $data['asset_tag'] = $data['name'];
-    }
-    if (empty($data['serial_no']) && !empty($data['serial_number'])) {
-      $data['serial_no'] = $data['serial_number'];
-    }
+{
+  if (empty($data['asset_tag']) && !empty($data['name'])) {
+    $data['asset_tag'] = $data['name'];
+  }
+  if (empty($data['serial_no']) && !empty($data['serial_number'])) {
+    $data['serial_no'] = $data['serial_number'];
+  }
 
-    $sql = "
-      INSERT INTO assets
-        (asset_tag, serial_no, model, brand, type, purchase_date, warranty_expiry, status,
-         location_id, assigned_to, notes, created_by)
-      VALUES
-        (:asset_tag, :serial_no, :model, :brand, :type, :purchase_date, :warranty_expiry, :status,
-         :location_id, :assigned_to, :notes, :created_by)
-    ";
+  $tmpTag = 'TMP-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));
+
+  try {
+    $this->db->beginTransaction();
+
+    $sql = "INSERT INTO assets
+    (asset_tag, serial_no, model, brand, type, purchase_date, warranty_expiry, status, location_id, assigned_to, notes, created_by)
+    VALUES
+    (:asset_tag, :serial_no, :model, :brand, :type, :purchase_date, :warranty_expiry, :status, :location_id, :assigned_to, :notes, :created_by)";
 
     $this->db->query($sql);
 
-    $this->db->bind(':asset_tag', trim($data['asset_tag'] ?? ''));
+    $this->db->bind(':asset_tag', $tmpTag);
     $this->db->bind(':serial_no', trim($data['serial_no'] ?? ''));
     $this->db->bind(':model', trim($data['model'] ?? ''));
     $this->db->bind(':brand', trim($data['brand'] ?? ''));
@@ -218,8 +218,33 @@ class Asset
     $this->db->bind(':notes', $data['notes'] ?? null);
     $this->db->bind(':created_by', !empty($data['created_by']) ? (int)$data['created_by'] : null);
 
-    return $this->db->execute();
+    if (!$this->db->execute()) {
+      $this->db->rollBack();
+      return false;
+    }
+
+    $newId = (int)$this->db->lastInsertId();
+    $finalTag = 'AST-' . str_pad((string)$newId, 6, '0', STR_PAD_LEFT);
+
+    $this->db->query("UPDATE assets SET asset_tag = :tag WHERE id = :id");
+    $this->db->bind(':tag', $finalTag);
+    $this->db->bind(':id', $newId);
+
+    if (!$this->db->execute()) {
+      $this->db->rollBack();
+      return false;
+    }
+
+    $this->db->commit();
+    return $newId;
+
+  } catch (Throwable $e) {
+    // لو صار أي استثناء
+    $this->db->rollBack();
+    return false;
   }
+}
+
 
   public function update($data)
   {
@@ -300,6 +325,30 @@ public function getById(int $id)
   $this->db->query($sql);
   $this->db->bind(':id', $id);
   return $this->db->single();
+}
+
+public function getByIds(array $ids)
+{
+  if (empty($ids)) return [];
+
+  $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+  $sql = "SELECT a.*, l.name_ar AS location_name
+          FROM assets a
+          LEFT JOIN locations l ON l.id = a.location_id
+          WHERE a.id IN ($placeholders)
+          ORDER BY a.id ASC";
+
+  $this->db->query($sql);
+
+  // bind بالترتيب
+  $i = 1;
+  foreach ($ids as $id) {
+    $this->db->bind($i, (int)$id);
+    $i++;
+  }
+
+  return $this->db->resultSet();
 }
 
 }

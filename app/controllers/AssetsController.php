@@ -69,8 +69,7 @@ class AssetsController extends Controller
     $this->view('assets/index', $data);
   }
 
-  public function add()
-{
+  public function add(){
   $role = function_exists('currentRole') ? currentRole() : ($_SESSION['user_role'] ?? 'user');
 
   $locationsAll = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
@@ -167,11 +166,12 @@ class AssetsController extends Controller
           $data['asset_tag'] = $this->generateUniqueAssetTag();
         }
 
-        if ($this->assetModel->add($data)) {
-          flash('asset_msg', 'تمت إضافة الجهاز بنجاح');
-          redirect('index.php?page=assets/index');
-          return;
-        }
+        $newId = $this->assetModel->add($data);
+if ($newId) {
+  redirect('index.php?page=assets/show&id=' . (int)$newId);
+  return;
+}
+
 
         $data['asset_err'] = 'حدث خطأ أثناء الإضافة في قاعدة البيانات';
         $this->view('assets/add', $data);
