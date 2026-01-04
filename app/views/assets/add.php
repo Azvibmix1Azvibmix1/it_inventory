@@ -1,7 +1,6 @@
 <?php require APPROOT . '/views/inc/header.php'; ?>
 
 <?php
-// بيانات من الكنترولر
 $locations   = $data['locations']   ?? [];
 $users_list  = $data['users_list']  ?? [];
 $asset_err   = $data['asset_err']   ?? '';
@@ -23,6 +22,13 @@ foreach ($locations as $loc) { $locById[$loc->id] = $loc; }
 
 $allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Other'];
 ?>
+
+<!-- Flatpickr CSS (تقدر تخليه هنا أو تنقله للـ layouts/header.php) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  /* خلي تقويم flatpickr مناسب للعربي */
+  .flatpickr-calendar { direction: rtl; }
+</style>
 
 <div class="container-fluid py-3" dir="rtl">
 
@@ -51,10 +57,8 @@ $allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Othe
 
           <div class="mb-3">
             <label class="form-label">Tag (رقم الجهاز) <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" value="(AST-000001)" readonly>
-            <div class="form-text text-muted">
-              يتم توليد التاق تلقائيًا لتفادي التكرار.
-            </div>
+            <input type="text" class="form-control" value="يتولد تلقائيًا بعد الحفظ (AST-000001)" readonly>
+            <div class="form-text text-muted">يتم توليد التاق تلقائيًا لتفادي التكرار.</div>
           </div>
 
           <div class="mb-3">
@@ -89,22 +93,21 @@ $allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Othe
             </div>
           </div>
 
+          <!-- ✅ Flatpickr Datepickers -->
           <div class="row g-3 mt-1">
             <div class="col-md-6">
               <label class="form-label">تاريخ الشراء (اختياري)</label>
-              <div class="form-text text-muted">الصيغة: YYYY-MM-DD</div>
-
-              <input type="date" name="purchase_date" class="form-control"
+              <input type="text" name="purchase_date" class="form-control js-date"
+                     placeholder="YYYY-MM-DD"
                      value="<?= htmlspecialchars($data['purchase_date'] ?? '') ?>">
+              <div class="form-text text-muted"></div>
             </div>
             <div class="col-md-6">
               <label class="form-label">انتهاء الضمان (اختياري)</label>
-              <div class="form-text text-muted">الصيغة: YYYY-MM-DD</div>
-
-              <input type="date" name="warranty_expiry" class="form-control"
-              
+              <input type="text" name="warranty_expiry" class="form-control js-date"
+                     placeholder="YYYY-MM-DD"
                      value="<?= htmlspecialchars($data['warranty_expiry'] ?? '') ?>">
-                     
+              <div class="form-text text-muted"></div>
             </div>
           </div>
 
@@ -128,8 +131,8 @@ $allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Othe
 
             <div class="col-md-6">
               <label class="form-label">الحالة</label>
+              <?php $st = $data['status'] ?? 'Active'; ?>
               <select name="status" class="form-select">
-                <?php $st = $data['status'] ?? 'Active'; ?>
                 <option value="Active"  <?= ($st === 'Active') ? 'selected' : '' ?>>Active</option>
                 <option value="Retired" <?= ($st === 'Retired') ? 'selected' : '' ?>>Retired</option>
                 <option value="Repair"  <?= ($st === 'Repair') ? 'selected' : '' ?>>Repair</option>
@@ -172,7 +175,27 @@ $allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Othe
     </div>
 
   <?php endif; ?>
-
 </div>
+
+<!-- Flatpickr JS + Arabic locale -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!window.flatpickr) return;
+
+    // تفعيل التعريب (لو توفر)
+    if (flatpickr.l10ns && flatpickr.l10ns.ar) {
+      flatpickr.localize(flatpickr.l10ns.ar);
+    }
+
+    flatpickr('.js-date', {
+      dateFormat: 'Y-m-d',
+      allowInput: true,
+      disableMobile: true,
+    });
+  });
+</script>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>

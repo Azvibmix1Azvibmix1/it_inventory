@@ -115,7 +115,7 @@
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
     <div>
       <h4 class="m-0 fw-bold">الأجهزة</h4>
-      <div class="text-muted">فلترة الأجهزة حسب الموقع والبحث بالتاغ/السيريال/الموديل.</div>
+      <div class="text-muted">   </div>
     </div>
 
     <div class="d-flex gap-2 no-print">
