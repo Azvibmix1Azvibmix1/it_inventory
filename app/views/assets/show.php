@@ -2,6 +2,21 @@
 require APPROOT . '/views/inc/header.php';
 
 $asset = $data['asset'] ?? null;
+$logs  = $data['logs']  ?? [];
+$qrUrl = $data['qrUrl'] ?? '';
+
+
+function action_ar($a){
+  switch($a){
+    case 'create': return 'إضافة';
+    case 'update': return 'تعديل';
+    case 'delete': return 'حذف';
+    case 'transfer': return 'نقل موقع';
+    case 'status': return 'تغيير حالة';
+    default: return $a ?: '-';
+  }
+}
+
 $qrUrl = $data['qrUrl'] ?? '';
 
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
@@ -248,6 +263,48 @@ if (in_array($statusLower, ['maintenance','repair','صيانة','تصليح'])) 
           </dl>
 
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row g-3 mt-3">
+  <div class="col-12">
+    <div class="card card-shadow">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <h6 class="mb-0">سجل الحركة</h6>
+          <span class="text-muted small">آخر <?= count($logs) ?> عملية</span>
+        </div>
+
+        <?php if (empty($logs)): ?>
+          <div class="text-muted">لا يوجد سجل حتى الآن.</div>
+        <?php else: ?>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width:160px">التاريخ</th>
+                  <th style="width:140px">العملية</th>
+                  <th style="width:120px">المستخدم</th>
+                  <th>التفاصيل</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($logs as $l): ?>
+                  <tr>
+                    <td class="ltr text-muted"><?= e($l->created_at ?? '-') ?></td>
+                    <td><span class="badge bg-light text-dark border"><?= e(action_ar($l->action ?? '')) ?></span></td>
+                    <td class="text-muted">
+                      <?= !empty($l->user_id) ? ('مستخدم #'.e($l->user_id)) : 'النظام' ?>
+                    </td>
+                    <td><?= e($l->details ?? '-') ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+
       </div>
     </div>
   </div>

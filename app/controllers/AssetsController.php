@@ -1,7 +1,8 @@
 <?php
 
-class AssetsController extends Controller
-{
+class AssetsController extends Controller{
+  private $assetLogModel;
+
   private $assetModel;
   private $userModel;
   private $locationModel;
@@ -11,6 +12,9 @@ class AssetsController extends Controller
     $this->assetModel    = $this->model('Asset');
     $this->userModel     = $this->model('User');
     $this->locationModel = $this->model('Location');
+    // ✅ Audit log (اختياري لو الملف موجود)
+    $this->assetLogModel = $this->model('AssetLog');
+
 
     if (function_exists('requireLogin')) {
       requireLogin();
@@ -167,7 +171,10 @@ class AssetsController extends Controller
         }
 
         $newId = $this->assetModel->add($data);
-if ($newId) {
+      if ($newId) {
+  $details = "إضافة جهاز | Tag={$data['asset_tag']} | Type={$data['type']} | LocationID={$locationId}";
+  $this->logAssetAction((int)$newId, 'create', $details);
+
   redirect('index.php?page=assets/show&id=' . (int)$newId);
   return;
 }
@@ -251,16 +258,22 @@ public function show($id = null)
   $baseUrl  = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $basePath;
   $qrUrl    = $baseUrl . '/index.php?page=assets/show&id=' . (int)$assetId;
 
-  $data = [
-    'asset' => $asset,
-    'qrUrl' => $qrUrl,
-  ];
+  $logs = [];
+if ($this->assetLogModel && method_exists($this->assetLogModel, 'getByAsset')) {
+  $logs = $this->assetLogModel->getByAsset($assetId, 30);
+}
+
+$data = [
+  'asset' => $asset,
+  'qrUrl' => $qrUrl,
+  'logs'  => $logs,
+];
+
 
   $this->view('assets/show', $data);
 }
 
-  public function edit($id = null)
-  {
+  public function edit($id = null){
     if (empty($id)) {
       $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
     }
@@ -348,12 +361,26 @@ $_POST = filter_input_array(INPUT_POST, [
       ];
 
       if ($this->assetModel->update($data)) {
-        flash('asset_msg', 'تم تحديث بيانات الجهاز');
-        redirect('index.php?page=assets/index');
-      } else {
-        die('خطأ في التعديل');
-      }
-      return;
+
+  $action  = 'update';
+  $details = $this->buildAssetUpdateDetails($asset, $data, $locationsAll);
+
+  $oldLoc = (int)($asset->location_id ?? 0);
+  $newLoc = (int)($data['location_id'] ?? 0);
+  $oldStatus = trim((string)($asset->status ?? ''));
+  $newStatus = trim((string)($data['status'] ?? ''));
+
+  if ($oldLoc !== $newLoc) $action = 'transfer';
+  elseif ($oldStatus !== $newStatus) $action = 'status';
+
+  $this->logAssetAction((int)$assetId, $action, $details);
+
+  flash('asset_msg', 'تم تحديث بيانات الجهاز');
+  redirect('index.php?page=assets/index');
+} else {
+  die('خطأ في التعديل');
+}
+
     }
 
     $data = [
@@ -406,10 +433,16 @@ $_POST = filter_input_array(INPUT_POST, [
     }
 
     if ($this->assetModel->delete($id)) {
-      flash('asset_msg', 'تم حذف الجهاز');
-    } else {
-      flash('asset_msg', 'فشل الحذف، حاول مرة أخرى', 'alert alert-danger');
-    }
+  $tag = (string)($asset->asset_tag ?? '');
+  $type = (string)($asset->type ?? '');
+  $details = "حذف جهاز | Tag={$tag} | Type={$type} | AssetID={$id}";
+  $this->logAssetAction((int)$id, 'delete', $details);
+
+  flash('asset_msg', 'تم حذف الجهاز');
+} else {
+  flash('asset_msg', 'فشل الحذف، حاول مرة أخرى', 'alert alert-danger');
+}
+
 
     redirect('index.php?page=assets/index');
   }
@@ -712,6 +745,62 @@ $_POST = filter_input_array(INPUT_POST, [
   return 'AST-' . date('Ymd-His') . '-' . strtoupper(bin2hex(random_bytes(3)));
 }
 
+private function logAssetAction(int $assetId, string $action, ?string $details = null): void
+{
+  if (!$this->assetLogModel || !method_exists($this->assetLogModel, 'add')) return;
+
+  $userId = (int)($_SESSION['user_id'] ?? 0);
+  try {
+    $this->assetLogModel->add($assetId, $userId > 0 ? $userId : null, $action, $details);
+  } catch (Throwable $e) {
+    // لا نكسر النظام إذا فشل اللوج
+  }
+}
+
+private function buildAssetUpdateDetails($oldAsset, array $newData, array $locationsAll): string
+{
+  $locMap = [];
+  foreach ($locationsAll as $l) {
+    $locMap[(int)($l->id ?? 0)] = $l->name_ar ?? ($l->name ?? ('موقع#'.(int)($l->id ?? 0)));
+  }
+
+  $pairs = [
+    'asset_tag'      => 'Tag',
+    'type'           => 'النوع',
+    'brand'          => 'الماركة',
+    'model'          => 'الموديل',
+    'serial_no'      => 'Serial',
+    'status'         => 'الحالة',
+    'purchase_date'  => 'تاريخ الشراء',
+    'warranty_expiry'=> 'انتهاء الضمان',
+    'notes'          => 'ملاحظات',
+    'location_id'    => 'الموقع',
+    'assigned_to'    => 'المستلم',
+  ];
+
+  $changes = [];
+  foreach ($pairs as $k => $label) {
+    $oldVal = $oldAsset->$k ?? null;
+    $newVal = $newData[$k] ?? null;
+
+    // تنظيف
+    $oldVal = is_string($oldVal) ? trim($oldVal) : $oldVal;
+    $newVal = is_string($newVal) ? trim($newVal) : $newVal;
+
+    // أسماء الموقع بدل ID
+    if ($k === 'location_id') {
+      $oldVal = $locMap[(int)$oldVal] ?? (string)(int)$oldVal;
+      $newVal = $locMap[(int)$newVal] ?? (string)(int)$newVal;
+    }
+
+    if ((string)$oldVal !== (string)$newVal) {
+      $changes[] = "{$label}: {$oldVal} → {$newVal}";
+    }
+  }
+
+  if (empty($changes)) return "تم حفظ التعديل بدون تغييرات واضحة";
+  return implode(" | ", $changes);
+}
 
 
 }
