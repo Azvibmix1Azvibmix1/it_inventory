@@ -624,6 +624,22 @@ public function unassign()
   redirect('index.php?page=assets/show&id=' . $assetId);
 }
 
+public function exportXlsx()
+{
+  // Debug مؤقت
+  ini_set('display_errors', 1);
+  error_reporting(E_ALL);
+  echo "exportXlsx reached ✅<br>";
+
+  // تأكد من تسجيل الدخول (اذا عندك)
+  if (function_exists('requireLogin')) { requireLogin(); }
+
+  $autoload = APPROOT . '/../vendor/autoload.php';
+  echo "autoload path: " . $autoload . "<br>";
+  echo "autoload exists? " . (file_exists($autoload) ? "YES" : "NO") . "<br>";
+  exit;
+}
+
 
   /* ==========================
    * Helpers (صلاحيات + مواقع)
