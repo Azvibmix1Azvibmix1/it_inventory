@@ -1,6 +1,6 @@
 </main>
 
-<footer class="py-3 mt-4 border-top bg-white">
+<footer class="py-3 mt-4 bg-white" style="border-top:1px solid var(--uj-border);">
   <div class="container-fluid">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div class="text-muted small">Version 1.0</div>
@@ -11,6 +11,25 @@
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- ✅ Dynamic submit buttons (Loading) -->
+<script>
+document.addEventListener('submit', function(e){
+  const form = e.target;
+  const btn = form.querySelector('button[type="submit"]');
+  if(!btn) return;
+
+  if(btn.dataset.loading === "1") return;
+  btn.dataset.loading = "1";
+  btn.dataset.oldHtml = btn.innerHTML;
+
+  btn.disabled = true;
+  btn.innerHTML = `
+    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+    جاري الحفظ...
+  `;
+});
+</script>
 
 </body>
 </html>

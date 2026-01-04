@@ -32,6 +32,30 @@ $serial   = field_val($asset->serial_no ?? ($asset->serial ?? null));
 $purchase = field_val($asset->purchase_date ?? null);
 $warranty = field_val($asset->warranty_expiry ?? null);
 $notes    = field_val($asset->notes ?? null);
+// ===== Warranty indicator (days left) =====
+$warrantyBadge = null;
+$warrantyText  = null;
+
+if ($warranty && $warranty !== '-') {
+  try {
+    $wDate = new DateTime($warranty);
+    $today = new DateTime('today');
+    $diffDays = (int)$today->diff($wDate)->format('%r%a'); // سالب = منتهي
+
+    if ($diffDays < 0) {
+      $warrantyBadge = 'badge-soft-secondary';
+      $warrantyText  = "الضمان منتهي (منذ " . abs($diffDays) . " يوم)";
+    } elseif ($diffDays <= 30) {
+      $warrantyBadge = 'badge-soft-warning';
+      $warrantyText  = "الضمان قرب ينتهي (باقي {$diffDays} يوم)";
+    } else {
+      $warrantyBadge = 'badge-soft-success';
+      $warrantyText  = "الضمان سليم (باقي {$diffDays} يوم)";
+    }
+  } catch (Exception $e) {
+    // تجاهل لو التاريخ مو مضبوط
+  }
+}
 
 // fallback لو ما وصل qrUrl من الكنترولر
 if (empty($qrUrl)) {
@@ -144,6 +168,20 @@ if (in_array($statusLower, ['maintenance','repair','صيانة','تصليح'])) 
       </div>
     </div>
   </div>
+<?php if ($warrantyText): ?>
+  <div class="card card-shadow mb-3">
+    <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div style="font-weight:800;">
+        <i class="bi bi-shield-check"></i> تنبيه الضمان
+      </div>
+      <div>
+        <span class="badge <?= $warrantyBadge ?>"><?= e($warrantyText) ?></span>
+
+        <span class="text-muted small ms-2 ltr">(<?= e($warranty) ?>)</span>
+      </div>
+    </div>
+  </div>
+<?php endif; ?>
 
   <div class="row g-3 align-items-start">
 
