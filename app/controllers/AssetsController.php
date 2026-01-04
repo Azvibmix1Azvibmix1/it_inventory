@@ -13,8 +13,7 @@ class AssetsController extends Controller{
     $this->userModel     = $this->model('User');
     $this->locationModel = $this->model('Location');
     // ✅ Audit log (اختياري لو الملف موجود)
-    $this->assetLogModel = $this->model('AssetLog');
-
+    
 
     if (function_exists('requireLogin')) {
       requireLogin();
@@ -62,6 +61,12 @@ class AssetsController extends Controller{
         $assets = [];
       }
     }
+$users = [];
+try{
+  $users = $this->userModel->getUsers();  // إذا عندك دالة تجيب الموظفين
+}catch(Throwable $e){
+  $users = [];
+}
 
     $data = [
       'assets'       => $assets,
@@ -532,6 +537,80 @@ $_POST = filter_input_array(INPUT_POST, [
   echo json_encode(['tag' => $this->generateUniqueAssetTag()]);
   exit;
 }
+
+public function assign()
+{
+  requireLogin();
+
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    redirect('index.php?page=assets/index');
+    return;
+  }
+
+  $assetId = (int)($_POST['asset_id'] ?? 0);
+  $userId  = (int)($_POST['user_id'] ?? 0);
+
+  if ($assetId <= 0 || $userId <= 0) {
+    flash('asset_msg', 'بيانات غير صحيحة', 'alert alert-danger');
+    redirect('index.php?page=assets/show&id=' . $assetId);
+    return;
+  }
+
+  // نجيب بيانات الجهاز قبل التعديل (للتسجيل)
+  $asset = $this->assetModel->getById($assetId);
+
+  // هنا لازم عندك update/تحديث عام
+  // إذا عندك دالة مخصصة في الموديل (assignTo) استخدمها بدل update
+  $ok = $this->assetModel->update([
+    'id' => $assetId,
+    'assigned_to' => $userId,
+    // اترك باقي الحقول كما هي أو حسب دالة update عندك
+  ]);
+
+  if ($ok) {
+    $details = "تسليم الجهاز لموظف | AssetID={$assetId} | UserID={$userId}";
+    $this->logAssetAction($assetId, 'assign', $details);
+
+    flash('asset_msg', 'تم تسليم الجهاز');
+  } else {
+    flash('asset_msg', 'فشل تسليم الجهاز', 'alert alert-danger');
+  }
+
+  redirect('index.php?page=assets/show&id=' . $assetId);
+}
+
+public function unassign()
+{
+  requireLogin();
+
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    redirect('index.php?page=assets/index');
+    return;
+  }
+
+  $assetId = (int)($_POST['asset_id'] ?? 0);
+  if ($assetId <= 0) {
+    redirect('index.php?page=assets/index');
+    return;
+  }
+
+  $ok = $this->assetModel->update([
+    'id' => $assetId,
+    'assigned_to' => null,
+  ]);
+
+  if ($ok) {
+    $details = "إلغاء تسليم الجهاز | AssetID={$assetId}";
+    $this->logAssetAction($assetId, 'unassign', $details);
+
+    flash('asset_msg', 'تم إلغاء تسليم الجهاز');
+  } else {
+    flash('asset_msg', 'فشل إلغاء التسليم', 'alert alert-danger');
+  }
+
+  redirect('index.php?page=assets/show&id=' . $assetId);
+}
+
 
   /* ==========================
    * Helpers (صلاحيات + مواقع)

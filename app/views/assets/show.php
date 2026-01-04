@@ -387,6 +387,46 @@ if (in_array($statusLower, ['maintenance','repair','صيانة','تصليح'])) 
     `);
     w.document.close();
   }
+<?php $users = $data['users'] ?? []; ?>
+<div class="card card-shadow mt-3">
+  <div class="card-body">
+    <h6 class="mb-3">تسليم الجهاز</h6>
+
+    <?php if (!empty($asset->assigned_to)): ?>
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="text-muted">
+          مُسلم لـ: <b><?= e($asset->assigned_to) ?></b>
+        </div>
+
+        <form method="post" action="index.php?page=assets/unassign" class="m-0">
+          <input type="hidden" name="asset_id" value="<?= (int)$assetId ?>">
+          <button class="btn btn-outline-danger btn-sm" type="submit">إلغاء التسليم</button>
+        </form>
+      </div>
+    <?php else: ?>
+      <form method="post" action="index.php?page=assets/assign" class="row g-2 align-items-end">
+        <input type="hidden" name="asset_id" value="<?= (int)$assetId ?>">
+
+        <div class="col-md-8">
+          <label class="form-label">اختر الموظف</label>
+          <select name="user_id" class="form-select" required>
+            <option value="">— اختر —</option>
+            <?php foreach ($users as $u): ?>
+              <option value="<?= (int)($u->id ?? 0) ?>">
+                <?= e(($u->name ?? $u->username ?? ('مستخدم #'.($u->id ?? '')))) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <button class="btn btn-success w-100" type="submit">تسليم</button>
+        </div>
+      </form>
+    <?php endif; ?>
+
+  </div>
+</div>
 
   // ===== طباعة شيت A4 بعدد تختاره =====
   function printSheetA4(){
