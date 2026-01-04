@@ -82,6 +82,15 @@ input[type="time"] {
       <!-- ✅ قائمة الحساب: تنزاح لليسار بدون ما تتوسّط القائمة -->
       <ul class="navbar-nav ms-lg-auto">
         <?php if ($logged): ?>
+        <?php
+$currentPage = $_GET['page'] ?? '';
+
+function navActive(string $prefix): string {
+  $p = $_GET['page'] ?? '';
+  return (strpos($p, $prefix) === 0) ? 'active' : '';
+}
+?>
+
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
               <i class="bi bi-person-circle"></i>

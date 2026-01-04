@@ -62,7 +62,7 @@ $allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Othe
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Serial (اختياري)</label>
+            <label class="form-label">Physical address (MAC)</label>
             <input type="text" name="serial_no" class="form-control"
                    value="<?= htmlspecialchars($data['serial_no'] ?? '') ?>">
           </div>
