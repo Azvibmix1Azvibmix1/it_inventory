@@ -13,9 +13,11 @@
   .col-status  { width: 90px; }
   .col-loc     { width: 140px; }
   .col-serial  { width: 160px; }
+  .col-warranty { width: 120px; }
   .col-brand   { width: 190px; }
   .col-type    { width: 120px; }
   .col-tag     { width: 280px; font-weight: 700; }
+  .badge { font-size: 11px; padding: 4px 8px; }
 
   /* QR */
   .col-qr { width: 90px; text-align: center; }
@@ -106,7 +108,35 @@
   $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
   $basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
   $baseUrl = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $basePath;
+  
+  function warrantyBadgeHtml($dateStr) {
+  $dateStr = trim((string)$dateStr);
+  if ($dateStr === '' || $dateStr === '-') {
+    return '<span class="text-muted">-</span>';
+  }
+
+  try {
+    $wDate = new DateTime($dateStr);
+    $today = new DateTime('today');
+    $days = (int)$today->diff($wDate)->format('%r%a');
+
+    $safeDate = htmlspecialchars($dateStr, ENT_QUOTES, 'UTF-8');
+
+    if ($days < 0) {
+      return '<span class="badge bg-danger" title="انتهى: '.$safeDate.'">منتهي</span>';
+    } elseif ($days <= 30) {
+      return '<span class="badge bg-warning text-dark" title="ينتهي: '.$safeDate.'">قريب ('.$days.' يوم)</span>';
+    } else {
+      return '<span class="badge bg-success" title="ينتهي: '.$safeDate.'">سليم ('.$days.' يوم)</span>';
+    }
+  } catch (Exception $e) {
+    return '<span class="text-muted">-</span>';
+  }
+}
+
 ?>
+
+
 
 <div class="container-fluid py-3" dir="rtl">
 
@@ -209,6 +239,11 @@
                   $type = (string)($a->type ?? '');
                   $brandModel = trim(($a->brand ?? '') . ' - ' . ($a->model ?? ''));
                   $serial = (string)($a->serial_no ?? '');
+                  $warrantyExpiry = (string)($a->warranty_expiry
+                  ?? ($a->warranty_expiry_date
+                  ?? ($a->warranty_end ?? '')));
+                  $warrantyHtml = warrantyBadgeHtml($warrantyExpiry);
+
 
                   $locationName = trim((string)($a->location_name ?? ''));
                   if ($locationName === '' || ctype_digit($locationName)) {
@@ -255,7 +290,11 @@
 
                   <td><?= htmlspecialchars($locationName) ?></td>
 
-                  <td class="d-none d-lg-table-cell"><?= htmlspecialchars($serial) ?></td>
+                  <td class="d-none d-lg-table-cell">
+  <div class="ltr"><?= htmlspecialchars($serial ?: '-') ?></div>
+  <div class="mt-1"><?= $warrantyHtml ?></div>
+</td>
+
 
                   <td class="d-none d-md-table-cell">
                     <?= htmlspecialchars($brandModel !== '' ? $brandModel : '-') ?>
