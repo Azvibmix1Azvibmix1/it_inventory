@@ -209,6 +209,55 @@ class AssetsController extends Controller
 }
 
   
+public function show($id = null)
+{
+  if (empty($id)) {
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+  }
+  $assetId = (int)$id;
+
+  if ($assetId <= 0) {
+    flash('asset_msg', 'معرّف الجهاز غير صحيح', 'alert alert-danger');
+    redirect('index.php?page=assets/index');
+    return;
+  }
+
+  // جلب الجهاز (مع اسم الموقع والموظف إن وجد)
+  $asset = method_exists($this->assetModel, 'getAssetById') ? $this->assetModel->getAssetById($assetId) : null;
+  if (!$asset) {
+    flash('asset_msg', 'الجهاز غير موجود', 'alert alert-danger');
+    redirect('index.php?page=assets/index');
+    return;
+  }
+
+  // صلاحيات العرض: نفس منطق الصفحة الرئيسية (مواقع مسموحة للمستخدم)
+  $locationsAll = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
+  [$childrenMap, $parentMap] = $this->buildLocationMaps($locationsAll);
+
+  $allowedLocationIds = $this->getAllowedLocationIdsForAssets();
+  if (is_array($allowedLocationIds)) {
+    $allowedLocationIds = $this->expandIdsWithDescendants($allowedLocationIds, $childrenMap);
+    $locId = (int)($asset->location_id ?? 0);
+    if ($locId > 0 && !in_array($locId, $allowedLocationIds, true)) {
+      flash('asset_msg', 'ليس لديك صلاحية لعرض هذا الجهاز', 'alert alert-danger');
+      redirect('index.php?page=assets/index');
+      return;
+    }
+  }
+
+  // رابط كامل للـ QR (يعرض صفحة التفاصيل)
+  $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+  $basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+  $baseUrl  = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $basePath;
+  $qrUrl    = $baseUrl . '/index.php?page=assets/show&id=' . (int)$assetId;
+
+  $data = [
+    'asset' => $asset,
+    'qrUrl' => $qrUrl,
+  ];
+
+  $this->view('assets/show', $data);
+}
 
   public function edit($id = null)
   {
@@ -259,7 +308,19 @@ class AssetsController extends Controller
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-      $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+$_POST = filter_input_array(INPUT_POST, [
+  'asset_tag' => FILTER_UNSAFE_RAW,
+  'serial_no' => FILTER_UNSAFE_RAW,
+  'brand' => FILTER_UNSAFE_RAW,
+  'model' => FILTER_UNSAFE_RAW,
+  'type' => FILTER_UNSAFE_RAW,
+  'status' => FILTER_UNSAFE_RAW,
+  'purchase_date' => FILTER_UNSAFE_RAW,
+  'warranty_expiry' => FILTER_UNSAFE_RAW,
+  'notes' => FILTER_UNSAFE_RAW,
+  'location_id' => FILTER_VALIDATE_INT,
+  'assigned_to' => FILTER_VALIDATE_INT,
+]);
 
       $newLocationId = !empty($_POST['location_id']) ? (int)$_POST['location_id'] : 0;
 
@@ -651,44 +712,6 @@ class AssetsController extends Controller
   return 'AST-' . date('Ymd-His') . '-' . strtoupper(bin2hex(random_bytes(3)));
 }
 
-public function show()
-{
-  $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-  if ($id <= 0) {
-    flash('asset_msg', 'معرّف الجهاز غير صحيح', 'alert alert-danger');
-    redirect('index.php?page=assets/index');
-    return;
-  }
 
-  // جلب الجهاز
-  if (!method_exists($this->assetModel, 'getById')) {
-    die('Asset model missing getById()');
-  }
-  $asset = $this->assetModel->getById($id);
-
-  if (!$asset) {
-    flash('asset_msg', 'الجهاز غير موجود', 'alert alert-danger');
-    redirect('index.php?page=assets/index');
-    return;
-  }
-
-  // جلب اسم الموقع
-  $locationName = '';
-  if (!empty($asset->location_name)) {
-    $locationName = $asset->location_name;
-  } elseif (!empty($asset->location_id) && method_exists($this->locationModel, 'getById')) {
-    $loc = $this->locationModel->getById((int)$asset->location_id);
-    $locationName = $loc->name_ar ?? ('موقع #' . (int)$asset->location_id);
-  } else {
-    $locationName = '—';
-  }
-
-  $data = [
-    'asset' => $asset,
-    'location_name' => $locationName,
-  ];
-
-  $this->view('assets/show', $data);
-}
 
 }

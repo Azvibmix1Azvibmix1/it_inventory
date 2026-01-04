@@ -140,10 +140,11 @@ $routes = [
   'assets/index'     => [AssetsController::class, 'index'],
   'assets/add'       => [AssetsController::class, 'add'],
   'assets/edit'      => [AssetsController::class, 'edit'],
+  'assets/show'      => [AssetsController::class, 'show'],
   'assets/delete'    => [AssetsController::class, 'delete'],
   'assets/my'        => [AssetsController::class, 'my_assets'],
   'assets/my_assets' => [AssetsController::class, 'my_assets'],
-
+  
   // Locations
   'locations'        => [LocationsController::class, 'index'],
   'locations/index'  => [LocationsController::class, 'index'],
