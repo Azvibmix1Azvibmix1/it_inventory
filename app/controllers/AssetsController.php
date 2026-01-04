@@ -13,7 +13,11 @@ class AssetsController extends Controller{
     $this->userModel     = $this->model('User');
     $this->locationModel = $this->model('Location');
     // ✅ Audit log (اختياري لو الملف موجود)
-    
+    $this->assetLogModel = null;
+if (file_exists(APPROOT . '/models/AssetLog.php')) {
+  $this->assetLogModel = $this->model('AssetLog');
+}
+
 
     if (function_exists('requireLogin')) {
       requireLogin();
@@ -268,11 +272,20 @@ if ($this->assetLogModel && method_exists($this->assetLogModel, 'getByAsset')) {
   $logs = $this->assetLogModel->getByAsset($assetId, 30);
 }
 
+$users = [];
+if (function_exists('isSuperAdmin') && isSuperAdmin()) {
+  $users = method_exists($this->userModel, 'getUsers') ? $this->userModel->getUsers() : [];
+} elseif (function_exists('isManager') && isManager()) {
+  $users = method_exists($this->userModel, 'getUsersByManager') ? $this->userModel->getUsersByManager((int)($_SESSION['user_id'] ?? 0)) : [];
+}
+
 $data = [
   'asset' => $asset,
   'qrUrl' => $qrUrl,
+  'users' => $users,
   'logs'  => $logs,
 ];
+
 
 
   $this->view('assets/show', $data);

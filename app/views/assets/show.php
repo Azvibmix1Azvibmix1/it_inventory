@@ -428,7 +428,6 @@ if (in_array($statusLower, ['maintenance','repair','صيانة','تصليح'])) 
   </div>
 </div>
 
-  // ===== طباعة شيت A4 بعدد تختاره =====
   function printSheetA4(){
     const label = document.querySelector('#labelPreview');
     if(!label){ alert('الملصق غير موجود'); return; }
