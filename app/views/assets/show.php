@@ -121,7 +121,14 @@ if (empty($qrUrl)) {
 
 
 // High-quality QR (we will render it small)
-$qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=' . urlencode($qrUrl);
+// استخدم URLROOT لو موجود (أفضل) — عدّل URLROOT في config عشان ما يكون localhost لو بتسكن بالجوال
+if (defined('URLROOT') && URLROOT) {
+    $qrUrl = rtrim(URLROOT, '/') . '/index.php?page=assets/show&id=' . $assetId;
+}
+
+// ✅ مهم: شفّر الرابط داخل data= عشان &id= ما ينقص داخل QR
+$qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' . rawurlencode(trim($qrUrl));
+
 
 ?>
 <style>

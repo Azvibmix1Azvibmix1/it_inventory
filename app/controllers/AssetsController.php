@@ -910,5 +910,85 @@ private function buildAssetUpdateDetails($oldAsset, array $newData, array $locat
   return implode(" | ", $changes);
 }
 
+public function exportCsv()
+{
+    // لو عندك requireLogin استخدمه
+    if (function_exists('requireLogin')) {
+        requireLogin();
+    }
+
+    // نفس فلاتر صفحة الأجهزة
+    $filters = [
+        'location_id' => $_GET['location_id'] ?? 0,
+        'q'           => $_GET['q'] ?? '',
+        'include_children' => !empty($_GET['include_children']) ? 1 : 0,
+    ];
+
+    $w = $_GET['w'] ?? ''; // soon | expired | (فارغ)
+
+    // صلاحيات المواقع (إذا عندك دالة/منطق جاهز استخدمه)
+    // إذا ما عندك، خله null عشان يجيب الكل
+    $allowedLocationIds = null;
+
+    $assets = $this->assetModel->getAssetsFiltered($filters, $allowedLocationIds);
+
+    // فلترة الضمان (soon/expired)
+    $calcDays = function ($dateStr) {
+        if (!$dateStr || $dateStr === '-' ) return null;
+        try {
+            $d = new DateTime($dateStr);
+            $today = new DateTime('today');
+            return (int)$today->diff($d)->format('%r%a');
+        } catch (Throwable $e) {
+            return null;
+        }
+    };
+
+    if ($w === 'soon') {
+        $assets = array_values(array_filter($assets, function($a) use ($calcDays){
+            $days = $calcDays($a->warranty_expiry ?? null);
+            return $days !== null && $days >= 0 && $days <= 30;
+        }));
+    } elseif ($w === 'expired') {
+        $assets = array_values(array_filter($assets, function($a) use ($calcDays){
+            $days = $calcDays($a->warranty_expiry ?? null);
+            return $days !== null && $days < 0;
+        }));
+    }
+
+    // CSV headers (مع BOM عشان العربي يطلع مضبوط في Excel)
+    $filename = 'assets_' . date('Ymd_His') . '.csv';
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="'.$filename.'"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM
+
+    fputcsv($out, [
+        'ID','Tag','النوع','الماركة','الموديل','Serial','الحالة','الموقع','انتهاء الضمان','أيام متبقية','ملاحظات'
+    ]);
+
+    foreach ($assets as $a) {
+        $days = $calcDays($a->warranty_expiry ?? null);
+        fputcsv($out, [
+            $a->id ?? '',
+            $a->asset_tag ?? '',
+            $a->type ?? '',
+            $a->brand ?? '',
+            $a->model ?? '',
+            $a->serial_no ?? '',
+            $a->status ?? '',
+            $a->location_name ?? '',
+            $a->warranty_expiry ?? '',
+            $days === null ? '' : $days,
+            $a->notes ?? '',
+        ]);
+    }
+
+    fclose($out);
+    exit;
+}
 
 }

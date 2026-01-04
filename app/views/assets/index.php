@@ -127,6 +127,11 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
     .card { border: none !important; box-shadow: none !important; }
     .table { margin: 0 !important; }
   }
+  @media print{
+  .no-print{ display:none !important; }
+  th.no-print, td.no-print{ display:none !important; }
+}
+
 </style>
 
 <div class="container py-4">
@@ -140,9 +145,11 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
     <button class="btn btn-outline-secondary" type="button" onclick="printList()">طباعة القائمة</button>
 
     <!-- تصدير Excel (CSV) -->
-    <a class="btn btn-outline-success" href="index.php?page=assets/exportXlsx">
+    <a class="btn btn-outline-success"
+   href="index.php?page=assets/exportCsv&<?= http_build_query($_GET) ?>">
   تصدير Excel
 </a>
+
 
 
     <a class="btn btn-outline-warning" href="<?= e(buildUrlWith(['warranty' => 'soon'], [])) ?>">قرب انتهاء الضمان</a>
@@ -215,8 +222,7 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
               <th class="col-warranty d-none d-md-table-cell">الضمان</th>
               <th>الموقع</th>
               <th>الحالة</th>
-              <th class="col-actions text-center">إجراءات</th>
-            </tr>
+              <th class="col-actions text-center no-print"></th> إجراءات</tr>
           </thead>
           <tbody>
           <?php if (empty($assets)): ?>
