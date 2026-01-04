@@ -129,6 +129,22 @@ if ($wFilter === 'soon') {
 
   /* تحسين بسيط للعنوان */
   .page-title{ text-align:right; font-weight:800; }
+
+  @media print {
+  /* اخفِ عمود الإجراءات كله */
+  .col-actions,
+  th.col-actions,
+  td.col-actions {
+    display: none !important;
+  }
+
+  /* احتياط: اخفِ أي زر داخل جدول الطباعة */
+  .assets-table .btn,
+  .assets-table button,
+  .assets-table a.btn {
+    display: none !important;
+  }
+}
 </style>
 
 <div class="container-fluid py-3">
