@@ -145,10 +145,11 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
     <button class="btn btn-outline-secondary" type="button" onclick="printList()">طباعة القائمة</button>
 
     <!-- تصدير Excel (CSV) -->
-    <button type="button" class="btn btn-outline-success"
-        onclick="window.location.href='index.php?page=assets/exportcsv&<?= http_build_query($_GET) ?>'">
+    <a class="btn btn-outline-success"
+   href="index.php?page=assets/exportcsv&<?= http_build_query($_GET) ?>">
   تصدير Excel
-</button>
+</a>
+
 
 
 
