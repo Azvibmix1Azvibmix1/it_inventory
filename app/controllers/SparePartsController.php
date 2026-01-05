@@ -169,29 +169,35 @@ class SparePartsController extends Controller
     $this->view('spare_parts/edit', $data);
   }
 
-  public function delete($id = null)
-  {
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-      $id = $id ?? ($_POST['id'] ?? null);
-      $id = (int)$id;
-
-      if ($id <= 0) {
-        flash('part_message', 'معرّف غير صحيح', 'alert alert-danger');
-        redirect('index.php?page=SpareParts/index');
-        return;
-      }
-
-      if ($this->spareModel->delete($id)) {
-        flash('part_message', 'تم حذف القطعة');
-        redirect('index.php?page=SpareParts/index');
-        return;
-      }
-
-      die('حدث خطأ أثناء الحذف');
-    }
-
-    redirect('index.php?page=SpareParts/index');
+  public function delete($id = null) {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    redirect('index.php?page=spareParts/index');
+    return;
   }
+
+  $returnTo = trim($_POST['return_to'] ?? '');
+
+  // id من POST ثم GET احتياط
+  $id = $id ?? ($_POST['id'] ?? ($_GET['id'] ?? null));
+  $id = (int)$id;
+
+  if ($id <= 0) {
+    flash('part_message', 'معرّف غير صحيح', 'alert alert-danger');
+    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    return;
+  }
+
+  if ($this->spareModel->delete($id)) {
+    flash('part_message', 'تم حذف القطعة');
+    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    return;
+  }
+
+  flash('part_message', 'فشل حذف القطعة', 'alert alert-danger');
+  redirect($returnTo ?: 'index.php?page=spareParts/index');
+}
+
+
 
   /**
    * تعديل سريع للكمية (توريد/صرف) + تسجيل حركة
@@ -262,4 +268,67 @@ class SparePartsController extends Controller
       redirect('index.php?page=spareParts/index');
     }
   }
+
+  /**
+ * نقل قطعة لموقع آخر + تسجيل حركة (delta=0)
+ * POST: id, to_location_id, return_to
+ */
+public function transfer() {
+  if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    redirect('index.php?page=spareParts/index');
+    return;
+  }
+
+  $id = (int)($_POST['id'] ?? 0);
+  $toLocationId = (int)($_POST['to_location_id'] ?? 0);
+  $returnTo = trim($_POST['return_to'] ?? '');
+
+  if ($id <= 0 || $toLocationId <= 0) {
+    flash('part_message', 'بيانات غير صحيحة', 'alert alert-danger');
+    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    return;
+  }
+
+  $part = method_exists($this->spareModel, 'getPartById') ? $this->spareModel->getPartById($id) : null;
+  if (!$part) {
+    flash('part_message', 'القطعة غير موجودة', 'alert alert-danger');
+    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    return;
+  }
+
+  $fromLocId = (int)($part->location_id ?? 0);
+  if ($fromLocId > 0 && $toLocationId === $fromLocId) {
+    flash('part_message', 'اختر موقع مختلف للنقل', 'alert alert-warning');
+    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    return;
+  }
+
+  // صلاحية (لو عندك الدالة)
+  if ($fromLocId > 0 && function_exists('requireLocationPermission')) {
+    requireLocationPermission($fromLocId, 'edit', $returnTo ?: 'index.php?page=spareParts/index');
+  }
+
+  $ok = method_exists($this->spareModel, 'transferLocation')
+    ? $this->spareModel->transferLocation($id, $toLocationId)
+    : false;
+
+  if ($ok) {
+    $createdBy = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+
+    // سجل حركة في الموقع القديم + الجديد (delta=0)
+    if (method_exists($this->spareModel, 'addMovement')) {
+      if ($fromLocId > 0) {
+        $this->spareModel->addMovement($id, $fromLocId, 0, "نقل إلى موقع #{$toLocationId}", $createdBy);
+      }
+      $this->spareModel->addMovement($id, $toLocationId, 0, "نقل من موقع #{$fromLocId}", $createdBy);
+    }
+
+    flash('part_message', 'تم نقل القطعة بنجاح');
+  } else {
+    flash('part_message', 'فشل نقل القطعة', 'alert alert-danger');
+  }
+
+  redirect($returnTo ?: 'index.php?page=spareParts/index');
+}
+
 }

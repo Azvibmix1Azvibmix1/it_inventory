@@ -166,6 +166,8 @@ $routes = [
 'assets/unassign'  => [AssetsController::class, 'unassign'],
 'spareParts/adjust' => ['SparePartsController', 'adjust'],
 'spareparts/adjust' => ['SparePartsController', 'adjust'],
+'spareParts/transfer' => ['SparePartsController', 'transfer'],
+'spareparts/transfer' => ['SparePartsController', 'transfer'],
 
 ];
 
@@ -267,6 +269,15 @@ try {
     if (!method_exists($controller, $method)) {
       throw new RuntimeException("Method not found: {$class}::{$method}()");
     }
+
+    if (in_array($routeKey, ['spare_parts/transfer', 'spareparts/transfer'], true)) {
+  if (class_exists('SparePartsController')) {
+    (new SparePartsController())->transfer();
+  } else {
+    (new DashboardController())->index();
+  }
+  exit;
+}
 
     $controller->$method();
   } else {

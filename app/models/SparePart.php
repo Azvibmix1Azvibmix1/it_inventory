@@ -104,12 +104,20 @@ class SparePart
     return $this->db->execute();
   }
 
-  public function delete($id)
-  {
-    $this->db->query("DELETE FROM spare_parts WHERE id = :id LIMIT 1");
-    $this->db->bind(':id', (int)$id);
-    return $this->db->execute();
-  }
+ public function delete($id) {
+  $id = (int)$id;
+
+  $this->db->query("DELETE FROM spare_movements WHERE spare_part_id = :id");
+  $this->db->bind(':id', $id);
+  $this->db->execute();
+
+  $this->db->query("DELETE FROM spare_parts WHERE id = :id LIMIT 1");
+  $this->db->bind(':id', $id);
+  return $this->db->execute();
+}
+
+
+
 
   public function getCounts()
   {
@@ -209,6 +217,13 @@ class SparePart
   ");
   $this->db->bind(':loc', (int)$locationId);
   return $this->db->resultSet();
+}
+
+public function transferLocation($id, $toLocationId) {
+  $this->db->query("UPDATE spare_parts SET location_id = :to_loc WHERE id = :id LIMIT 1");
+  $this->db->bind(':to_loc', (int)$toLocationId);
+  $this->db->bind(':id', (int)$id);
+  return $this->db->execute();
 }
 
 }

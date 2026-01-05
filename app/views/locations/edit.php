@@ -358,63 +358,143 @@
 
             <div class="table-responsive">
               <table class="table table-sm align-middle">
-                <thead class="table-light">
+  <thead class="table-light">
   <tr>
     <th>#</th>
     <th>القطعة</th>
-    <th>الحركة</th>
     <th>الكمية</th>
-    <th>المستخدم</th>
-    <th>الوقت</th>
-    <th>ملاحظة</th>
+    <th>الحد الأدنى</th>
+    <th>الحالة</th>
+    <th>إجراءات سريعة</th>
   </tr>
 </thead>
 
-+<tbody>
-<?php if (empty($movements)): ?>
-  <tr>
-    <td colspan="7" class="text-center text-muted py-4">لا يوجد حركات مسجلة حتى الآن.</td>
-  </tr>
-<?php else: ?>
-  <?php $i = 1; foreach ($movements as $m): ?>
+<?php $returnTo = "index.php?page=locations/edit&id=".(int)$data['id']; ?>
+<tbody>
+  <?php $i = 1; foreach ($spareStocks as $sp): ?>
     <?php
-      $delta  = (int)($m->delta ?? 0);
-      $isIn   = $delta > 0;
-      $qtyTxt = $isIn ? '+' . $delta : (string)$delta;
+      $pid   = (int)($sp->id ?? 0);
+      $name  = htmlspecialchars((string)($sp->name ?? '—'));
+      $pn    = htmlspecialchars((string)($sp->part_number ?? ''));
+      $qty   = (int)($sp->quantity ?? 0);
+      $min   = (int)($sp->min_quantity ?? 0);
 
-      $actionBadge = $isIn
-        ? '<span class="badge bg-success">توريد</span>'
-        : '<span class="badge bg-warning text-dark">صرف</span>';
-
-      $partName = htmlspecialchars((string)($m->part_name ?? '—'));
-      $pn       = htmlspecialchars((string)($m->part_number ?? ''));
-      $userName = htmlspecialchars((string)($m->user_name ?? $m->username ?? '—'));
-      $note     = htmlspecialchars((string)($m->note ?? ''));
-      $time     = htmlspecialchars((string)($m->created_at ?? ''));
+      $badge = 'bg-success';
+      $state = 'متوفر';
+      if ($qty <= 0) { $badge = 'bg-danger'; $state = 'نفد'; }
+      elseif ($qty <= $min) { $badge = 'bg-warning text-dark'; $state = 'تحت الحد'; }
     ?>
     <tr>
       <td class="text-muted"><?= $i++ ?></td>
 
       <td>
-        <div class="fw-semibold"><?= $partName ?></div>
+        <div class="fw-semibold"><?= $name ?></div>
         <?php if ($pn !== ''): ?>
           <div class="small text-muted">PN: <?= $pn ?></div>
         <?php endif; ?>
       </td>
 
-      <td><?= $actionBadge ?></td>
+      <td dir="ltr" class="fw-bold"><?= $qty ?></td>
 
-      <td class="fw-bold"><?= htmlspecialchars($qtyTxt) ?></td>
+      <td dir="ltr" class="text-muted"><?= $min ?></td>
 
-      <td><?= $userName ?></td>
+      <td>
+        <span class="badge <?= $badge ?>"><?= $state ?></span>
+      </td>
 
-      <td class="small text-muted" style="direction:ltr; text-align:right;"><?= $time ?></td>
+      <td class="text-nowrap">
+        <div class="d-inline-flex gap-1 align-items-center">
 
-      <td class="small text-muted"><?= $note !== '' ? $note : '—' ?></td>
+          <!-- توريد +1 -->
+          <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
+            <input type="hidden" name="id" value="<?= $pid ?>">
+            <input type="hidden" name="delta" value="1">
+            <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+            <button type="submit" class="btn btn-sm btn-success" title=" +1">
+              <i class="bi bi-plus-circle"></i> +1
+            </button>
+          </form>
+
+          <!-- صرف -1 -->
+          <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
+            <input type="hidden" name="id" value="<?= $pid ?>">
+            <input type="hidden" name="delta" value="-1">
+            <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+            <button type="submit" class="btn btn-sm btn-warning" title=" -1">
+              <i class="bi bi-dash-circle"></i> -1
+            </button>
+          </form>
+
+          <!-- تعديل -->
+          <a class="btn btn-sm btn-outline-primary"
+             href="index.php?page=spareparts/edit&id=<?= $pid ?>">
+            <i class="bi bi-pencil"></i> تعديل
+          </a>
+
+          <!-- حذف -->
+<form method="post" action="index.php?page=spareparts/delete" class="d-inline"
+      onsubmit="return confirm('متأكد تبغى تحذف القطعة؟');">
+  <input type="hidden" name="id" value="<?= $pid ?>">
+  <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+\
+  <button type="submit" class="btn btn-sm btn-outline-danger">
+    <i class="bi bi-trash"></i> حذف
+  </button>
+</form>
+
+        
+          <!-- زر نقل -->
+<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#transferModal<?= $pid ?>">
+  <i class="bi bi-arrow-left-right"></i> نقل
+</button>
+
+<!-- Modal -->
+<div class="modal fade" id="transferModal<?= $pid ?>" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="index.php?page=spareparts/transfer">
+        <div class="modal-header">
+          <h5 class="modal-title">نقل القطعة</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" name="id" value="<?= $pid ?>">
+          <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+
+          <label class="form-label">اختر الموقع الجديد</label>
+          <select name="to_location_id" class="form-select" required>
+            <option value="">— اختر —</option>
+            <?php foreach (($data['locations'] ?? []) as $loc): ?>
+              <?php if ((int)$loc->id === (int)$data['id']) continue; ?>
+              <option value="<?= (int)$loc->id ?>">
+                <?= htmlspecialchars((string)($loc->name_ar ?? ('موقع#'.$loc->id))) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+
+          <div class="small text-muted mt-2">
+            راح يتم تسجيل الحركة في السجل تلقائيًا.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">نقل</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+        </div>
+      </td>
     </tr>
   <?php endforeach; ?>
-<?php endif; ?>
 </tbody>
+
 
 </table>
 </div>
