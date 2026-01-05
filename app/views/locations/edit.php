@@ -46,10 +46,11 @@
   $spareSummary = $data['spareSummary'] ?? null;
   $spareStocks  = $data['spareStocks']  ?? [];
 
-  $sp_items = (int)($spareSummary->items_count ?? 0);
+  $sp_items = (int)($spareSummary->items_count ?? $spareSummary->total_items ?? 0);
   $sp_total = (int)($spareSummary->total_qty   ?? 0);
   $sp_low   = (int)($spareSummary->low_count   ?? 0);
-  $sp_zero  = (int)($spareSummary->zero_count  ?? 0);
+  $sp_zero  = (int)($spareSummary->zero_count  ?? $spareSummary->out_count ?? 0);
+
 
   $canManage = function_exists('canManageLocation') ? canManageLocation($data['id'], 'manage') : true;
 ?>
@@ -298,27 +299,23 @@
         </div>
       </div>
 
-            <!-- Spare Parts Stock (for this location) -->
-        <div class="card-header bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
-  <div>
-    <i class="bi bi-box-seam"></i> قطع الغيار في هذا الموقع
-  </div>
+      <!-- Spare Parts Stock (for this location) -->
+<div class="card shadow-sm mt-3">
+  <div class="card-header bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <i class="bi bi-box-seam"></i> قطع الغيار في هذا الموقع
+    </div>
 
-  <div class="d-flex align-items-center gap-2 flex-wrap">
-    <a class="btn btn-sm btn-primary"
-       href="index.php?page=spareparts/add&location_id=<?= (int)$data['id'] ?>">
-      <i class="bi bi-plus-lg"></i> إضافة قطعة لهذا الموقع
-    </a>
-
-    <div class="hint">
-      (قسم عرض فقط الآن — الحركات بنضيفها بالفقرة الجاية)
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <a class="btn btn-sm btn-primary"
+         href="index.php?page=spareparts/add&location_id=<?= (int)$data['id'] ?>">
+        <i class="bi bi-plus-lg"></i> إضافة قطعة لهذا الموقع
+      </a>
     </div>
   </div>
-</div>
 
-
-        <div class="card-body">
-
+  <div class="card-body">
+    
           <!-- Summary -->
           <div class="row g-2 mb-3">
             <div class="col-6 col-lg-3">
@@ -411,7 +408,7 @@
             <input type="hidden" name="delta" value="1">
             <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
             <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-            <button type="submit" class="btn btn-sm btn-success" title=" +1">
+            <button type="submit" class="btn btn-sm btn-success" title="توريد +1">
               <i class="bi bi-plus-circle"></i> +1
             </button>
           </form>
@@ -422,7 +419,7 @@
             <input type="hidden" name="delta" value="-1">
             <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
             <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-            <button type="submit" class="btn btn-sm btn-warning" title=" -1">
+            <button type="submit" class="btn btn-sm btn-warning" title="صرف -1">
               <i class="bi bi-dash-circle"></i> -1
             </button>
           </form>
@@ -432,62 +429,6 @@
              href="index.php?page=spareparts/edit&id=<?= $pid ?>">
             <i class="bi bi-pencil"></i> تعديل
           </a>
-
-          <!-- حذف -->
-<form method="post" action="index.php?page=spareparts/delete" class="d-inline"
-      onsubmit="return confirm('متأكد تبغى تحذف القطعة؟');">
-  <input type="hidden" name="id" value="<?= $pid ?>">
-  <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-\
-  <button type="submit" class="btn btn-sm btn-outline-danger">
-    <i class="bi bi-trash"></i> حذف
-  </button>
-</form>
-
-        
-          <!-- زر نقل -->
-<button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#transferModal<?= $pid ?>">
-  <i class="bi bi-arrow-left-right"></i> نقل
-</button>
-
-<!-- Modal -->
-<div class="modal fade" id="transferModal<?= $pid ?>" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="post" action="index.php?page=spareparts/transfer">
-        <div class="modal-header">
-          <h5 class="modal-title">نقل القطعة</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-
-        <div class="modal-body">
-          <input type="hidden" name="id" value="<?= $pid ?>">
-          <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-
-          <label class="form-label">اختر الموقع الجديد</label>
-          <select name="to_location_id" class="form-select" required>
-            <option value="">— اختر —</option>
-            <?php foreach (($data['locations'] ?? []) as $loc): ?>
-              <?php if ((int)$loc->id === (int)$data['id']) continue; ?>
-              <option value="<?= (int)$loc->id ?>">
-                <?= htmlspecialchars((string)($loc->name_ar ?? ('موقع#'.$loc->id))) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-
-          <div class="small text-muted mt-2">
-            راح يتم تسجيل الحركة في السجل تلقائيًا.
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
-          <button type="submit" class="btn btn-primary">نقل</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 
         </div>
       </td>

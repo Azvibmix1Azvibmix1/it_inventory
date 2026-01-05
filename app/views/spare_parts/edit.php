@@ -3,7 +3,8 @@
 <div class="container py-3" dir="rtl">
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
     <h4 class="m-0">تعديل قطعة غيار</h4>
-    <a class="btn btn-outline-secondary" href="index.php?page=SpareParts/index">رجوع</a>
+    <a class="btn btn-outline-secondary" href="index.php?page=spareparts/index">رجوع</a>
+
   </div>
 
   <?php flash('part_message'); ?>
