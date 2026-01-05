@@ -171,31 +171,32 @@ class SparePartsController extends Controller
 
   public function delete($id = null) {
   if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirect('index.php?page=spareParts/index');
+    redirect('index.php?page=spareparts/index');
     return;
   }
 
   $returnTo = trim($_POST['return_to'] ?? '');
 
-  // id من POST ثم GET احتياط
   $id = $id ?? ($_POST['id'] ?? ($_GET['id'] ?? null));
   $id = (int)$id;
 
   if ($id <= 0) {
     flash('part_message', 'معرّف غير صحيح', 'alert alert-danger');
-    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    redirect($returnTo ?: 'index.php?page=spareparts/index');
     return;
   }
 
   if ($this->spareModel->delete($id)) {
     flash('part_message', 'تم حذف القطعة');
-    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    redirect($returnTo ?: 'index.php?page=spareparts/index');
     return;
   }
 
   flash('part_message', 'فشل حذف القطعة', 'alert alert-danger');
-  redirect($returnTo ?: 'index.php?page=spareParts/index');
+  redirect($returnTo ?: 'index.php?page=spareparts/index');
 }
+
+
 
 
 

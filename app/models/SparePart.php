@@ -107,14 +107,18 @@ class SparePart
  public function delete($id) {
   $id = (int)$id;
 
+  // امسح الحركات أولاً (لو الجدول موجود)
   $this->db->query("DELETE FROM spare_movements WHERE spare_part_id = :id");
   $this->db->bind(':id', $id);
   $this->db->execute();
 
+  // بعدها امسح القطعة
   $this->db->query("DELETE FROM spare_parts WHERE id = :id LIMIT 1");
   $this->db->bind(':id', $id);
   return $this->db->execute();
 }
+
+
 
 
 

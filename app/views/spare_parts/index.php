@@ -131,10 +131,17 @@
                                     <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/edit&id=<?php echo $part->id; ?>" class="btn btn-sm btn-outline-primary">
                                         <i class="fa fa-edit"></i>
                                     </a>
-                                    <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/delete&id=<?php echo $part->id; ?>" class="btn btn-sm btn-outline-danger"
-                                       onclick="return confirm('حذف هذه القطعة؟');">
-                                        <i class="fa fa-trash"></i>
-                                    </a>
+                                    <form method="post"
+      action="<?php echo URLROOT; ?>/index.php?page=spareparts/delete"
+      class="d-inline"
+      onsubmit="return confirm('متأكد تبغى تحذف القطعة؟');">
+  <input type="hidden" name="id" value="<?php echo (int)$part->id; ?>">
+  <input type="hidden" name="return_to" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>">
+  <button type="submit" class="btn btn-sm btn-outline-danger">
+    <i class="bi bi-trash"></i> 
+  </button>
+</form>
+
                                 </td>
                             </tr>
                             <?php endforeach; ?>

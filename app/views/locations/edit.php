@@ -370,7 +370,7 @@
 <tbody>
   <?php $i = 1; foreach ($spareStocks as $sp): ?>
     <?php
-      $pid   = (int)($sp->id ?? 0);
+     $pid = (int)($sp->spare_part_id ?? $sp->id ?? 0);
       $name  = htmlspecialchars((string)($sp->name ?? '—'));
       $pn    = htmlspecialchars((string)($sp->part_number ?? ''));
       $qty   = (int)($sp->quantity ?? 0);
@@ -398,39 +398,52 @@
       <td>
         <span class="badge <?= $badge ?>"><?= $state ?></span>
       </td>
+<td class="text-nowrap">
+  <div class="d-inline-flex gap-1 align-items-center">
 
-      <td class="text-nowrap">
-        <div class="d-inline-flex gap-1 align-items-center">
+    <!-- توريد +1 -->
+    <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
+      <input type="hidden" name="id" value="<?= $pid ?>">
+      <input type="hidden" name="delta" value="1">
+      <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+      <button type="submit" class="btn btn-sm btn-success" title="توريد +1">
+        <i class="bi bi-plus-circle"></i> +1
+      </button>
+    </form>
 
-          <!-- توريد +1 -->
-          <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
-            <input type="hidden" name="id" value="<?= $pid ?>">
-            <input type="hidden" name="delta" value="1">
-            <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
-            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-            <button type="submit" class="btn btn-sm btn-success" title="توريد +1">
-              <i class="bi bi-plus-circle"></i> +1
-            </button>
-          </form>
+    <!-- صرف -1 -->
+    <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
+      <input type="hidden" name="id" value="<?= $pid ?>">
+      <input type="hidden" name="delta" value="-1">
+      <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+      <button type="submit" class="btn btn-sm btn-warning" title="صرف -1">
+        <i class="bi bi-dash-circle"></i> -1
+      </button>
+    </form>
 
-          <!-- صرف -1 -->
-          <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
-            <input type="hidden" name="id" value="<?= $pid ?>">
-            <input type="hidden" name="delta" value="-1">
-            <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
-            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-            <button type="submit" class="btn btn-sm btn-warning" title="صرف -1">
-              <i class="bi bi-dash-circle"></i> -1
-            </button>
-          </form>
+    <!-- تعديل -->
+    <a class="btn btn-sm btn-outline-primary"
+       href="index.php?page=spareparts/edit&id=<?= $pid ?>">
+      <i class="bi bi-pencil"></i> تعديل
+    </a>
 
-          <!-- تعديل -->
-          <a class="btn btn-sm btn-outline-primary"
-             href="index.php?page=spareparts/edit&id=<?= $pid ?>">
-            <i class="bi bi-pencil"></i> تعديل
-          </a>
+    <!-- حذف -->
+    <form method="post" action="index.php?page=spareparts/delete" class="d-inline"
+          onsubmit="return confirm('متأكد تبغى تحذف القطعة؟');">
+      <input type="hidden" name="id" value="<?= $pid ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+      <button type="submit" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-trash"></i> حذف
+      </button>
+    </form>
 
-        </div>
+    <!-- (زر النقل + المودال يكون هنا إذا عندك) -->
+
+  </div>
+</td>
+
       </td>
     </tr>
   <?php endforeach; ?>
