@@ -145,10 +145,18 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
     <button class="btn btn-outline-secondary" type="button" onclick="printList()">طباعة القائمة</button>
 
     <!-- تصدير Excel (CSV) -->
-    <a class="btn btn-outline-success"
-   href="index.php?page=assets/exportcsv&<?= http_build_query($_GET) ?>">
+    <?php
+  // رابط التصدير مع نفس الفلاتر الحالية
+  $q = $_GET ?? [];
+  unset($q['page']); // لا نكرّر page
+  $exportHref = 'index.php?page=assets/exportcsv';
+  $qs = http_build_query($q);
+  if ($qs) $exportHref .= '&' . $qs;
+?>
+<a class="btn btn-outline-success" href="<?= $exportHref ?>">
   تصدير Excel
 </a>
+
 
 
 
@@ -298,14 +306,25 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
 
               <td><span class="badge <?= e($statusClass) ?>"><?= e($status) ?></span></td>
 
-              <td class="col-actions text-center">
-                <?php if ($canEdit): ?>
-                  <a class="btn btn-sm btn-outline-primary" href="index.php?page=assets/edit&id=<?= $id ?>">تعديل</a>
-                <?php endif; ?>
-                <?php if ($canDelete): ?>
-                  <a class="btn btn-sm btn-outline-danger" href="index.php?page=assets/delete&id=<?= $id ?>" onclick="return confirm('تأكيد حذف الجهاز؟');">حذف</a>
-                <?php endif; ?>
-              </td>
+<?php $id = is_object($asset) ? (int)($asset->id ?? 0) : (int)($asset['id'] ?? 0); ?>
+
+<td class="col-actions text-center">
+  <a class="btn btn-sm btn-outline-primary"
+     href="index.php?page=assets/edit&id=<?= $id ?>">
+    تعديل
+  </a>
+
+  <form class="d-inline-block"
+        method="post"
+        action="index.php?page=assets/delete"
+        onsubmit="return confirm('متأكد تبغى حذف هذا الجهاز؟');">
+    <input type="hidden" name="id" value="<?= $id ?>">
+    <button type="submit" class="btn btn-sm btn-outline-danger">حذف</button>
+  </form>
+</td>
+
+
+
             </tr>
             <?php endforeach; ?>
           <?php endif; ?>

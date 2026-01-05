@@ -160,6 +160,10 @@ $routes = [
   'users/edit'    => [UsersController::class, 'edit'],
   'users/delete'  => [UsersController::class, 'delete'],
   'users/profile' => [UsersController::class, 'profile'],
+// assets/assign
+'assets/assign'    => [AssetsController::class, 'assign'],
+'assets/unassign'  => [AssetsController::class, 'unassign'],
+
 ];
 
 // -------------------------

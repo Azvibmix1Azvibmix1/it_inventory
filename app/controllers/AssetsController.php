@@ -245,6 +245,30 @@ public function show($id = null)
     redirect('index.php?page=assets/index');
     return;
   }
+$assignedName = '';
+$assignedId = (int)($asset->assigned_to ?? 0);
+
+if ($assignedId > 0) {
+  // إذا عندك دالة getUserById في الموديل استخدمها
+  if (method_exists($this->userModel, 'getUserById')) {
+    $u = $this->userModel->getUserById($assignedId);
+    $assignedName = $u->name ?? ($u->username ?? ($u->email ?? ''));
+  } else {
+    // fallback: نبحث داخل قائمة users (للـ superadmin/manager)
+    $usersAll = [];
+    if (function_exists('isSuperAdmin') && isSuperAdmin() && method_exists($this->userModel, 'getUsers')) {
+      $usersAll = $this->userModel->getUsers();
+    } elseif (function_exists('isManager') && isManager() && method_exists($this->userModel, 'getUsersByManager')) {
+      $usersAll = $this->userModel->getUsersByManager((int)($_SESSION['user_id'] ?? 0));
+    }
+    foreach ($usersAll as $uu) {
+      if ((int)($uu->id ?? 0) === $assignedId) {
+        $assignedName = $uu->name ?? ($uu->username ?? ($uu->email ?? ''));
+        break;
+      }
+    }
+  }
+}
 
   // صلاحيات العرض: نفس منطق الصفحة الرئيسية (مواقع مسموحة للمستخدم)
   $locationsAll = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
@@ -284,6 +308,7 @@ $data = [
   'qrUrl' => $qrUrl,
   'users' => $users,
   'logs'  => $logs,
+  'assignedName' => $assignedName,
 ];
 
 
@@ -581,7 +606,9 @@ public function assign()
   ]);
 
   if ($ok) {
-    $details = "تسليم الجهاز لموظف | AssetID={$assetId} | UserID={$userId}";
+    $empName = $this->getUserDisplayName($userId);
+$details = "تسليم الجهاز للموظف: {$empName} | AssetID={$assetId} | UserID={$userId}";
+
     $this->logAssetAction($assetId, 'assign', $details);
 
     flash('asset_msg', 'تم تسليم الجهاز');
@@ -989,6 +1016,21 @@ public function exportCsv()
 
     fclose($out);
     exit;
+}
+
+private function getUserDisplayName(int $userId): string
+{
+  // 1) إذا موديل اليوزر عنده getUserById
+  if (isset($this->userModel) && method_exists($this->userModel, 'getUserById')) {
+    $u = $this->userModel->getUserById($userId);
+    if ($u) {
+      $name = $u->name ?? ($u->full_name ?? ($u->username ?? ($u->email ?? '')));
+      if (!empty($name)) return $name;
+    }
+  }
+
+  // 2) fallback (لو ما عندك getUserById): اعرض رقم المستخدم بشكل لطيف
+  return "مستخدم #{$userId}";
 }
 
 }
