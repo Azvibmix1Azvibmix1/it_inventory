@@ -315,7 +315,7 @@
   </div>
 
   <div class="card-body">
-    
+
           <!-- Summary -->
           <div class="row g-2 mb-3">
             <div class="col-6 col-lg-3">
@@ -525,9 +525,7 @@
 
             </div>
 
-            <div class="hint mt-2">
-              بالفقرة الجاية بنضيف أزرار: توريد / صرف / نقل + سجل حركات.
-            </div>
+            
 
           <?php endif; ?>
 
