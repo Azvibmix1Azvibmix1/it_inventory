@@ -299,15 +299,23 @@
       </div>
 
             <!-- Spare Parts Stock (for this location) -->
-      <div class="card shadow-sm mt-3">
         <div class="card-header bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div>
-            <i class="bi bi-box-seam"></i> قطع الغيار في هذا الموقع
-          </div>
-          <div class="hint">
-            (قسم عرض فقط الآن — الحركات بنضيفها بالفقرة الجاية)
-          </div>
-        </div>
+  <div>
+    <i class="bi bi-box-seam"></i> قطع الغيار في هذا الموقع
+  </div>
+
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <a class="btn btn-sm btn-primary"
+       href="index.php?page=spareparts/add&location_id=<?= (int)$data['id'] ?>">
+      <i class="bi bi-plus-lg"></i> إضافة قطعة لهذا الموقع
+    </a>
+
+    <div class="hint">
+      (قسم عرض فقط الآن — الحركات بنضيفها بالفقرة الجاية)
+    </div>
+  </div>
+</div>
+
 
         <div class="card-body">
 
@@ -362,38 +370,70 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <?php $i = 1; foreach ($spareStocks as $row): ?>
-                    <?php
-                      $qty = (int)($row->qty ?? 0);
-                      $min = (int)($row->min_qty_effective ?? 0);
+  <?php if (empty($spareStocks)): ?>
+    <tr>
+      <td colspan="7" class="text-center text-muted py-4">
+        لا يوجد مخزون قطع غيار مربوط بهذا الموقع حاليًا.
+      </td>
+    </tr>
+  <?php else: ?>
+    <?php $i = 1; foreach ($spareStocks as $row): ?>
+      <?php
+        $qty = (int)($row->quantity ?? 0);
+        $min = (int)($row->min_quantity ?? 0);
 
-                      if ($qty <= 0) {
-                        $statusTxt = 'نفد';
-                        $badge = 'bg-danger';
-                      } elseif ($qty <= $min) {
-                        $statusTxt = 'تحت الحد';
-                        $badge = 'bg-warning text-dark';
-                      } else {
-                        $statusTxt = 'متوفر';
-                        $badge = 'bg-success';
-                      }
-                    ?>
-                    <tr>
-                      <td dir="ltr"><?= $i++ ?></td>
-                      <td>
-                        <div class="fw-bold"><?= htmlspecialchars($row->name_ar ?? '') ?></div>
-                        <?php if (!empty($row->name_en)): ?>
-                          <div class="text-muted small" dir="ltr"><?= htmlspecialchars($row->name_en) ?></div>
-                        <?php endif; ?>
-                      </td>
-                      <td dir="ltr"><?= htmlspecialchars($row->part_no ?? '—') ?></td>
-                      <td><?= htmlspecialchars($row->unit ?? '—') ?></td>
-                      <td class="fw-bold" dir="ltr"><?= $qty ?></td>
-                      <td dir="ltr"><?= $min ?></td>
-                      <td><span class="badge <?= $badge ?>"><?= $statusTxt ?></span></td>
-                    </tr>
-                  <?php endforeach; ?>
-                </tbody>
+        if ($qty <= 0) {
+          $statusTxt = 'نفد';
+          $badge = 'bg-danger';
+        } elseif ($qty <= $min) {
+          $statusTxt = 'تحت الحد';
+          $badge = 'bg-warning text-dark';
+        } else {
+          $statusTxt = 'متوفر';
+          $badge = 'bg-success';
+        }
+      ?>
+      <tr>
+        <td dir="ltr"><?= $i++ ?></td>
+
+        <td class="fw-bold">
+          <?= htmlspecialchars($row->name ?? '') ?>
+        </td>
+
+        <td dir="ltr">
+          <?= htmlspecialchars($row->part_number ?? '—') ?>
+        </td>
+
+        <td class="fw-bold" dir="ltr">
+          <?= $qty ?>
+        </td>
+
+        <td dir="ltr">
+          <?= $min ?>
+        </td>
+
+        <td>
+          <span class="badge <?= $badge ?>"><?= $statusTxt ?></span>
+        </td>
+
+        <td class="d-flex gap-1">
+          <a class="btn btn-sm btn-outline-primary"
+             href="index.php?page=spareParts/edit&id=<?= (int)($row->id ?? 0) ?>">
+            تعديل
+          </a>
+
+          <form method="post"
+                action="index.php?page=spareParts/delete"
+                onsubmit="return confirm('متأكد من حذف القطعة؟');">
+            <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
+            <button class="btn btn-sm btn-outline-danger">حذف</button>
+          </form>
+        </td>
+      </tr>
+    <?php endforeach; ?>
+  <?php endif; ?>
+</tbody>
+
               </table>
             </div>
 

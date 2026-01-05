@@ -86,16 +86,19 @@ class SparePartsController extends Controller {
         } else {
             // تحميل الصفحة لأول مرة (GET)
             $locations = $this->locationModel->getAll();
-            $data = [
-                'name' => '',
-                'part_number' => '',
-                'quantity' => 1,
-                'min_quantity' => 5,
-                'location_id' => '',
-                'description' => '',
-                'locations' => $locations,
-                'name_err' => ''
-            ];
+$prefillLoc = (int)($_GET['location_id'] ?? 0);
+
+$data = [
+    'name' => '',
+    'part_number' => '',
+    'quantity' => 1,
+    'min_quantity' => 5,
+    'location_id' => $prefillLoc > 0 ? $prefillLoc : '',
+    'description' => '',
+    'locations' => $locations,
+    'name_err' => ''
+];
+
             
             $this->view('spare_parts/add', $data);
         }

@@ -103,14 +103,25 @@ class SparePart {
     return $this->db->execute();
   }
 
-  public function getParts() {
+  public function getParts(){
   $this->db->query("
-    SELECT parts.*, loc.name_ar AS location_name
-    FROM spare_parts parts
-    LEFT JOIN locations loc ON parts.location_id = loc.id
-    ORDER BY parts.created_at DESC
+    SELECT sp.*,
+           l.name_ar AS location_name_ar,
+           l.name_en AS location_name_en
+    FROM spare_parts sp
+    LEFT JOIN locations l ON l.id = sp.location_id
+    ORDER BY sp.created_at DESC
   ");
   return $this->db->resultSet();
 }
+
+
+  public function getPartById($id){
+  $this->db->query("SELECT * FROM spare_parts WHERE id = :id LIMIT 1");
+  $this->db->bind(':id', (int)$id);
+  return $this->db->single();
+}
+
+
 
 }

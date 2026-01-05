@@ -1,10 +1,42 @@
 <?php require_once APPROOT . '/views/layouts/header.php'; ?>
 
+<?php
+  // Dashboard counts
+  $parts = $data['parts'] ?? [];
+  $totalCount = is_array($parts) ? count($parts) : 0;
+  $outCount = 0;
+  $lowCount = 0;
+
+  if (is_array($parts)) {
+    foreach ($parts as $p) {
+      $q = (int)($p->quantity ?? 0);
+      $min = (int)($p->min_quantity ?? 0);
+      if ($q <= 0) {
+        $outCount++;
+      } elseif ($q <= $min) {
+        $lowCount++;
+      }
+    }
+  }
+?>
+
+<style>
+  /* ✅ KPI cards: unified navy color */
+  .bg-navy { background-color: #0F2A43 !important; }
+  .text-navy { color: #0F2A43 !important; }
+
+  .kpi-card {
+    border: 0;
+    border-radius: 14px;
+  }
+  .kpi-card .card-text { opacity: .9; }
+</style>
+
 <div class="container mt-4">
 
     <div class="row mb-3 align-items-center">
         <div class="col-md-6">
-            <h1><i class="fa fa-microchip text-warning"></i> إدارة قطع الغيار</h1>
+            <h1><i class="fa fa-microchip text-navy"></i> إدارة قطع الغيار</h1>
         </div>
         <div class="col-md-6 text-md-end">
             <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/add" class="btn btn-primary">
@@ -15,26 +47,26 @@
 
     <div class="row mb-4 text-center">
         <div class="col-md-4">
-            <div class="card text-white bg-danger mb-3 shadow-sm">
+            <div class="card text-white bg-navy mb-3 shadow-sm kpi-card">
                 <div class="card-body">
-                    <h1 class="display-4 fw-bold">0</h1>
+                    <h1 class="display-4 fw-bold" dir="ltr"><?php echo $outCount; ?></h1>
                     <p class="card-text">قطع نفذت كميتها</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white bg-warning mb-3 shadow-sm">
+            <div class="card text-white bg-navy mb-3 shadow-sm kpi-card">
                 <div class="card-body">
-                    <h1 class="display-4 fw-bold">1</h1>
+                    <h1 class="display-4 fw-bold" dir="ltr"><?php echo $lowCount; ?></h1>
                     <p class="card-text">قطع منخفضة العدد</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3 shadow-sm">
+            <div class="card text-white bg-navy mb-3 shadow-sm kpi-card">
                 <div class="card-body">
-                    <h1 class="display-4 fw-bold">
-                        <?php echo isset($data['parts']) ? count($data['parts']) : 0; ?>
+                    <h1 class="display-4 fw-bold" dir="ltr">
+                        <?php echo $totalCount; ?>
                     </h1>
                     <p class="card-text">إجمالي القطع المسجلة</p>
                 </div>
@@ -65,7 +97,7 @@
                             <tr>
                                 <td class="fw-bold"><?php echo $part->name; ?></td>
                                 <td class="text-muted"><?php echo $part->part_number ?? '-'; ?></td>
-                                
+
                                 <td>
                                     <?php if($part->quantity == 0): ?>
                                         <span class="text-danger fw-bold">0</span>
@@ -76,7 +108,16 @@
                                     <?php endif; ?>
                                 </td>
 
-                                <td>غير محدد</td> <td>
+                                <td>
+                                  <?php
+                                    $locName = $part->location_name_ar ?? '';
+                                    if (empty($locName) && !empty($part->location_name_en)) $locName = $part->location_name_en;
+                                    echo !empty($locName) ? htmlspecialchars($locName) : 'غير محدد';
+                                  ?>
+                                 </td>
+
+
+                                <td>
                                     <?php if($part->quantity > $part->min_quantity): ?>
                                         <span class="badge bg-success rounded-pill">متوفر</span>
                                     <?php elseif($part->quantity > 0): ?>
@@ -87,8 +128,13 @@
                                 </td>
 
                                 <td>
-                                    <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/edit&id=<?php echo $part->id; ?>" class="btn btn-sm btn-outline-primary"><i class="fa fa-edit"></i></a>
-                                    <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/delete&id=<?php echo $part->id; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذه القطعة؟');"><i class="fa fa-trash"></i></a>
+                                    <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/edit&id=<?php echo $part->id; ?>" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa fa-edit"></i>
+                                    </a>
+                                    <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/delete&id=<?php echo $part->id; ?>" class="btn btn-sm btn-outline-danger"
+                                       onclick="return confirm('حذف هذه القطعة؟');">
+                                        <i class="fa fa-trash"></i>
+                                    </a>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -101,4 +147,6 @@
         </div>
     </div>
 
-</div> <?php require_once APPROOT . '/views/layouts/footer.php'; ?>
+</div>
+
+<?php require_once APPROOT . '/views/layouts/footer.php'; ?>
