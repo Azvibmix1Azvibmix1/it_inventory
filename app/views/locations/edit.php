@@ -358,120 +358,69 @@
 
             <div class="table-responsive">
               <table class="table table-sm align-middle">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>اسم القطعة</th>
-                    <th>Part No</th>
-                    <th>الوحدة</th>
-                    <th>الكمية</th>
-                    <th>الحد الأدنى</th>
-                    <th>الحالة</th>
-                  </tr>
-                </thead>
-                <tbody>
-  <?php if (empty($spareStocks)): ?>
+                <thead class="table-light">
+  <tr>
+    <th>#</th>
+    <th>القطعة</th>
+    <th>الحركة</th>
+    <th>الكمية</th>
+    <th>المستخدم</th>
+    <th>الوقت</th>
+    <th>ملاحظة</th>
+  </tr>
+</thead>
+
++<tbody>
+<?php if (empty($movements)): ?>
+  <tr>
+    <td colspan="7" class="text-center text-muted py-4">لا يوجد حركات مسجلة حتى الآن.</td>
+  </tr>
+<?php else: ?>
+  <?php $i = 1; foreach ($movements as $m): ?>
+    <?php
+      $delta  = (int)($m->delta ?? 0);
+      $isIn   = $delta > 0;
+      $qtyTxt = $isIn ? '+' . $delta : (string)$delta;
+
+      $actionBadge = $isIn
+        ? '<span class="badge bg-success">توريد</span>'
+        : '<span class="badge bg-warning text-dark">صرف</span>';
+
+      $partName = htmlspecialchars((string)($m->part_name ?? '—'));
+      $pn       = htmlspecialchars((string)($m->part_number ?? ''));
+      $userName = htmlspecialchars((string)($m->user_name ?? $m->username ?? '—'));
+      $note     = htmlspecialchars((string)($m->note ?? ''));
+      $time     = htmlspecialchars((string)($m->created_at ?? ''));
+    ?>
     <tr>
-      <td colspan="7" class="text-center text-muted py-4">
-        لا يوجد مخزون قطع غيار مربوط بهذا الموقع حاليًا.
+      <td class="text-muted"><?= $i++ ?></td>
+
+      <td>
+        <div class="fw-semibold"><?= $partName ?></div>
+        <?php if ($pn !== ''): ?>
+          <div class="small text-muted">PN: <?= $pn ?></div>
+        <?php endif; ?>
       </td>
+
+      <td><?= $actionBadge ?></td>
+
+      <td class="fw-bold"><?= htmlspecialchars($qtyTxt) ?></td>
+
+      <td><?= $userName ?></td>
+
+      <td class="small text-muted" style="direction:ltr; text-align:right;"><?= $time ?></td>
+
+      <td class="small text-muted"><?= $note !== '' ? $note : '—' ?></td>
     </tr>
-  <?php else: ?>
-    <?php $i = 1; foreach ($spareStocks as $row): ?>
-      <?php
-        $qty = (int)($row->quantity ?? 0);
-        $min = (int)($row->min_quantity ?? 0);
-
-        if ($qty <= 0) {
-          $statusTxt = 'نفد';
-          $badge = 'bg-danger';
-        } elseif ($qty <= $min) {
-          $statusTxt = 'تحت الحد';
-          $badge = 'bg-warning text-dark';
-        } else {
-          $statusTxt = 'متوفر';
-          $badge = 'bg-success';
-        }
-
-        $locId = (int)($data['id'] ?? 0);
-        $returnTo = "index.php?page=locations/edit&id={$locId}";
-      ?>
-      <tr>
-        <td dir="ltr"><?= $i++ ?></td>
-
-        <td class="fw-bold">
-          <?= htmlspecialchars($row->name ?? '') ?>
-        </td>
-
-        <td dir="ltr">
-          <?= htmlspecialchars($row->part_number ?? '—') ?>
-        </td>
-
-        <td class="fw-bold" dir="ltr">
-          <?= $qty ?>
-        </td>
-
-        <td dir="ltr">
-          <?= $min ?>
-        </td>
-
-        <td>
-          <span class="badge <?= $badge ?>"><?= $statusTxt ?></span>
-        </td>
-
-        <td class="d-flex gap-2 flex-wrap align-items-center">
-
-  <!-- ✅ خانة تحديد الكمية -->
-  <input
-    type="number"
-    class="form-control form-control-sm"
-    id="qty_box_<?= (int)($row->id ?? 0) ?>"
-    value="1"
-    min="1"
-    style="width:85px"
-    dir="ltr"
-  >
-
-  <!-- ✅ توريد (delta = +N) -->
-  <form method="post" action="index.php?page=spareParts/adjust" class="m-0"
-        onsubmit="this.delta.value = document.getElementById('qty_box_<?= (int)($row->id ?? 0) ?>').value;">
-    <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
-    <input type="hidden" name="delta" value="1">
-    <input type="hidden" name="location_id" value="<?= (int)$locId ?>">
-    <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-    <button class="btn btn-sm btn-success" title="توريد (زيادة الكمية)">
-      توريد
-    </button>
-  </form>
-
-  <!-- ✅ صرف (delta = -N) -->
-  <form method="post" action="index.php?page=spareParts/adjust" class="m-0"
-        onsubmit="this.delta.value = -1 * document.getElementById('qty_box_<?= (int)($row->id ?? 0) ?>').value;">
-    <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
-    <input type="hidden" name="delta" value="-1">
-    <input type="hidden" name="location_id" value="<?= (int)$locId ?>">
-    <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-    <button class="btn btn-sm btn-warning" title="صرف (إنقاص الكمية)">
-      صرف
-    </button>
-  </form>
-
-  <!-- ✅ تعديل -->
-  <a class="btn btn-sm btn-outline-primary"
-     href="index.php?page=spareParts/edit&id=<?= (int)($row->id ?? 0) ?>">
-    تعديل
-  </a>
-
-</td>
-
-      </tr>
-    <?php endforeach; ?>
-  <?php endif; ?>
+  <?php endforeach; ?>
+<?php endif; ?>
 </tbody>
+
 </table>
 </div>
 
-<?php $movements = $movements ?? []; ?>
+<?php $movements = $data['movements'] ?? []; ?>
+
             
 <div class="p-2 small text-muted">Movements count: <?= is_array($movements) ? count($movements) : 0 ?></div>
 
