@@ -392,6 +392,9 @@
           $statusTxt = 'متوفر';
           $badge = 'bg-success';
         }
+
+        $locId = (int)($data['id'] ?? 0);
+        $returnTo = "index.php?page=locations/edit&id={$locId}";
       ?>
       <tr>
         <td dir="ltr"><?= $i++ ?></td>
@@ -416,23 +419,38 @@
           <span class="badge <?= $badge ?>"><?= $statusTxt ?></span>
         </td>
 
-        <td class="d-flex gap-1">
+        <td class="d-flex gap-1 flex-wrap">
+
+          <!-- ✅ توريد سريع (+1) -->
+          <form method="post" action="index.php?page=spareParts/adjust" class="m-0">
+            <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
+            <input type="hidden" name="delta" value="1">
+            <input type="hidden" name="location_id" value="<?= $locId ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+            <button class="btn btn-sm btn-success" title="توريد +1">+1</button>
+          </form>
+
+          <!-- ✅ صرف سريع (-1) -->
+          <form method="post" action="index.php?page=spareParts/adjust" class="m-0">
+            <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
+            <input type="hidden" name="delta" value="-1">
+            <input type="hidden" name="location_id" value="<?= $locId ?>">
+            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+            <button class="btn btn-sm btn-warning" title="صرف -1">-1</button>
+          </form>
+
+          <!-- ✅ تعديل -->
           <a class="btn btn-sm btn-outline-primary"
              href="index.php?page=spareParts/edit&id=<?= (int)($row->id ?? 0) ?>">
             تعديل
           </a>
 
-          <form method="post"
-                action="index.php?page=spareParts/delete"
-                onsubmit="return confirm('متأكد من حذف القطعة؟');">
-            <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
-            <button class="btn btn-sm btn-outline-danger">حذف</button>
-          </form>
         </td>
       </tr>
     <?php endforeach; ?>
   <?php endif; ?>
 </tbody>
+
 
               </table>
             </div>

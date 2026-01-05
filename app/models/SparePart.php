@@ -122,6 +122,20 @@ class SparePart {
   return $this->db->single();
 }
 
+public function adjustQuantity($id, $delta){
+  $this->db->query("
+    UPDATE spare_parts
+    SET quantity = CASE
+      WHEN (quantity + :delta) < 0 THEN 0
+      ELSE (quantity + :delta)
+    END
+    WHERE id = :id
+    LIMIT 1
+  ");
+  $this->db->bind(':delta', (int)$delta);
+  $this->db->bind(':id', (int)$id);
+  return $this->db->execute();
+}
 
 
 }

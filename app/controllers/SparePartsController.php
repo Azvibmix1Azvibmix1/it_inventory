@@ -193,4 +193,58 @@ $data = [
   }
 }
 
+public function adjust($id = null){
+  if($_SERVER['REQUEST_METHOD'] !== 'POST'){
+    redirect('index.php?page=spareParts/index');
+    return;
+  }
+
+  $id = $id ?? ($_POST['id'] ?? 0);
+  $id = (int)$id;
+
+  $delta = (int)($_POST['delta'] ?? 0);
+  $locationId = (int)($_POST['location_id'] ?? 0);
+  $returnTo = trim($_POST['return_to'] ?? '');
+
+  if($id <= 0 || $delta === 0){
+    flash('part_message', 'بيانات غير صحيحة', 'alert alert-danger');
+    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    return;
+  }
+
+  // جيب القطعة وتأكد موجودة
+  $part = method_exists($this->spareModel, 'getPartById')
+    ? $this->spareModel->getPartById($id)
+    : null;
+
+  if(!$part){
+    flash('part_message', 'القطعة غير موجودة', 'alert alert-danger');
+    redirect($returnTo ?: 'index.php?page=spareParts/index');
+    return;
+  }
+
+  // إذا القطعة مربوطة بموقع، نتحقق من صلاحية التعديل على الموقع (لو عندك الدالة)
+  $partLocId = (int)($part->location_id ?? 0);
+  if($partLocId > 0 && function_exists('requireLocationPermission')){
+    requireLocationPermission($partLocId, 'edit', $returnTo ?: 'index.php?page=spareParts/index');
+  }
+
+  // نفّذ التعديل
+  if(method_exists($this->spareModel, 'adjustQuantity') && $this->spareModel->adjustQuantity($id, $delta)){
+    flash('part_message', 'تم تحديث الكمية بنجاح');
+  } else {
+    flash('part_message', 'فشل تحديث الكمية', 'alert alert-danger');
+  }
+
+  // رجّع لنفس صفحة الموقع
+  if($returnTo){
+    redirect($returnTo);
+  } elseif($locationId > 0){
+    redirect("index.php?page=locations/edit&id={$locationId}");
+  } else {
+    redirect('index.php?page=spareParts/index');
+  }
+}
+
+
 }
