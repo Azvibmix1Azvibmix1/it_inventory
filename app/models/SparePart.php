@@ -1,268 +1,214 @@
 <?php
-// app/controllers/SparePartsController.php
-class SparePartsController extends Controller{
-  private $spareModel;
-  private $locationModel;
+// app/models/SparePart.php
+
+class SparePart
+{
+  private $db;
 
   public function __construct()
   {
-    // حماية دخول (إذا موجودة بالدوال)
-    if (function_exists('requireLogin')) {
-      requireLogin();
-    }
-
-    $this->spareModel = $this->model('SparePart');
-    $this->locationModel = $this->model('Location');
+    $this->db = new Database();
   }
 
-  public function index()
+  /* =========================
+     Lists
+  ========================= */
+
+  // جلب جميع قطع الغيار (مع اسم الموقع)
+  public function getParts()
   {
-    // جلب البيانات
-    $parts = method_exists($this->spareModel, 'getParts')
-      ? $this->spareModel->getParts()
-      : (method_exists($this->spareModel, 'getAll') ? $this->spareModel->getAll() : []);
-
-    // حساب الإحصائيات
-    $totalParts = is_array($parts) ? count($parts) : 0;
-    $outOfStock = 0;
-    $lowStock = 0;
-
-    if (is_array($parts)) {
-      foreach ($parts as $part) {
-        $qty = (int)($part->quantity ?? 0);
-        $min = (int)($part->min_quantity ?? 0);
-
-        if ($qty <= 0) {
-          $outOfStock++;
-        } elseif ($qty <= $min) {
-          $lowStock++;
-        }
-      }
-    }
-
-    $data = [
-      'parts' => $parts,
-      'total_parts' => $totalParts,
-      'out_of_stock' => $outOfStock,
-      'low_stock' => $lowStock
-    ];
-
-    $this->view('spare_parts/index', $data);
+    $this->db->query("
+      SELECT sp.*,
+             l.name_ar AS location_name_ar,
+             l.name_en AS location_name_en
+      FROM spare_parts sp
+      LEFT JOIN locations l ON sp.location_id = l.id
+      ORDER BY sp.created_at DESC
+    ");
+    return $this->db->resultSet();
   }
 
-  public function add()
+  // جلب جميع قطع الغيار بدون Join
+  public function getAll()
   {
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-      $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
-
-      $data = [
-        'name' => trim($_POST['name'] ?? ''),
-        'part_number' => trim($_POST['part_number'] ?? ''),
-        'quantity' => (int)($_POST['quantity'] ?? 0),
-        'min_quantity' => (int)($_POST['min_quantity'] ?? 0),
-        'location_id' => !empty($_POST['location_id']) ? (int)$_POST['location_id'] : null,
-        'description' => trim($_POST['description'] ?? ''),
-        'locations' => $this->locationModel->getAll(),
-        'name_err' => ''
-      ];
-
-      if (empty($data['name'])) {
-        $data['name_err'] = 'الرجاء كتابة اسم القطعة';
-      }
-
-      if (empty($data['name_err'])) {
-        if ($this->spareModel->add($data)) {
-          flash('part_message', 'تم إضافة قطعة الغيار بنجاح');
-          redirect('index.php?page=SpareParts/index');
-          return;
-        }
-        die('حدث خطأ في قاعدة البيانات');
-      }
-
-      $this->view('spare_parts/add', $data);
-      return;
-    }
-
-    // GET
-    $locations = $this->locationModel->getAll();
-    $prefillLoc = (int)($_GET['location_id'] ?? 0);
-
-    $data = [
-      'name' => '',
-      'part_number' => '',
-      'quantity' => 1,
-      'min_quantity' => 5,
-      'location_id' => $prefillLoc > 0 ? $prefillLoc : '',
-      'description' => '',
-      'locations' => $locations,
-      'name_err' => ''
-    ];
-
-    $this->view('spare_parts/add', $data);
+    $this->db->query("SELECT * FROM spare_parts ORDER BY created_at DESC");
+    return $this->db->resultSet();
   }
 
-  public function edit($id = null)
+  // للاقتراحات (أسماء قطع مكررة/موجودة)
+  public function getExistingTypes()
   {
-    // لأن الراوتر ينادي edit() بدون id
-    $id = $id ?? ($_GET['id'] ?? null);
-    $id = (int)$id;
-
-    if ($id <= 0) {
-      flash('part_message', 'معرّف القطعة غير صحيح', 'alert alert-danger');
-      redirect('index.php?page=SpareParts/index');
-      return;
-    }
-
-    $locations = $this->locationModel->getAll();
-
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-      $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
-
-      $data = [
-        'id' => $id,
-        'name' => trim($_POST['name'] ?? ''),
-        'part_number' => trim($_POST['part_number'] ?? ''),
-        'quantity' => (int)($_POST['quantity'] ?? 0),
-        'min_quantity' => (int)($_POST['min_quantity'] ?? 0),
-        'location_id' => !empty($_POST['location_id']) ? (int)$_POST['location_id'] : null,
-        'description' => trim($_POST['description'] ?? ''),
-        'locations' => $locations,
-        'name_err' => ''
-      ];
-
-      if (empty($data['name'])) {
-        $data['name_err'] = 'الرجاء كتابة اسم القطعة';
-        $this->view('spare_parts/edit', $data);
-        return;
-      }
-
-      if ($this->spareModel->update($data)) {
-        flash('part_message', 'تم تحديث قطعة الغيار بنجاح');
-        redirect('index.php?page=SpareParts/index');
-        return;
-      }
-
-      die('حدث خطأ في قاعدة البيانات');
-    }
-
-    // GET
-    $part = method_exists($this->spareModel, 'getPartById')
-      ? $this->spareModel->getPartById($id)
-      : null;
-
-    if (!$part) {
-      flash('part_message', 'القطعة غير موجودة', 'alert alert-danger');
-      redirect('index.php?page=SpareParts/index');
-      return;
-    }
-
-    $data = [
-      'id' => $part->id,
-      'name' => $part->name,
-      'part_number' => $part->part_number,
-      'quantity' => $part->quantity,
-      'min_quantity' => $part->min_quantity,
-      'location_id' => $part->location_id,
-      'description' => $part->description,
-      'locations' => $locations,
-      'name_err' => ''
-    ];
-
-    $this->view('spare_parts/edit', $data);
+    $this->db->query("SELECT DISTINCT name FROM spare_parts ORDER BY name ASC");
+    return $this->db->resultSet();
   }
 
-  public function delete($id = null)
+  /* =========================
+     CRUD
+  ========================= */
+
+  public function add($data)
   {
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-      $id = $id ?? ($_POST['id'] ?? null);
-      $id = (int)$id;
+    $this->db->query("
+      INSERT INTO spare_parts
+        (name, part_number, quantity, min_quantity, location_id, description, created_at)
+      VALUES
+        (:name, :part_num, :qty, :min_qty, :location_id, :desc, NOW())
+    ");
 
-      if ($id <= 0) {
-        flash('part_message', 'معرّف غير صحيح', 'alert alert-danger');
-        redirect('index.php?page=SpareParts/index');
-        return;
-      }
+    $this->db->bind(':name', trim($data['name'] ?? ''));
+    $this->db->bind(':part_num', trim($data['part_number'] ?? ''));
+    $this->db->bind(':qty', (int)($data['quantity'] ?? 0));
+    $this->db->bind(':min_qty', (int)($data['min_quantity'] ?? 0));
 
-      if ($this->spareModel->delete($id)) {
-        flash('part_message', 'تم حذف القطعة');
-        redirect('index.php?page=SpareParts/index');
-        return;
-      }
+    // إذا فاضي نخزن NULL
+    $loc = $data['location_id'] ?? null;
+    $this->db->bind(':location_id', !empty($loc) ? (int)$loc : null);
 
-      die('حدث خطأ أثناء الحذف');
-    }
+    $this->db->bind(':desc', trim($data['description'] ?? ''));
 
-    redirect('index.php?page=SpareParts/index');
+    return $this->db->execute();
   }
 
-  /**
-   * تعديل سريع للكمية (توريد/صرف)
-   * POST: id, delta, return_to (اختياري), note (اختياري)
-   */
-  public function adjust($id = null)
+  public function getPartById($id)
   {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-      redirect('index.php?page=spareParts/index');
-      return;
-    }
-
-    $id = $id ?? ($_POST['id'] ?? 0);
-    $id = (int)$id;
-
-    $delta = (int)($_POST['delta'] ?? 0);
-    $locationId = (int)($_POST['location_id'] ?? 0);
-    $returnTo = trim($_POST['return_to'] ?? '');
-    $note = trim($_POST['note'] ?? '');
-
-    if ($id <= 0 || $delta === 0) {
-      flash('part_message', 'بيانات غير صحيحة', 'alert alert-danger');
-      redirect($returnTo ?: 'index.php?page=spareParts/index');
-      return;
-    }
-
-    // تأكد القطعة موجودة
-    $part = method_exists($this->spareModel, 'getPartById')
-      ? $this->spareModel->getPartById($id)
-      : null;
-
-    if (!$part) {
-      flash('part_message', 'القطعة غير موجودة', 'alert alert-danger');
-      redirect($returnTo ?: 'index.php?page=spareParts/index');
-      return;
-    }
-
-    $partLocId = (int)($part->location_id ?? 0);
-
-    // صلاحيات تعديل الموقع (لو موجودة)
-    if ($partLocId > 0 && function_exists('requireLocationPermission')) {
-      requireLocationPermission($partLocId, 'edit', $returnTo ?: 'index.php?page=spareParts/index');
-    }
-
-    // نفّذ التعديل
-    $ok = method_exists($this->spareModel, 'adjustQuantity')
-      ? $this->spareModel->adjustQuantity($id, $delta)
-      : false;
-
-    if ($ok) {
-      // ✅ (اختياري) سجل حركة إذا عندك دالة addMovement بالموديل + جدول spare_movements
-      if (method_exists($this->spareModel, 'addMovement')) {
-        $createdBy = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
-        // لو القطعة مو مربوطة بموقع، استخدم locationId اللي جاي من الفورم
-        $useLoc = $partLocId > 0 ? $partLocId : ($locationId > 0 ? $locationId : null);
-        $this->spareModel->addMovement($id, $useLoc, $delta, $note, $createdBy);
-      }
-
-      flash('part_message', 'تم تحديث الكمية بنجاح');
-    } else {
-      flash('part_message', 'فشل تحديث الكمية', 'alert alert-danger');
-    }
-
-    if ($returnTo) {
-      redirect($returnTo);
-    } elseif ($locationId > 0) {
-      redirect("index.php?page=locations/edit&id={$locationId}");
-    } else {
-      redirect('index.php?page=spareParts/index');
-    }
+    $this->db->query("SELECT * FROM spare_parts WHERE id = :id LIMIT 1");
+    $this->db->bind(':id', (int)$id);
+    return $this->db->single();
   }
+
+  public function update($data)
+  {
+    $this->db->query("
+      UPDATE spare_parts
+      SET name = :name,
+          part_number = :part_num,
+          quantity = :qty,
+          min_quantity = :min_qty,
+          location_id = :location_id,
+          description = :desc
+      WHERE id = :id
+      LIMIT 1
+    ");
+
+    $this->db->bind(':name', trim($data['name'] ?? ''));
+    $this->db->bind(':part_num', trim($data['part_number'] ?? ''));
+    $this->db->bind(':qty', (int)($data['quantity'] ?? 0));
+    $this->db->bind(':min_qty', (int)($data['min_quantity'] ?? 0));
+
+    $loc = $data['location_id'] ?? null;
+    $this->db->bind(':location_id', !empty($loc) ? (int)$loc : null);
+
+    $this->db->bind(':desc', trim($data['description'] ?? ''));
+    $this->db->bind(':id', (int)($data['id'] ?? 0));
+
+    return $this->db->execute();
+  }
+
+  public function delete($id)
+  {
+    $this->db->query("DELETE FROM spare_parts WHERE id = :id LIMIT 1");
+    $this->db->bind(':id', (int)$id);
+    return $this->db->execute();
+  }
+
+  public function getCounts()
+  {
+    $this->db->query("SELECT COUNT(*) AS count FROM spare_parts");
+    $row = $this->db->single();
+    return (int)($row->count ?? 0);
+  }
+
+  /* =========================
+     Location helpers
+  ========================= */
+
+  public function getSpareStocksByLocation($locationId)
+  {
+    $this->db->query("
+      SELECT *
+      FROM spare_parts
+      WHERE location_id = :loc
+      ORDER BY created_at DESC
+    ");
+    $this->db->bind(':loc', (int)$locationId);
+    return $this->db->resultSet();
+  }
+
+  public function getSpareStockSummary($locationId)
+  {
+    $this->db->query("
+      SELECT
+        COUNT(*) AS total_items,
+        COALESCE(SUM(quantity), 0) AS total_qty,
+        COALESCE(SUM(CASE WHEN quantity <= 0 THEN 1 ELSE 0 END), 0) AS out_count,
+        COALESCE(SUM(CASE WHEN quantity > 0 AND quantity <= min_quantity THEN 1 ELSE 0 END), 0) AS low_count
+      FROM spare_parts
+      WHERE location_id = :loc
+    ");
+    $this->db->bind(':loc', (int)$locationId);
+    return $this->db->single();
+  }
+
+  /* =========================
+     Quick adjust
+  ========================= */
+
+  public function adjustQuantity($id, $delta)
+  {
+    $this->db->query("
+      UPDATE spare_parts
+      SET quantity = CASE
+        WHEN (quantity + :delta) < 0 THEN 0
+        ELSE (quantity + :delta)
+      END
+      WHERE id = :id
+      LIMIT 1
+    ");
+    $this->db->bind(':delta', (int)$delta);
+    $this->db->bind(':id', (int)$id);
+    return $this->db->execute();
+  }
+
+  /* =========================
+     Movements (who did what)
+     Requires table: spare_movements
+  ========================= */
+
+  public function addMovement($sparePartId, $locationId, $delta, $note = null, $createdBy = null)
+{
+  $this->db->query("
+    INSERT INTO spare_movements (spare_part_id, location_id, delta, note, created_by, created_at)
+    VALUES (:spare_part_id, :location_id, :delta, :note, :created_by, NOW())
+  ");
+  $this->db->bind(':spare_part_id', (int)$sparePartId);
+  $this->db->bind(':location_id', $locationId ? (int)$locationId : null);
+  $this->db->bind(':delta', (int)$delta);
+  $this->db->bind(':note', ($note !== null && trim($note) !== '') ? trim($note) : null);
+  $this->db->bind(':created_by', $createdBy ? (int)$createdBy : null);
+  return $this->db->execute();
+}
+
+
+  public function getMovementsByLocation($locationId, $limit = 20)
+{
+  $limit = (int)$limit;
+  if ($limit <= 0) $limit = 20;
+
+  $this->db->query("
+    SELECT 
+      m.*,
+      sp.name AS part_name,
+      u.name AS user_name,
+      u.username AS username
+    FROM spare_movements m
+    LEFT JOIN spare_parts sp ON sp.id = m.spare_part_id
+    LEFT JOIN users u ON u.id = m.created_by
+    WHERE m.location_id = :loc
+    ORDER BY m.id DESC
+    LIMIT {$limit}
+  ");
+  $this->db->bind(':loc', (int)$locationId);
+  return $this->db->resultSet();
+}
+
 }

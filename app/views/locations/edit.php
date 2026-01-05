@@ -468,9 +468,91 @@
     <?php endforeach; ?>
   <?php endif; ?>
 </tbody>
+</table>
+</div>
 
+<?php $movements = $movements ?? []; ?>
+            
+<div class="p-2 small text-muted">Movements count: <?= is_array($movements) ? count($movements) : 0 ?></div>
 
-              </table>
+<div class="card mt-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="fw-bold">سجل الحركات</div>
+    <small class="text-muted">آخر 20 حركة على هذا الموقع</small>
+  </div>
+
+  <div class="card-body p-0">
+    <?php if (empty($movements)) : ?>
+      <div class="p-3 text-muted">لا يوجد حركات مسجلة حتى الآن.</div>
+    <?php else : ?>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>القطعة</th>
+              <th>الحركة</th>
+              <th>الكمية</th>
+              <th>المستخدم</th>
+              <th>الوقت</th>
+              <th>ملاحظة</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <?php foreach ($movements as $m) :
+              $delta = (int)($m->delta ?? 0);
+              $isIn = $delta > 0;
+
+              $qtyAbs = abs($delta);
+              $userName = trim((string)($m->user_name ?? ''));
+              $username = trim((string)($m->username ?? ''));
+              $who = $userName !== '' ? $userName : ($username !== '' ? $username : 'غير معروف');
+
+              $partName = $m->part_name ?? '';
+              $note = $m->note ?? '';
+              $time = $m->created_at ?? '';
+            ?>
+              <tr>
+                <td><?= (int)($m->id ?? 0) ?></td>
+
+                <td class="fw-semibold">
+                  <?= htmlspecialchars($partName) ?>
+                </td>
+
+                <td>
+                  <?php if ($isIn) : ?>
+                    <span class="badge bg-success">توريد</span>
+                  <?php else : ?>
+                    <span class="badge bg-warning text-dark">صرف</span>
+                  <?php endif; ?>
+                </td>
+
+                <td dir="ltr">
+                  <?= $isIn ? '+' : '-' ?><?= $qtyAbs ?>
+                </td>
+
+                <td>
+                  <?= htmlspecialchars($who) ?>
+                </td>
+
+                <td dir="ltr">
+                  <?= htmlspecialchars($time) ?>
+                </td>
+
+                <td class="text-muted">
+                  <?= htmlspecialchars($note) ?>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+
+        </table>
+      </div>
+    <?php endif; ?>
+  </div>
+</div>
+
             </div>
 
             <div class="hint mt-2">
