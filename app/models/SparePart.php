@@ -143,4 +143,30 @@ public function getAll(){
   return $this->db->resultSet();
 }
 
+public function addMovement($sparePartId, $locationId, $delta, $note = null, $createdBy = null){
+  $this->db->query("
+    INSERT INTO spare_movements (spare_part_id, location_id, delta, note, created_by, created_at)
+    VALUES (:spare_part_id, :location_id, :delta, :note, :created_by, NOW())
+  ");
+  $this->db->bind(':spare_part_id', (int)$sparePartId);
+  $this->db->bind(':location_id', $locationId ? (int)$locationId : null);
+  $this->db->bind(':delta', (int)$delta);
+  $this->db->bind(':note', $note ? trim($note) : null);
+  $this->db->bind(':created_by', $createdBy ? (int)$createdBy : null);
+  return $this->db->execute();
+}
+
+public function getMovementsByLocation($locationId, $limit = 20){
+  $this->db->query("
+    SELECT m.*, sp.name AS part_name
+    FROM spare_movements m
+    LEFT JOIN spare_parts sp ON sp.id = m.spare_part_id
+    WHERE m.location_id = :loc
+    ORDER BY m.id DESC
+    LIMIT {$limit}
+  ");
+  $this->db->bind(':loc', (int)$locationId);
+  return $this->db->resultSet();
+}
+
 }
