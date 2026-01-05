@@ -209,4 +209,43 @@ class Location
     $this->db->bind(':loc', (int)$locationId);
     return $this->db->resultSet();
   }
+
+  // ✅ ملخص مخزون قطع الغيار في موقع محدد
+public function getSpareStockSummary($locationId)
+{
+  $this->db->query("
+    SELECT
+      COUNT(*) AS items_count,
+      COALESCE(SUM(quantity), 0) AS total_qty,
+      COALESCE(SUM(CASE WHEN quantity = 0 THEN 1 ELSE 0 END), 0) AS zero_count,
+      COALESCE(SUM(CASE WHEN quantity <= COALESCE(min_quantity, 0) THEN 1 ELSE 0 END), 0) AS low_count
+    FROM spare_parts
+    WHERE location_id = :loc
+  ");
+  $this->db->bind(':loc', (int)$locationId);
+  return $this->db->single();
+}
+
+// ✅ قائمة قطع الغيار الخاصة بموقع محدد
+public function getSpareStocksByLocation($locationId)
+{
+  $this->db->query("
+    SELECT
+      id,
+      name,
+      part_number,
+      quantity,
+      min_quantity,
+      description,
+      created_at
+    FROM spare_parts
+    WHERE location_id = :loc
+    ORDER BY name ASC
+  ");
+  $this->db->bind(':loc', (int)$locationId);
+  return $this->db->resultSet();
+}
+
+
+
 }

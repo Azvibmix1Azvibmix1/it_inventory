@@ -201,6 +201,17 @@ class LocationsController extends Controller
     $users     = method_exists($this->locationModel, 'getUsersLite') ? $this->locationModel->getUsersLite() : [];
     $audit     = method_exists($this->locationModel, 'getAudit') ? $this->locationModel->getAudit($id, 20) : [];
 
+
+      // ✅ قطع الغيار لهذا الموقع
+    $spareSummary = method_exists($this->locationModel, 'getSpareStockSummary')
+    ? $this->locationModel->getSpareStockSummary($id)
+    : null;
+
+    $spareStocks = method_exists($this->locationModel, 'getSpareStocksByLocation')
+    ? $this->locationModel->getSpareStocksByLocation($id)
+    : [];
+
+
     $data = [
       'id'        => $location->id,
       'name_ar'   => $location->name_ar,
@@ -214,6 +225,8 @@ class LocationsController extends Controller
       'userPerms' => $userPerms,
       'users'     => $users,
       'audit'     => $audit,
+      'spareSummary' => $spareSummary,
+      'spareStocks'  => $spareStocks,
     ];
 
     $this->view('locations/edit', $data);

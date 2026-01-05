@@ -42,6 +42,14 @@
   $users = $data['users'] ?? [];
   $children = $data['children'] ?? [];
   $audit = $data['audit'] ?? [];
+  // ✅ قطع الغيار لهذا الموقع (قادمة من LocationsController)
+  $spareSummary = $data['spareSummary'] ?? null;
+  $spareStocks  = $data['spareStocks']  ?? [];
+
+  $sp_items = (int)($spareSummary->items_count ?? 0);
+  $sp_total = (int)($spareSummary->total_qty   ?? 0);
+  $sp_low   = (int)($spareSummary->low_count   ?? 0);
+  $sp_zero  = (int)($spareSummary->zero_count  ?? 0);
 
   $canManage = function_exists('canManageLocation') ? canManageLocation($data['id'], 'manage') : true;
 ?>
@@ -289,6 +297,115 @@
           </form>
         </div>
       </div>
+
+            <!-- Spare Parts Stock (for this location) -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <i class="bi bi-box-seam"></i> قطع الغيار في هذا الموقع
+          </div>
+          <div class="hint">
+            (قسم عرض فقط الآن — الحركات بنضيفها بالفقرة الجاية)
+          </div>
+        </div>
+
+        <div class="card-body">
+
+          <!-- Summary -->
+          <div class="row g-2 mb-3">
+            <div class="col-6 col-lg-3">
+              <div class="border rounded-3 p-2">
+                <div class="text-muted small">إجمالي الأصناف</div>
+                <div class="fw-bold" dir="ltr"><?= $sp_items ?></div>
+              </div>
+            </div>
+            <div class="col-6 col-lg-3">
+              <div class="border rounded-3 p-2">
+                <div class="text-muted small">إجمالي الكمية</div>
+                <div class="fw-bold" dir="ltr"><?= $sp_total ?></div>
+              </div>
+            </div>
+            <div class="col-6 col-lg-3">
+              <div class="border rounded-3 p-2">
+                <div class="text-muted small">تحت الحد</div>
+                <div class="fw-bold" dir="ltr"><?= $sp_low ?></div>
+              </div>
+            </div>
+            <div class="col-6 col-lg-3">
+              <div class="border rounded-3 p-2">
+                <div class="text-muted small">نفد (0)</div>
+                <div class="fw-bold" dir="ltr"><?= $sp_zero ?></div>
+              </div>
+            </div>
+          </div>
+
+          <?php if (empty($spareStocks)): ?>
+            <div class="alert alert-secondary mb-0">
+              لا يوجد مخزون قطع غيار مربوط بهذا الموقع حاليًا.
+            </div>
+            <div class="hint mt-2">
+              أول خطوة بالفقرة القادمة: نعمل صفحة قطع الغيار + صفحة حركة مخزون عشان نبدأ نضيف ونصرف.
+            </div>
+          <?php else: ?>
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>اسم القطعة</th>
+                    <th>Part No</th>
+                    <th>الوحدة</th>
+                    <th>الكمية</th>
+                    <th>الحد الأدنى</th>
+                    <th>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php $i = 1; foreach ($spareStocks as $row): ?>
+                    <?php
+                      $qty = (int)($row->qty ?? 0);
+                      $min = (int)($row->min_qty_effective ?? 0);
+
+                      if ($qty <= 0) {
+                        $statusTxt = 'نفد';
+                        $badge = 'bg-danger';
+                      } elseif ($qty <= $min) {
+                        $statusTxt = 'تحت الحد';
+                        $badge = 'bg-warning text-dark';
+                      } else {
+                        $statusTxt = 'متوفر';
+                        $badge = 'bg-success';
+                      }
+                    ?>
+                    <tr>
+                      <td dir="ltr"><?= $i++ ?></td>
+                      <td>
+                        <div class="fw-bold"><?= htmlspecialchars($row->name_ar ?? '') ?></div>
+                        <?php if (!empty($row->name_en)): ?>
+                          <div class="text-muted small" dir="ltr"><?= htmlspecialchars($row->name_en) ?></div>
+                        <?php endif; ?>
+                      </td>
+                      <td dir="ltr"><?= htmlspecialchars($row->part_no ?? '—') ?></td>
+                      <td><?= htmlspecialchars($row->unit ?? '—') ?></td>
+                      <td class="fw-bold" dir="ltr"><?= $qty ?></td>
+                      <td dir="ltr"><?= $min ?></td>
+                      <td><span class="badge <?= $badge ?>"><?= $statusTxt ?></span></td>
+                    </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="hint mt-2">
+              بالفقرة الجاية بنضيف أزرار: توريد / صرف / نقل + سجل حركات.
+            </div>
+
+          <?php endif; ?>
+
+        </div>
+      </div>
+
 
       <!-- Children -->
       <div class="card shadow-sm mt-3">

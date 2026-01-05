@@ -18,7 +18,10 @@ class SparePartsController extends Controller {
 
     public function index(){
         // جلب البيانات
-        $parts = $this->spareModel->getParts();
+        $parts = method_exists($this->spareModel, 'getParts')
+  ? $this->spareModel->getParts()
+  : $this->spareModel->getAll();
+
         
         // حساب الإحصائيات
         $totalParts = count($parts);
@@ -98,44 +101,93 @@ class SparePartsController extends Controller {
         }
     }
 
-    public function edit($id){
-        if($_SERVER['REQUEST_METHOD'] == 'POST'){
-             // كود التحديث (يجب وضعه هنا لاحقاً)
-        } else {
-            $part = $this->spareModel->getPartById($id);
-            $locations = $this->locationModel->getAll();
+    public function edit($id = null){
+  // لأن الراوتر ينادي edit() بدون id
+  $id = $id ?? ($_GET['id'] ?? null);
+  $id = (int)$id;
 
-            if(!$part){
-                redirect('index.php?page=SpareParts/index');
-            }
+  if($id <= 0){
+    flash('part_message', 'معرّف القطعة غير صحيح', 'alert alert-danger');
+    redirect('index.php?page=SpareParts/index');
+    return;
+  }
 
-            $data = [
-                'id' => $part->id,
-                'name' => $part->name,
-                'part_number' => $part->part_number,
-                'quantity' => $part->quantity,
-                'min_quantity' => $part->min_quantity,
-                'location_id' => $part->location_id,
-                'description' => $part->description,
-                'locations' => $locations,
-                'name_err' => ''
-            ];
+  $locations = $this->locationModel->getAll();
 
-            $this->view('spare_parts/edit', $data);
-        }
+  if($_SERVER['REQUEST_METHOD'] == 'POST'){
+    $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+
+    $data = [
+      'id' => $id,
+      'name' => trim($_POST['name'] ?? ''),
+      'part_number' => trim($_POST['part_number'] ?? ''),
+      'quantity' => (int)($_POST['quantity'] ?? 0),
+      'min_quantity' => (int)($_POST['min_quantity'] ?? 0),
+      'location_id' => !empty($_POST['location_id']) ? (int)$_POST['location_id'] : null,
+      'description' => trim($_POST['description'] ?? ''),
+      'locations' => $locations,
+      'name_err' => ''
+    ];
+
+    if(empty($data['name'])){
+      $data['name_err'] = 'الرجاء كتابة اسم القطعة';
+      $this->view('spare_parts/edit', $data);
+      return;
     }
 
-    public function delete($id){
-        if($_SERVER['REQUEST_METHOD'] == 'POST'){
-            if($this->spareModel->delete($id)){
-                flash('part_message', 'تم حذف القطعة');
-                // التوجيه الصحيح (لاحظ SpareParts)
-                redirect('index.php?page=SpareParts/index');
-            } else {
-                die('حدث خطأ أثناء الحذف');
-            }
-        } else {
-            redirect('index.php?page=SpareParts/index');
-        }
+    if($this->spareModel->update($data)){
+      flash('part_message', 'تم تحديث قطعة الغيار بنجاح');
+      redirect('index.php?page=SpareParts/index');
+      return;
+    } else {
+      die('حدث خطأ في قاعدة البيانات');
     }
+
+  } else {
+    $part = $this->spareModel->getPartById($id);
+    if(!$part){
+      flash('part_message', 'القطعة غير موجودة', 'alert alert-danger');
+      redirect('index.php?page=SpareParts/index');
+      return;
+    }
+
+    $data = [
+      'id' => $part->id,
+      'name' => $part->name,
+      'part_number' => $part->part_number,
+      'quantity' => $part->quantity,
+      'min_quantity' => $part->min_quantity,
+      'location_id' => $part->location_id,
+      'description' => $part->description,
+      'locations' => $locations,
+      'name_err' => ''
+    ];
+
+    $this->view('spare_parts/edit', $data);
+  }
+}
+
+
+    public function delete($id = null){
+  if($_SERVER['REQUEST_METHOD'] == 'POST'){
+    $id = $id ?? ($_POST['id'] ?? null);
+    $id = (int)$id;
+
+    if($id <= 0){
+      flash('part_message', 'معرّف غير صحيح', 'alert alert-danger');
+      redirect('index.php?page=SpareParts/index');
+      return;
+    }
+
+    if($this->spareModel->delete($id)){
+      flash('part_message', 'تم حذف القطعة');
+      redirect('index.php?page=SpareParts/index');
+    } else {
+      die('حدث خطأ أثناء الحذف');
+    }
+  } else {
+    redirect('index.php?page=SpareParts/index');
+  }
+}
+
 }

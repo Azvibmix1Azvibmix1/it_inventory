@@ -1,104 +1,116 @@
 <?php
 class SparePart {
-    private $db;
+  private $db;
 
-    public function __construct() {
-        $this->db = new Database;
+  public function __construct() {
+    $this->db = new Database;
+  }
+
+  public function getById(int $id) {
+    $this->db->query("
+      SELECT sp.*,
+             l.name_ar AS location_name_ar, l.name_en AS location_name_en
+      FROM spare_parts sp
+      LEFT JOIN locations l ON l.id = sp.location_id
+      WHERE sp.id = :id
+      LIMIT 1
+    ");
+    $this->db->bind(':id', $id);
+    return $this->db->single();
+  }
+
+  public function getFiltered(array $filters = []) : array {
+    $q = trim($filters['q'] ?? '');
+    $locationId = (int)($filters['location_id'] ?? 0);
+
+    $where = [];
+    if ($q !== '') {
+      $where[] = "(sp.name LIKE :q OR sp.part_number LIKE :q)";
+    }
+    if ($locationId > 0) {
+      $where[] = "sp.location_id = :loc";
     }
 
-    // 1. جلب جميع قطع الغيار (مع اسم الموقع)
-    // قمنا بتعديل هذه الدالة لتربط الجدولين وتجلب اسم الموقع بدلاً من رقمه
-    public function getParts() {
-        $this->db->query("SELECT parts.*, loc.name_ar as location_name 
-                          FROM spare_parts parts
-                          LEFT JOIN locations loc ON parts.location_id = loc.id
-                          ORDER BY parts.created_at DESC");
-        return $this->db->resultSet();
+    $sql = "
+      SELECT sp.*,
+             l.name_ar AS location_name_ar, l.name_en AS location_name_en
+      FROM spare_parts sp
+      LEFT JOIN locations l ON l.id = sp.location_id
+    ";
+    if (!empty($where)) {
+      $sql .= " WHERE " . implode(" AND ", $where);
+    }
+    $sql .= " ORDER BY sp.id DESC";
+
+    $this->db->query($sql);
+
+    if ($q !== '') {
+      $this->db->bind(':q', '%' . $q . '%');
+    }
+    if ($locationId > 0) {
+      $this->db->bind(':loc', $locationId);
     }
 
-    // دالة إضافية لجلب القطع لغرض التصدير أو غيره (بدون Join معقد)
-    public function getAll() {
-        $this->db->query("SELECT * FROM spare_parts ORDER BY created_at DESC");
-        return $this->db->resultSet();
-    }
+    return $this->db->resultSet();
+  }
 
-    // 2. الدالة التي طلبتها (للاقتراحات)
-    public function getExistingTypes() {
-        $this->db->query("SELECT DISTINCT name FROM spare_parts ORDER BY name ASC");
-        return $this->db->resultSet();
-    }
+  public function add(array $data) : bool {
+    $this->db->query("
+      INSERT INTO spare_parts
+        (name, part_number, quantity, min_quantity, location_id, location, description, created_at)
+      VALUES
+        (:name, :part_number, :quantity, :min_quantity, :location_id, :location, :description, NOW())
+    ");
+    $this->db->bind(':name', trim($data['name'] ?? ''));
+    $this->db->bind(':part_number', trim($data['part_number'] ?? '') ?: null);
+    $this->db->bind(':quantity', (int)($data['quantity'] ?? 0));
+    $this->db->bind(':min_quantity', (int)($data['min_quantity'] ?? 0));
+    $this->db->bind(':location_id', !empty($data['location_id']) ? (int)$data['location_id'] : null);
+    $this->db->bind(':location', trim($data['location'] ?? '') ?: null);
+    $this->db->bind(':description', trim($data['description'] ?? '') ?: null);
 
-    // 3. إضافة قطعة جديدة
-    public function add($data) {
-        // لاحظ: غيرنا location إلى location_id
-        $this->db->query("INSERT INTO spare_parts (name, part_number, quantity, min_quantity, location_id, description) 
-                          VALUES (:name, :part_num, :qty, :min_qty, :location_id, :desc)");
-        
-        $this->db->bind(':name', $data['name']);
-        $this->db->bind(':part_num', $data['part_number']);
-        $this->db->bind(':qty', $data['quantity']);
-        $this->db->bind(':min_qty', $data['min_quantity']);
-        
-        // التعامل مع الموقع (إذا كان فارغاً نرسل NULL)
-        if(empty($data['location_id'])){
-            $this->db->bind(':location_id', null);
-        } else {
-            $this->db->bind(':location_id', $data['location_id']);
-        }
+    return $this->db->execute();
+  }
 
-        $this->db->bind(':desc', $data['description']);
+  public function update(array $data) : bool {
+    $this->db->query("
+      UPDATE spare_parts
+      SET name = :name,
+          part_number = :part_number,
+          quantity = :quantity,
+          min_quantity = :min_quantity,
+          location_id = :location_id,
+          location = :location,
+          description = :description
+      WHERE id = :id
+      LIMIT 1
+    ");
+    $this->db->bind(':id', (int)$data['id']);
+    $this->db->bind(':name', trim($data['name'] ?? ''));
+    $this->db->bind(':part_number', trim($data['part_number'] ?? '') ?: null);
+    $this->db->bind(':quantity', (int)($data['quantity'] ?? 0));
+    $this->db->bind(':min_quantity', (int)($data['min_quantity'] ?? 0));
+    $this->db->bind(':location_id', !empty($data['location_id']) ? (int)$data['location_id'] : null);
+    $this->db->bind(':location', trim($data['location'] ?? '') ?: null);
+    $this->db->bind(':description', trim($data['description'] ?? '') ?: null);
 
-        return $this->db->execute();
-    }
+    return $this->db->execute();
+  }
 
-    // 4. جلب قطعة واحدة للتعديل
-    public function getPartById($id) {
-        $this->db->query("SELECT * FROM spare_parts WHERE id = :id");
-        $this->db->bind(':id', $id);
-        return $this->db->single();
-    }
+  public function delete(int $id) : bool {
+    $this->db->query("DELETE FROM spare_parts WHERE id = :id LIMIT 1");
+    $this->db->bind(':id', $id);
+    return $this->db->execute();
+  }
 
-    // 5. تحديث البيانات
-    public function update($data) {
-        // تحديث location_id
-        $this->db->query("UPDATE spare_parts SET 
-                            name = :name, 
-                            part_number = :part_num, 
-                            quantity = :qty, 
-                            min_quantity = :min_qty, 
-                            location_id = :location_id, 
-                            description = :desc 
-                          WHERE id = :id");
-        
-        $this->db->bind(':name', $data['name']);
-        $this->db->bind(':part_num', $data['part_number']);
-        $this->db->bind(':qty', $data['quantity']);
-        $this->db->bind(':min_qty', $data['min_quantity']);
-        
-        // التعامل مع الموقع عند التحديث
-        if(empty($data['location_id'])){
-            $this->db->bind(':location_id', null);
-        } else {
-            $this->db->bind(':location_id', $data['location_id']);
-        }
+  public function getParts() {
+  $this->db->query("
+    SELECT parts.*, loc.name_ar AS location_name
+    FROM spare_parts parts
+    LEFT JOIN locations loc ON parts.location_id = loc.id
+    ORDER BY parts.created_at DESC
+  ");
+  return $this->db->resultSet();
+}
 
-        $this->db->bind(':desc', $data['description']);
-        $this->db->bind(':id', $data['id']);
-
-        return $this->db->execute();
-    }
-
-    // 6. الحذف
-    public function delete($id) {
-        $this->db->query("DELETE FROM spare_parts WHERE id = :id");
-        $this->db->bind(':id', $id);
-        return $this->db->execute();
-    }
-    
-    // 7. إحصائيات العدد
-    public function getCounts() {
-        $this->db->query("SELECT COUNT(*) as count FROM spare_parts");
-        $row = $this->db->single();
-        return $row->count;
-    }
 }
