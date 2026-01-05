@@ -73,6 +73,59 @@
             </div>
         </div>
     </div>
+    <?php
+  $f = $data['filters'] ?? [];
+  $q = htmlspecialchars($f['q'] ?? '');
+  $selectedLoc = (int)($f['location_id'] ?? 0);
+  $status = $f['status'] ?? '';
+?>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form method="get" action="index.php" class="row g-2 align-items-end">
+      <input type="hidden" name="page" value="spareparts/index">
+
+      <div class="col-12 col-md-5">
+        <label class="form-label">بحث (الاسم أو PN)</label>
+        <input type="text" name="q" class="form-control" value="<?= $q ?>" placeholder="مثال: RAM أو 4502">
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="form-label">الموقع</label>
+        <select name="location_id" class="form-select">
+          <option value="0">الكل</option>
+          <?php foreach (($data['locations'] ?? []) as $loc): ?>
+            <?php $lid = (int)($loc->id ?? 0); ?>
+            <option value="<?= $lid ?>" <?= $lid === $selectedLoc ? 'selected' : '' ?>>
+              <?= htmlspecialchars((string)($loc->name_ar ?? $loc->name_en ?? ('موقع#'.$lid))) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <label class="form-label">الحالة</label>
+        <select name="status" class="form-select">
+          <option value=""   <?= $status === '' ? 'selected' : '' ?>>الكل</option>
+          <option value="ok" <?= $status === 'ok' ? 'selected' : '' ?>>متوفر</option>
+          <option value="low" <?= $status === 'low' ? 'selected' : '' ?>>منخفض</option>
+          <option value="out" <?= $status === 'out' ? 'selected' : '' ?>>منتهية</option>
+        </select>
+      </div>
+
+      <div class="col-12 d-flex gap-2 mt-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-search"></i> تطبيق
+        </button>
+
+        <a class="btn btn-light" href="index.php?page=spareparts/index">
+          مسح الفلاتر
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
 
     <div class="card shadow-sm">
         <div class="card-header bg-white py-3">
@@ -81,15 +134,56 @@
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
+                    <?php
+  $f = $data['filters'] ?? [];
+  $currSort = $f['sort'] ?? 'name';
+  $currDir  = $f['dir'] ?? 'asc';
+
+  function sortUrl($key, $f) {
+    $sort = $f['sort'] ?? 'name';
+    $dir  = $f['dir'] ?? 'asc';
+
+    $nextDir = ($sort === $key && $dir === 'asc') ? 'desc' : 'asc';
+
+    $params = [
+      'page' => 'spareparts/index',
+      'q' => $f['q'] ?? '',
+      'location_id' => $f['location_id'] ?? 0,
+      'status' => $f['status'] ?? '',
+      'sort' => $key,
+      'dir' => $nextDir,
+    ];
+
+    return 'index.php?' . http_build_query($params);
+  }
+?>
+
                     <thead class="table-light">
-                        <tr>
-                            <th>اسم القطعة</th>
-                            <th>رقم القطعة (PN)</th>
-                            <th>الكمية</th>
-                            <th>الموقع</th>
-                            <th>الحالة</th>
-                            <th>إجراءات</th>
-                        </tr>
+  <a href="<?= sortUrl('name', $f) ?>" class="text-decoration-none text-dark">
+    اسم القطعة
+  </a>
+</th>
+
+<th>رقم القطعة (PN)</th>
+
+<th>
+  <a href="<?= sortUrl('qty', $f) ?>" class="text-decoration-none text-dark">
+    الكمية
+  </a>
+</th>
+
+<th>
+  <a href="<?= sortUrl('location', $f) ?>" class="text-decoration-none text-dark">
+    الموقع
+  </a>
+</th>
+
+<th>
+  <a href="<?= sortUrl('status', $f) ?>" class="text-decoration-none text-dark">
+    الحالة
+  </a>
+</th>
+
                     </thead>
                     <tbody>
                         <?php if(!empty($data['parts'])): ?>
@@ -151,6 +245,70 @@
                     </tbody>
                 </table>
             </div>
+            <?php
+  $pg = $data['pagination'] ?? null;
+  $f  = $data['filter'] ?? [];
+
+  function pageUrl($p, $f) {
+    $params = [
+      'page' => 'spareparts/index',
+      'q' => $f['q'] ?? '',
+      'location_id' => $f['location_id'] ?? 0,
+      'status' => $f['status'] ?? '',
+      'sort' => $f['sort'] ?? 'name',
+      'dir'  => $f['dir'] ?? 'asc',
+      'p'    => $p,
+    ];
+    return 'index.php?' . http_build_query($params);
+  }
+?>
+
+<?php if ($pg && ($pg['total_pages'] ?? 1) > 1): ?>
+  <nav class="mt-3">
+    <ul class="pagination justify-content-center flex-wrap">
+      <?php $current = (int)$pg['page']; $total = (int)$pg['total_pages']; ?>
+
+      <li class="page-item <?= $current <= 1 ? 'disabled' : '' ?>">
+        <a class="page-link" href="<?= $current <= 1 ? '#' : pageUrl($current - 1, $f) ?>">السابق</a>
+      </li>
+
+      <?php
+        // عرض 7 أزرار حول الصفحة الحالية
+        $start = max(1, $current - 3);
+        $end   = min($total, $current + 3);
+      ?>
+
+      <?php if ($start > 1): ?>
+        <li class="page-item"><a class="page-link" href="<?= pageUrl(1, $f) ?>">1</a></li>
+        <?php if ($start > 2): ?>
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        <?php endif; ?>
+      <?php endif; ?>
+
+      <?php for ($i = $start; $i <= $end; $i++): ?>
+        <li class="page-item <?= $i === $current ? 'active' : '' ?>">
+          <a class="page-link" href="<?= pageUrl($i, $f) ?>"><?= $i ?></a>
+        </li>
+      <?php endfor; ?>
+
+      <?php if ($end < $total): ?>
+        <?php if ($end < $total - 1): ?>
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        <?php endif; ?>
+        <li class="page-item"><a class="page-link" href="<?= pageUrl($total, $f) ?>"><?= $total ?></a></li>
+      <?php endif; ?>
+
+      <li class="page-item <?= $current >= $total ? 'disabled' : '' ?>">
+        <a class="page-link" href="<?= $current >= $total ? '#' : pageUrl($current + 1, $f) ?>">التالي</a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="text-center text-muted small">
+    عرض <?= (int)$pg['per_page'] ?> لكل صفحة — إجمالي النتائج: <?= (int)$pg['total_rows'] ?>
+  </div>
+<?php endif; ?>
+
         </div>
     </div>
 

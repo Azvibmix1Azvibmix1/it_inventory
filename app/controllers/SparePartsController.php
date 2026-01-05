@@ -16,38 +16,140 @@ class SparePartsController extends Controller
     $this->locationModel = $this->model('Location');
   }
 
-  public function index()
-  {
-    $parts = method_exists($this->spareModel, 'getParts')
-      ? $this->spareModel->getParts()
-      : (method_exists($this->spareModel, 'getAll') ? $this->spareModel->getAll() : []);
+  public function index() {
+  // اجلب كل القطع
+  $allParts = method_exists($this->spareModel, 'getParts')
+    ? $this->spareModel->getParts()
+    : (method_exists($this->spareModel, 'getAll') ? $this->spareModel->getAll() : []);
 
-    $totalParts = is_array($parts) ? count($parts) : 0;
-    $outOfStock = 0;
-    $lowStock = 0;
+  if (!is_array($allParts)) $allParts = [];
 
-    if (is_array($parts)) {
-      foreach ($parts as $part) {
-        $qty = (int)($part->quantity ?? 0);
-        $min = (int)($part->min_quantity ?? 0);
+  // فلاتر GET
+  $q = trim($_GET['q'] ?? '');
+  $locationId = (int)($_GET['location_id'] ?? 0);   // 0 = الكل
+  $status = trim($_GET['status'] ?? '');            // '', 'ok', 'low', 'out'
 
-        if ($qty <= 0) {
-          $outOfStock++;
-        } elseif ($qty <= $min) {
-          $lowStock++;
-        }
+  // فلترة
+  $parts = array_values(array_filter($allParts, function($p) use ($q, $locationId, $status) {
+    $name = mb_strtolower((string)($p->name ?? ''));
+    $pn   = mb_strtolower((string)($p->part_number ?? ''));
+    $qty  = (int)($p->quantity ?? 0);
+    $min  = (int)($p->min_quantity ?? 0);
+    $loc  = (int)($p->location_id ?? 0);
+
+    // بحث بالاسم أو PN
+    if ($q !== '') {
+      $qq = mb_strtolower($q);
+      if (mb_strpos($name, $qq) === false && mb_strpos($pn, $qq) === false) {
+        return false;
       }
     }
 
-    $data = [
-      'parts' => $parts,
-      'total_parts' => $totalParts,
-      'out_of_stock' => $outOfStock,
-      'low_stock' => $lowStock
-    ];
+    // فلتر الموقع
+    if ($locationId > 0 && $loc !== $locationId) {
+      return false;
+    }
 
-    $this->view('spare_parts/index', $data);
+    // فلتر الحالة
+    if ($status === 'out') {
+      if ($qty > 0) return false;
+    } elseif ($status === 'low') {
+      if (!($qty > 0 && $qty <= $min)) return false;
+    } elseif ($status === 'ok') {
+      if (!($qty > $min)) return false;
+    }
+
+    return true;
+  }));
+
+  // احصائيات على النتائج بعد الفلترة
+  $totalParts = count($parts);
+  $outOfStock = 0;
+  $lowStock   = 0;
+
+  foreach ($parts as $part) {
+    $qty = (int)($part->quantity ?? 0);
+    $min = (int)($part->min_quantity ?? 0);
+    if ($qty <= 0) $outOfStock++;
+    elseif ($qty <= $min) $lowStock++;
   }
+
+  // مواقع (للقائمة المنسدلة)
+  $locations = $this->locationModel->getAll();
+$sort = trim($_GET['sort'] ?? 'name');   // name, qty, location, status
+$dir  = strtolower(trim($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
+
+usort($parts, function($a, $b) use ($sort, $dir) {
+  $cmp = 0;
+
+  if ($sort === 'qty') {
+    $cmp = ((int)($a->quantity ?? 0)) <=> ((int)($b->quantity ?? 0));
+  } elseif ($sort === 'location') {
+    $cmp = strcmp((string)($a->location_name ?? ''), (string)($b->location_name ?? ''));
+    // إذا ما عندك location_name خليها id:
+    if ($cmp === 0) $cmp = ((int)($a->location_id ?? 0)) <=> ((int)($b->location_id ?? 0));
+  } elseif ($sort === 'status') {
+    // out=0, low=1, ok=2
+    $qa = (int)($a->quantity ?? 0); $ma = (int)($a->min_quantity ?? 0);
+    $qb = (int)($b->quantity ?? 0); $mb = (int)($b->min_quantity ?? 0);
+    $sa = ($qa <= 0) ? 0 : (($qa <= $ma) ? 1 : 2);
+    $sb = ($qb <= 0) ? 0 : (($qb <= $mb) ? 1 : 2);
+    $cmp = $sa <=> $sb;
+  } else { // name
+    $cmp = strcmp(mb_strtolower((string)($a->name ?? '')), mb_strtolower((string)($b->name ?? '')));
+  }
+
+  return $dir === 'desc' ? -$cmp : $cmp;
+});
+
+// ====== PAGINATION ======
+$perPage = 10;
+$pageNum = (int)($_GET['p'] ?? 1);
+if ($pageNum < 1) $pageNum = 1;
+
+$totalRows = count($parts);
+$totalPages = (int)ceil($totalRows / $perPage);
+if ($totalPages < 1) $totalPages = 1;
+if ($pageNum > $totalPages) $pageNum = $totalPages;
+
+$offset = ($pageNum - 1) * $perPage;
+$partsPage = array_slice($parts, $offset, $perPage);
+
+// استبدل parts اللي يروح للواجهة بنسخة الصفحة فقط
+$parts = $partsPage;
+
+// خزّن معلومات الصفحات للواجهة
+$pagination = [
+  'page' => $pageNum,
+  'per_page' => $perPage,
+  'total_rows' => $totalRows,
+  'total_pages' => $totalPages,
+];
+
+
+$data['filters']['sort'] = $sort;
+$data['filters']['dir']  = $dir;
+
+  $data = [
+    'parts'        => $parts,
+    'total_parts'  => $totalParts,
+    'out_of_stock' => $outOfStock,
+    'low_stock'    => $lowStock,
+    'pagination' => $pagination,
+
+
+    // للفلاتر في الواجهة
+    'filters' => [
+      'q' => $q,
+      'location_id' => $locationId,
+      'status' => $status,
+    ],
+    'locations' => $locations,
+  ];
+
+  $this->view('spare_parts/index', $data);
+}
+
 
   public function add()
   {
