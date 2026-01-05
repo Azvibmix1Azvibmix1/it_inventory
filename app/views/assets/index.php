@@ -306,7 +306,10 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
 
               <td><span class="badge <?= e($statusClass) ?>"><?= e($status) ?></span></td>
 
-<?php $id = is_object($asset) ? (int)($asset->id ?? 0) : (int)($asset['id'] ?? 0); ?>
+<?php
+// داخل foreach ($assets as $a)
+$id = is_object($a) ? (int)($a->id ?? 0) : (int)($a['id'] ?? 0);
+?>
 
 <td class="col-actions text-center">
   <a class="btn btn-sm btn-outline-primary"
@@ -314,14 +317,14 @@ $canAddBtn = !empty($data['can_add_asset'] ?? false) || !empty($locations);
     تعديل
   </a>
 
-  <form class="d-inline-block"
-        method="post"
+  <form class="d-inline-block" method="post"
         action="index.php?page=assets/delete"
         onsubmit="return confirm('متأكد تبغى حذف هذا الجهاز؟');">
     <input type="hidden" name="id" value="<?= $id ?>">
     <button type="submit" class="btn btn-sm btn-outline-danger">حذف</button>
   </form>
 </td>
+
 
 
 
