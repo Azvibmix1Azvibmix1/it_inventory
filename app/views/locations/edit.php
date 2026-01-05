@@ -419,33 +419,51 @@
           <span class="badge <?= $badge ?>"><?= $statusTxt ?></span>
         </td>
 
-        <td class="d-flex gap-1 flex-wrap">
+        <td class="d-flex gap-2 flex-wrap align-items-center">
 
-          <!-- ✅ توريد سريع (+1) -->
-          <form method="post" action="index.php?page=spareParts/adjust" class="m-0">
-            <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
-            <input type="hidden" name="delta" value="1">
-            <input type="hidden" name="location_id" value="<?= $locId ?>">
-            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-            <button class="btn btn-sm btn-success" title="توريد +1">+1</button>
-          </form>
+  <!-- ✅ خانة تحديد الكمية -->
+  <input
+    type="number"
+    class="form-control form-control-sm"
+    id="qty_box_<?= (int)($row->id ?? 0) ?>"
+    value="1"
+    min="1"
+    style="width:85px"
+    dir="ltr"
+  >
 
-          <!-- ✅ صرف سريع (-1) -->
-          <form method="post" action="index.php?page=spareParts/adjust" class="m-0">
-            <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
-            <input type="hidden" name="delta" value="-1">
-            <input type="hidden" name="location_id" value="<?= $locId ?>">
-            <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-            <button class="btn btn-sm btn-warning" title="صرف -1">-1</button>
-          </form>
+  <!-- ✅ توريد (delta = +N) -->
+  <form method="post" action="index.php?page=spareParts/adjust" class="m-0"
+        onsubmit="this.delta.value = document.getElementById('qty_box_<?= (int)($row->id ?? 0) ?>').value;">
+    <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
+    <input type="hidden" name="delta" value="1">
+    <input type="hidden" name="location_id" value="<?= (int)$locId ?>">
+    <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+    <button class="btn btn-sm btn-success" title="توريد (زيادة الكمية)">
+      توريد
+    </button>
+  </form>
 
-          <!-- ✅ تعديل -->
-          <a class="btn btn-sm btn-outline-primary"
-             href="index.php?page=spareParts/edit&id=<?= (int)($row->id ?? 0) ?>">
-            تعديل
-          </a>
+  <!-- ✅ صرف (delta = -N) -->
+  <form method="post" action="index.php?page=spareParts/adjust" class="m-0"
+        onsubmit="this.delta.value = -1 * document.getElementById('qty_box_<?= (int)($row->id ?? 0) ?>').value;">
+    <input type="hidden" name="id" value="<?= (int)($row->id ?? 0) ?>">
+    <input type="hidden" name="delta" value="-1">
+    <input type="hidden" name="location_id" value="<?= (int)$locId ?>">
+    <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+    <button class="btn btn-sm btn-warning" title="صرف (إنقاص الكمية)">
+      صرف
+    </button>
+  </form>
 
-        </td>
+  <!-- ✅ تعديل -->
+  <a class="btn btn-sm btn-outline-primary"
+     href="index.php?page=spareParts/edit&id=<?= (int)($row->id ?? 0) ?>">
+    تعديل
+  </a>
+
+</td>
+
       </tr>
     <?php endforeach; ?>
   <?php endif; ?>

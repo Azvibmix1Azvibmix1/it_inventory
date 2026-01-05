@@ -138,4 +138,9 @@ public function adjustQuantity($id, $delta){
 }
 
 
+public function getAll(){
+  $this->db->query("SELECT * FROM spare_parts ORDER BY created_at DESC");
+  return $this->db->resultSet();
+}
+
 }

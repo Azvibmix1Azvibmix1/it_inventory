@@ -30,13 +30,14 @@ if (!defined('APPROOT')) {
 }
 
 // Safe error reporting (you can toggle via config if you have ENV/DEBUG)
-if (defined('APP_ENV') && APP_ENV === 'production') {
+if (defined('APP_ENV') && constant('APP_ENV') === 'production') {
   ini_set('display_errors', '0');
   error_reporting(E_ALL);
 } else {
   ini_set('display_errors', '1');
   error_reporting(E_ALL);
 }
+
 
 // -------------------------
 // Helpers (load only if exist)
@@ -163,6 +164,8 @@ $routes = [
 // assets/assign
 'assets/assign'    => [AssetsController::class, 'assign'],
 'assets/unassign'  => [AssetsController::class, 'unassign'],
+'spareParts/adjust' => ['SparePartsController', 'adjust'],
+'spareparts/adjust' => ['SparePartsController', 'adjust'],
 
 ];
 
@@ -242,6 +245,15 @@ try {
     exit;
   }
 
+  if (in_array($routeKey, ['spare_parts/adjust', 'spareparts/adjust'], true)) {
+  if (class_exists('SparePartsController')) {
+    (new SparePartsController())->adjust();
+  } else {
+    (new DashboardController())->index();
+  }
+  exit;
+}
+
   // Normal routes
   if (isset($routes[$routeKey])) {
     [$class, $method] = $routes[$routeKey];
@@ -263,12 +275,13 @@ try {
   }
 } catch (Throwable $e) {
   // Friendly error message (and keep debug info if in dev)
-  if (defined('APP_ENV') && APP_ENV === 'production') {
-    echo "<h3>حدث خطأ غير متوقع</h3>";
-    echo "<p>حاول مرة ثانية أو راجع مدير النظام.</p>";
-  } else {
-    echo "<h3>Router Error</h3>";
-    echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
-    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-  }
+  if (defined('APP_ENV') && constant('APP_ENV') === 'production') {
+  echo "<h3>حدث خطأ غير متوقع</h3>";
+  echo "<p>حاول مرة ثانية أو راجع مدير النظام.</p>";
+} else {
+  echo "<h3>Router Error</h3>";
+  echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
+  echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+}
+
 }
