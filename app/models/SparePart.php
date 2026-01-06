@@ -240,22 +240,20 @@ public function addMovement($partId, $locationId, $delta, $note = '', $createdBy
     return $this->db->execute();
 }
 
-public function getMovements(int $partId, int $limit = 50): array
-{
+public function getMovementsByPart($partId, $limit = 200) {
   $partId = (int)$partId;
-  $limit  = max(1, min(200, (int)$limit));
+  $limit = max(1, min(500, (int)$limit));
 
   $sql = "
     SELECT
       m.id,
+      m.created_at,
       m.delta,
       m.note,
-      m.created_at,
       m.location_id,
-      l.name_ar AS location_name_ar,
-      l.name_en AS location_name_en,
       m.created_by,
-      u.name AS user_name
+      COALESCE(NULLIF(l.name_ar,''), NULLIF(l.name_en,''), CONCAT('موقع #', m.location_id)) AS location_name,
+      COALESCE(NULLIF(u.name,''), NULLIF(u.username,''), CONCAT('User #', m.created_by)) AS user_name
     FROM spare_movements m
     LEFT JOIN locations l ON l.id = m.location_id
     LEFT JOIN users u ON u.id = m.created_by
@@ -266,9 +264,11 @@ public function getMovements(int $partId, int $limit = 50): array
 
   $this->db->query($sql);
   $this->db->bind(':pid', $partId);
-
   return $this->db->resultSet();
 }
+
+
+
 
 public function getMovementsDetailed(int $sparePartId): array
 {
@@ -300,8 +300,10 @@ public function getMovementsDetailed(int $sparePartId): array
   return $this->db->resultSet() ?? [];
 }
 
-public function getPartById(int $id)
-{
+public function getPartById(int $id){
+  // اول سطر في الدالة
+error_log('SparePart model file: ' . __FILE__);
+
   $this->db->query("SELECT * FROM spare_parts WHERE id = :id LIMIT 1");
   $this->db->bind(':id', $id);
   return $this->db->single();

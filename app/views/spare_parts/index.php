@@ -405,7 +405,6 @@
     </div>
   </div>
 </div>
-
 <script>
 (function () {
   function esc(s) {
@@ -420,6 +419,10 @@
   const alertEl = document.getElementById('movesAlert');
 
   if (!modalEl || !titleEl || !tbodyEl || !alertEl) return;
+
+  // اربط مرة واحدة فقط
+  if (modalEl.dataset.bound) return;
+  modalEl.dataset.bound = "1";
 
   function showError(msg) {
     alertEl.classList.remove('d-none');
@@ -448,9 +451,8 @@
     `).join('');
   }
 
-  // لما الـ Modal ينفتح (Bootstrap يرسل show.bs.modal)
-  modalEl.addEventListener('show.bs.modal', async function (ev) {
-    const btn = ev.relatedTarget; // الزر اللي فتح المودال
+  modalEl.addEventListener('show.bs.modal', async (ev) => {
+    const btn = ev.relatedTarget;
     const id = btn?.getAttribute('data-id');
     const name = btn?.getAttribute('data-name') || '';
     const pn = btn?.getAttribute('data-pn') || '';
@@ -462,7 +464,8 @@
 
     try {
       const url = `index.php?page=spareparts/movements&id=${encodeURIComponent(id)}`;
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const res = await fetch(url, { credentials: 'same-origin' });
+
       const data = await res.json();
 
       if (!data || data.ok !== true) {
@@ -470,6 +473,7 @@
         renderRows([]);
         return;
       }
+
       renderRows(data.rows || []);
     } catch (e) {
       showError('خطأ أثناء جلب السجل: ' + (e?.message || e));
@@ -478,5 +482,6 @@
   });
 })();
 </script>
+
 
 <?php require_once APPROOT . '/views/layouts/footer.php'; ?>

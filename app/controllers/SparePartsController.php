@@ -12,7 +12,7 @@ class SparePartsController extends Controller
       requireLogin();
     }
 
-    $this->spareModel = $this->model('SparePart');
+    $this->spareModel = new SparePart();
     $this->locationModel = $this->model('Location');
   }
 
@@ -457,10 +457,7 @@ public function transfer() {
 // JSON endpoint: movements
 public function movements($id = null): void
 {
-  // لازم يرجع JSON فقط
   header('Content-Type: application/json; charset=utf-8');
-
-  // تنظيف أي output سابق (Warnings/Spaces) قبل JSON
   if (ob_get_length()) { @ob_clean(); }
 
   $id = $id ?? ($_GET['id'] ?? 0);
@@ -481,7 +478,7 @@ public function movements($id = null): void
     exit;
   }
 
-  // الحركات مع اسم المستخدم + الموقع + PN (موجودة عندك بالموديل)
+  // جلب الحركات
   $moves = method_exists($this->spareModel, 'getMovementsByPart')
     ? $this->spareModel->getMovementsByPart($id, 200)
     : [];
@@ -490,20 +487,53 @@ public function movements($id = null): void
   foreach ($moves as $m) {
     $delta = (int)($m->delta ?? 0);
 
-if ($delta === 0) {
-  $moveText = 'نقل';
-} elseif ($delta > 0) {
-  $moveText = 'توريد +' . $delta;
-} else {
-  $moveText = 'صرف ' . $delta; // بيطلع بالسالب مثل -3 وهذا واضح
-}
+    // نص الحركة
+    if ($delta === 0) {
+      $moveText = 'نقل';
+    } elseif ($delta > 0) {
+      $moveText = 'توريد +' . $delta;
+    } else {
+      $moveText = 'صرف ' . $delta;
+    }
 
+    // فصل التاريخ والوقت من created_at
+    $dt = (string)($m->created_at ?? '');
+    $ts = $dt ? strtotime($dt) : false;
+    $time = $ts ? date('H:i:s', $ts) : '';
+    $date = $ts ? date('Y-m-d', $ts) : '';
+
+    // Fallback للأسماء إذا الاستعلام ما يرجعها
+    $locationText = (string)($m->location_name ?? '');
+    if ($locationText === '') {
+      $locId = (int)($m->location_id ?? 0);
+      $locationText = $locId > 0 ? ("موقع #{$locId}") : '-';
+    }
+
+    $userText = (string)($m->user_name ?? '');
+    if ($userText === '') {
+      $uid = (int)($m->created_by ?? $m->user_id ?? 0);
+      $userText = $uid > 0 ? ("User #{$uid}") : '-';
+    }
+
+    $rows[] = [
+      // حقول منفصلة (أفضل للعرض)
+      'date'     => $date,
+      'time'     => $time,
+
+      // احتياط لو ودك تستخدمه لاحقًا
+      'time_full'=> $dt,
+
+      'move'     => $moveText,
+      'location' => $locationText,
+      'user'     => $userText,
+      'note'     => (string)($m->note ?? ''),
+    ];
   }
 
   echo json_encode([
     'ok'   => true,
     'part' => [
-      'id'   => (int)$part->id,
+      'id'   => (int)($part->id ?? $id),
       'name' => (string)($part->name ?? ''),
       'pn'   => (string)($part->part_number ?? ''),
     ],
@@ -512,6 +542,8 @@ if ($delta === 0) {
 
   exit;
 }
+
+
 
 
 public function movementsJson($id = null): void
