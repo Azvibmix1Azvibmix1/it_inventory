@@ -161,14 +161,22 @@ $routes = [
   'users/edit'    => [UsersController::class, 'edit'],
   'users/delete'  => [UsersController::class, 'delete'],
   'users/profile' => [UsersController::class, 'profile'],
-// assets/assign
-'assets/assign'    => [AssetsController::class, 'assign'],
-'assets/unassign'  => [AssetsController::class, 'unassign'],
-'spareParts/adjust' => ['SparePartsController', 'adjust'],
-'spareparts/adjust' => ['SparePartsController', 'adjust'],
-'spareParts/transfer' => ['SparePartsController', 'transfer'],
-'spareparts/transfer' => ['SparePartsController', 'transfer'],
 
+  // assets/assign
+  'assets/assign'    => [AssetsController::class, 'assign'],
+  'assets/unassign'  => [AssetsController::class, 'unassign'],
+
+  // SpareParts
+  'spareParts/adjust' => ['SparePartsController', 'adjust'],
+  'spareparts/adjust' => ['SparePartsController', 'adjust'],
+
+  'spareParts/transfer' => ['SparePartsController', 'transfer'],
+  'spareparts/transfer' => ['SparePartsController', 'transfer'],
+  'spare_parts/transfer' => ['SparePartsController', 'transfer'],
+
+  // SpareParts Movements (JSON)
+  'spareparts/movements' => ['SparePartsController', 'movements'],
+  'spare_parts/movements' => ['SparePartsController', 'movements'],
 ];
 
 // -------------------------
@@ -248,13 +256,24 @@ try {
   }
 
   if (in_array($routeKey, ['spare_parts/adjust', 'spareparts/adjust'], true)) {
-  if (class_exists('SparePartsController')) {
-    (new SparePartsController())->adjust();
-  } else {
-    (new DashboardController())->index();
+    if (class_exists('SparePartsController')) {
+      (new SparePartsController())->adjust();
+    } else {
+      (new DashboardController())->index();
+    }
+    exit;
   }
-  exit;
-}
+
+  // JSON movements for modal
+  if (in_array($routeKey, ['spare_parts/movements', 'spareparts/movements'], true)) {
+    if (class_exists('SparePartsController') && method_exists('SparePartsController', 'movements')) {
+      (new SparePartsController())->movements();
+    } else {
+      header('Content-Type: application/json; charset=utf-8');
+      echo json_encode(['ok' => false, 'error' => 'Movements route not available'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+  }
 
   // Normal routes
   if (isset($routes[$routeKey])) {
@@ -270,14 +289,15 @@ try {
       throw new RuntimeException("Method not found: {$class}::{$method}()");
     }
 
+    // keep existing transfer behavior
     if (in_array($routeKey, ['spare_parts/transfer', 'spareparts/transfer'], true)) {
-  if (class_exists('SparePartsController')) {
-    (new SparePartsController())->transfer();
-  } else {
-    (new DashboardController())->index();
-  }
-  exit;
-}
+      if (class_exists('SparePartsController')) {
+        (new SparePartsController())->transfer();
+      } else {
+        (new DashboardController())->index();
+      }
+      exit;
+    }
 
     $controller->$method();
   } else {
@@ -287,12 +307,11 @@ try {
 } catch (Throwable $e) {
   // Friendly error message (and keep debug info if in dev)
   if (defined('APP_ENV') && constant('APP_ENV') === 'production') {
-  echo "<h3>حدث خطأ غير متوقع</h3>";
-  echo "<p>حاول مرة ثانية أو راجع مدير النظام.</p>";
-} else {
-  echo "<h3>Router Error</h3>";
-  echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
-  echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
-}
-
+    echo "<h3>حدث خطأ غير متوقع</h3>";
+    echo "<p>حاول مرة ثانية أو راجع مدير النظام.</p>";
+  } else {
+    echo "<h3>Router Error</h3>";
+    echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
+    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+  }
 }

@@ -286,6 +286,7 @@
                         <?php endif; ?>
                     </tbody>
                 </table>
+                
             </div>
             <?php
   $pg = $data['pagination'] ?? null;
@@ -355,5 +356,103 @@
     </div>
 
 </div>
+<!-- Moves Modal -->
+<div class="modal fade" id="movesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">سجل حركة القطعة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="movesLoading" class="text-muted">جاري التحميل...</div>
+
+        <div class="table-responsive d-none" id="movesTableWrap">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>الوقت</th>
+                <th>الحركة</th>
+                <th>الموقع</th>
+                <th>المستخدم</th>
+                <th>ملاحظة</th>
+              </tr>
+            </thead>
+            <tbody id="movesTbody">
+
+
+            
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const modalEl = document.getElementById('movesModal');
+  if (!modalEl) return;
+
+  // نربطها بطريقة delegation عشان لو الجدول يتغير/يتحدث
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.btn-moves');
+    if (!btn) return;
+
+    const id = btn.getAttribute('data-id');
+    if (!id) return;
+
+    const modal = new bootstrap.Modal(modalEl);
+
+    const loadingEl = document.getElementById('movesLoading');
+    const wrapEl = document.getElementById('movesTableWrap');
+    const tbodyEl = document.getElementById('movesTbody');
+
+    loadingEl.textContent = 'جاري التحميل...';
+    loadingEl.classList.remove('d-none');
+    wrapEl.classList.add('d-none');
+    tbodyEl.innerHTML = '';
+
+    modal.show();
+
+    try {
+      const res = await fetch(`index.php?page=spareparts/movements&id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+
+      if (!data.ok) {
+        loadingEl.textContent = data.message || 'فشل التحميل';
+        return;
+      }
+
+      const rows = data.rows || [];
+      if (!rows.length) {
+        loadingEl.textContent = 'لا يوجد حركات';
+        return;
+      }
+
+      rows.forEach(r => {
+        const delta = parseInt(r.delta || 0, 10);
+        const moveLabel = delta > 0 ? `توريد +${delta}` : `صرف ${delta}`;
+
+        tbodyEl.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td dir="ltr">${r.created_at ?? ''}</td>
+            <td>${moveLabel}</td>
+            <td>${r.location_name ?? '-'}</td>
+            <td>${r.user_name ?? '-'}</td>
+            <td>${r.note ?? ''}</td>
+          </tr>
+        `);
+      });
+
+      loadingEl.classList.add('d-none');
+      wrapEl.classList.remove('d-none');
+    } catch (err) {
+      loadingEl.textContent = 'صار خطأ أثناء التحميل';
+    }
+  });
+})();
+</script>
 
 <?php require_once APPROOT . '/views/layouts/footer.php'; ?>
