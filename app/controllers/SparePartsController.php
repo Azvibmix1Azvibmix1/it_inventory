@@ -309,7 +309,7 @@ $data['filters']['dir']  = $dir;
   public function adjust($id = null)
   {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-      redirect('index.php?page=spareParts/index');
+      redirect('index.php?page=spareparts/index');
       return;
     }
 
@@ -363,13 +363,30 @@ $data['filters']['dir']  = $dir;
       flash('part_message', 'فشل تحديث الكمية', 'alert alert-danger');
     }
 
-    if ($returnTo) {
-      redirect($returnTo);
-    } elseif ($locationId > 0) {
-      redirect("index.php?page=locations/edit&id={$locationId}");
-    } else {
-      redirect('index.php?page=spareParts/index');
-    }
+    // ✅ Redirect آمن: نخلي الرجوع فقط داخل مشروعك (index.php ...)
+$returnTo = trim($returnTo);
+if ($returnTo !== '') {
+  // اسمح فقط بالرجوع داخل النظام (بدون روابط خارجية)
+  $isSafe =
+    str_starts_with($returnTo, 'index.php') ||
+    str_starts_with($returnTo, '/it_inventory/public/index.php') ||  // إذا مسارك كذا
+    str_contains($returnTo, 'index.php?page=');
+
+  if ($isSafe) {
+    redirect($returnTo);
+    return;
+  }
+}
+
+// fallback
+if ($locationId > 0) {
+  redirect("index.php?page=locations/edit&id={$locationId}");
+  return;
+}
+
+redirect('index.php?page=spareParts/index');
+return;
+
   }
 
   /**
@@ -432,6 +449,28 @@ public function transfer() {
   }
 
   redirect($returnTo ?: 'index.php?page=spareParts/index');
+}
+
+public function movements($id = null)
+{
+  // Ajax فقط
+  $id = $id ?? ($_GET['id'] ?? 0);
+  $id = (int)$id;
+
+  header('Content-Type: application/json; charset=utf-8');
+
+  if ($id <= 0) {
+    echo json_encode(['ok' => false, 'message' => 'ID غير صحيح']);
+    return;
+  }
+
+  if (!method_exists($this->spareModel, 'getMovementsByPart')) {
+    echo json_encode(['ok' => false, 'message' => 'الدالة getMovementsByPart غير موجودة في الموديل']);
+    return;
+  }
+
+  $rows = $this->spareModel->getMovementsByPart($id, 10); // آخر 10
+  echo json_encode(['ok' => true, 'rows' => $rows]);
 }
 
 }

@@ -230,4 +230,27 @@ public function transferLocation($id, $toLocationId) {
   return $this->db->execute();
 }
 
+public function getMovementsByPart($sparePartId, $limit = 10)
+{
+  $sparePartId = (int)$sparePartId;
+  $limit = (int)$limit;
+
+  $this->db->query("
+    SELECT 
+      m.created_at,
+      m.delta,
+      m.note,
+      u.username AS user_name,
+      l.name_ar AS location_name
+    FROM spare_movements m
+    LEFT JOIN users u ON u.id = m.created_by
+    LEFT JOIN locations l ON l.id = m.location_id
+    WHERE m.spare_part_id = :id
+    ORDER BY m.created_at DESC
+    LIMIT {$limit}
+  ");
+  $this->db->bind(':id', $sparePartId);
+  return $this->db->resultSet();
+}
+
 }

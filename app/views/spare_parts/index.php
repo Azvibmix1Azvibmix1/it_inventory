@@ -159,32 +159,39 @@
 ?>
 
                     <thead class="table-light">
-  <a href="<?= sortUrl('name', $f) ?>" class="text-decoration-none text-dark">
-    اسم القطعة
-  </a>
-</th>
+  <tr>
+    <th>
+      <a href="<?= sortUrl(key: 'name', f: $f) ?>" class="text-decoration-none text-dark">
+        اسم القطعة
+      </a>
+    </th>
 
-<th>رقم القطعة (PN)</th>
+    <th>رقم القطعة (PN)</th>
 
-<th>
-  <a href="<?= sortUrl('qty', $f) ?>" class="text-decoration-none text-dark">
-    الكمية
-  </a>
-</th>
+    <th>
+      <a href="<?= sortUrl(key: 'qty', f: $f) ?>" class="text-decoration-none text-dark">
+        الكمية
+      </a>
+    </th>
 
-<th>
-  <a href="<?= sortUrl('location', $f) ?>" class="text-decoration-none text-dark">
-    الموقع
-  </a>
-</th>
+    <th>
+      <a href="<?= sortUrl(key: 'location', f: $f) ?>" class="text-decoration-none text-dark">
+        الموقع
+      </a>
+    </th>
 
-<th>
-  <a href="<?= sortUrl('status', $f) ?>" class="text-decoration-none text-dark">
-    الحالة
-  </a>
-</th>
+    <th>
+      <a href="<?= sortUrl(key: 'status', f: $f) ?>" class="text-decoration-none text-dark">
+        الحالة
+      </a>
+    </th>
 
-                    </thead>
+    <th>إجراءات سريعة</th>
+
+    
+  </tr>
+</thead>
+
                     <tbody>
                         <?php if(!empty($data['parts'])): ?>
                             <?php foreach($data['parts'] as $part): ?>
@@ -221,22 +228,57 @@
                                     <?php endif; ?>
                                 </td>
 
-                                <td>
-                                    <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/edit&id=<?php echo $part->id; ?>" class="btn btn-sm btn-outline-primary">
-                                        <i class="fa fa-edit"></i>
-                                    </a>
-                                    <form method="post"
-      action="<?php echo URLROOT; ?>/index.php?page=spareparts/delete"
-      class="d-inline"
-      onsubmit="return confirm('متأكد تبغى تحذف القطعة؟');">
-  <input type="hidden" name="id" value="<?php echo (int)$part->id; ?>">
-  <input type="hidden" name="return_to" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>">
-  <button type="submit" class="btn btn-sm btn-outline-danger">
-    <i class="bi bi-trash"></i> 
-  </button>
-</form>
+                                <td class="text-nowrap">
+  <div class="d-inline-flex gap-1 align-items-center">
+    <?php $returnTo = $_SERVER['REQUEST_URI']; ?>
+    <?php $locId = (int)($part->location_id ?? 0); ?>
 
-                                </td>
+    <!-- توريد +1 -->
+    <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
+      <input type="hidden" name="id" value="<?= (int)$part->id ?>">
+      <input type="hidden" name="delta" value="1">
+      <input type="hidden" name="location_id" value="<?= $locId ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+      <button type="submit" class="btn btn-sm btn-success" title="توريد +1">
+        <i class="bi bi-plus-circle"></i>
+      </button>
+    </form>
+
+    <!-- صرف -1 -->
+    <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
+      <input type="hidden" name="id" value="<?= (int)$part->id ?>">
+      <input type="hidden" name="delta" value="-1">
+      <input type="hidden" name="location_id" value="<?= $locId ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+      <button type="submit" class="btn btn-sm btn-warning" title="صرف -1">
+        <i class="bi bi-dash-circle"></i>
+      </button>
+    </form>
+
+    <!-- تعديل -->
+    <a href="index.php?page=spareparts/edit&id=<?= (int)$part->id ?>"
+       class="btn btn-sm btn-outline-primary" title="تعديل">
+      <i class="bi bi-pencil"></i>
+    </a>
+
+    <!-- حذف -->
+    <form method="post" action="index.php?page=spareparts/delete" class="d-inline"
+          onsubmit="return confirm('متأكد تبغى تحذف القطعة؟');">
+      <input type="hidden" name="id" value="<?= (int)$part->id ?>">
+      <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+      <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
+        <i class="bi bi-trash"></i>
+      </button>
+    </form>
+  </div>
+</td>
+
+
+<button type="button" class="btn btn-sm btn-outline-secondary btn-moves"
+        data-id="<?= (int)$part->id ?>" title="سجل الحركة">
+  <i class="bi bi-clock-history"></i>
+</button>
+
                             </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
