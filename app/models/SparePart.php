@@ -280,5 +280,35 @@ public function addMovement($partId, $locationId, $delta, $note = '', $createdBy
     return $this->db->execute();
 }
 
+public function getMovementsDetailed(int $sparePartId): array
+{
+  $sparePartId = (int)$sparePartId;
+
+  $sql = "
+    SELECT
+      sm.id,
+      sm.spare_part_id,
+      sm.location_id,
+      sm.delta,
+      sm.note,
+      sm.created_by,
+      sm.created_at,
+      COALESCE(u.name, u.username, u.email, '') AS user_name,
+      COALESCE(l.name, '') AS location_name,
+      COALESCE(sp.name, '') AS part_name
+    FROM spare_movements sm
+    LEFT JOIN users u       ON u.id = sm.created_by
+    LEFT JOIN locations l   ON l.id = sm.location_id
+    LEFT JOIN spare_parts sp ON sp.id = sm.spare_part_id
+    WHERE sm.spare_part_id = :pid
+    ORDER BY sm.created_at DESC, sm.id DESC
+    LIMIT 200
+  ";
+
+  $this->db->query($sql);
+  $this->db->bind(':pid', $sparePartId);
+  return $this->db->resultSet() ?? [];
+}
+
 
 }

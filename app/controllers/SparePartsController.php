@@ -451,31 +451,6 @@ public function transfer() {
   redirect($returnTo ?: 'index.php?page=spareParts/index');
 }
 
-public function movements()
-{
-  header('Content-Type: application/json; charset=utf-8');
-
-  // GET فقط
-  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    echo json_encode(['ok' => false, 'message' => 'Method not allowed', 'rows' => []], JSON_UNESCAPED_UNICODE);
-    return;
-  }
-
-  $id = (int)($_GET['id'] ?? 0);
-  if ($id <= 0) {
-    echo json_encode(['ok' => false, 'message' => 'id غير صحيح', 'rows' => []], JSON_UNESCAPED_UNICODE);
-    return;
-  }
-
-  $rows = method_exists($this->spareModel, 'getMovementsByPart')
-    ? $this->spareModel->getMovementsByPart($id, 100)
-    : [];
-
-  echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
-  return;
-}
-
-
 
 public function movementsJson($id = null): void
 {
@@ -517,6 +492,50 @@ public function movementsJson($id = null): void
     ], JSON_UNESCAPED_UNICODE);
 
     return;
+}
+
+
+public function movements(): void
+{
+  // مهم: ما نطبع أي HTML هنا
+  header('Content-Type: application/json; charset=utf-8');
+
+  $id = (int)($_GET['id'] ?? 0);
+  if ($id <= 0) {
+    echo json_encode(['ok' => false, 'message' => 'ID غير صحيح']);
+    exit;
+  }
+
+  try {
+    $rows = method_exists($this->spareModel, 'getMovementsDetailed')
+      ? $this->spareModel->getMovementsDetailed($id)
+      : [];
+
+    $partName = '';
+    if (!empty($rows) && isset($rows[0]->part_name)) $partName = (string)$rows[0]->part_name;
+
+    $movements = [];
+    foreach ($rows as $r) {
+      $movements[] = [
+        'time'     => $r->created_at ?? '',
+        'delta'    => (int)($r->delta ?? 0),
+        'location' => $r->location_name ?? '',
+        'user'     => $r->user_name ?? '',
+        'note'     => $r->note ?? '',
+      ];
+    }
+
+    echo json_encode([
+      'ok' => true,
+      'part_name' => $partName,
+      'movements' => $movements,
+    ], JSON_UNESCAPED_UNICODE);
+
+  } catch (Throwable $e) {
+    echo json_encode(['ok' => false, 'message' => 'خطأ بالسيرفر: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+  }
+
+  exit;
 }
 
 }

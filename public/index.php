@@ -276,15 +276,17 @@ if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)
   }
 
   // JSON movements for modal
-  if (in_array($routeKey, ['spare_parts/movements', 'spareparts/movements'], true)) {
-    if (class_exists('SparePartsController') && method_exists('SparePartsController', 'movements')) {
-      (new SparePartsController())->movements();
-    } else {
-      header('Content-Type: application/json; charset=utf-8');
-      echo json_encode(['ok' => false, 'error' => 'Movements route not available'], JSON_UNESCAPED_UNICODE);
-    }
-    exit;
+  // Movements JSON (AJAX)
+if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)) {
+  if (class_exists('SparePartsController')) {
+    (new SparePartsController())->movements();
+  } else {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'message' => 'SparePartsController غير موجود']);
   }
+  exit;
+}
+
 
   // Normal routes
   if (isset($routes[$routeKey])) {

@@ -463,98 +463,137 @@
 })();
 </script>
 <script>
-(function () {
-  const modalEl   = document.getElementById('movesModal');
-  const titleEl   = document.getElementById('movesModalLabel');
-  const tbodyEl   = document.getElementById('movesTbody');
-  const alertEl   = document.getElementById('movesAlert'); // إذا عندك div للرسائل
-  const bsModal   = modalEl ? new bootstrap.Modal(modalEl) : null;
 
-  function esc(s) {
+<div class="modal fade" id="movesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="movesTitle">سجل حركة القطعة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="movesMsg" class="alert alert-info py-2 d-none"></div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>الوقت</th>
+                <th>الحركة</th>
+                <th>الموقع</th>
+                <th>المستخدم</th>
+                <th>ملاحظة</th>
+              </tr>
+            </thead>
+            <tbody id="movesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const modalEl = document.getElementById('movesModal');
+  const titleEl = document.getElementById('movesTitle');
+  const bodyEl  = document.getElementById('movesBody');
+  const msgEl   = document.getElementById('movesMsg');
+
+  if (!modalEl || !titleEl || !bodyEl || !msgEl) return;
+
+  const bsModal = (window.bootstrap && bootstrap.Modal)
+    ? new bootstrap.Modal(modalEl)
+    : null;
+
+  function showMsg(text, type) {
+    msgEl.className = 'alert alert-' + (type || 'info') + ' py-2';
+    msgEl.textContent = text;
+    msgEl.classList.remove('d-none');
+  }
+  function hideMsg() {
+    msgEl.classList.add('d-none');
+  }
+
+  function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, m => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
     }[m]));
   }
 
-  function movementText(delta, note) {
-    delta = Number(delta || 0);
-    if (delta > 0) return `توريد +${delta}`;
-    if (delta < 0) return `صرف ${delta}`; // بيطلع -1 -2 طبيعي
-    return note ? `نقل` : `تعديل`;
+  function labelDelta(d) {
+    d = Number(d || 0);
+    if (d > 0) return 'توريد +' + d;
+    if (d < 0) return 'صرف ' + d;
+    return String(d);
   }
 
-  async function loadMoves(partId) {
-    tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">جارٍ التحميل...</td></tr>`;
-    if (alertEl) alertEl.classList.add('d-none');
+  async function loadMovements(partId) {
+    hideMsg();
+    bodyEl.innerHTML = '';
+    showMsg('... جاري التحميل', 'info');
 
-    const url = `index.php?page=spareparts/movements&id=${encodeURIComponent(partId)}`;
+    const url = 'index.php?page=spareparts/movements&id=' + encodeURIComponent(partId);
 
-    let res, data;
+    let res, text, data;
     try {
       res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      const txt = await res.text();
+      text = await res.text();
 
-      // لو رجع HTML بالغلط (doctype) بنطلع خطأ واضح
-      if (txt.trim().startsWith('<')) {
-        throw new Error('الرد ليس JSON (Route/Redirect يرجع HTML). تأكد من public/index.php routes.');
+      // لو رجع HTML بالغلط، بنعرض سبب واضح بدل ما يطيح Unexpected token
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        showMsg('الرد ليس JSON (غالبًا Route غلط أو فيه Warning قبل JSON).', 'danger');
+        bodyEl.innerHTML = '<tr><td colspan="5" class="text-muted small" dir="ltr">'
+          + escapeHtml(text.slice(0, 300)) + '...</td></tr>';
+        return;
       }
 
-      data = JSON.parse(txt);
-    } catch (e) {
-      tbodyEl.innerHTML = '';
-      if (alertEl) {
-        alertEl.textContent = 'صار خطأ أثناء جلب السجل: ' + e.message;
-        alertEl.classList.remove('d-none');
-      } else {
-        tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">${esc(e.message)}</td></tr>`;
+      if (!data.ok) {
+        showMsg(data.message || 'فشل جلب السجل', 'danger');
+        return;
       }
-      return;
-    }
 
-    if (!data || !data.ok) {
-      const msg = (data && data.message) ? data.message : 'فشل جلب السجل';
-      tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">${esc(msg)}</td></tr>`;
-      return;
-    }
+      titleEl.textContent = 'سجل حركة القطعة: ' + (data.part_name || '');
 
-    const rows = data.rows || [];
-    if (!rows.length) {
-      tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">لا توجد حركات لهذه القطعة</td></tr>`;
-      return;
-    }
+      const rows = data.movements || [];
+      if (!rows.length) {
+        showMsg('لا يوجد حركات.', 'secondary');
+        return;
+      }
 
-    tbodyEl.innerHTML = rows.map(r => {
-      const time = esc(r.created_at);
-      const move = esc(movementText(r.delta, r.note));
-      const loc  = esc(r.location_name || '-');
-      const user = esc(r.user_name || '-');
-      const note = esc(r.note || '');
-      return `
+      hideMsg();
+      bodyEl.innerHTML = rows.map(r => `
         <tr>
-          <td class="text-nowrap">${time}</td>
-          <td class="text-nowrap">${move}</td>
-          <td class="text-nowrap">${loc}</td>
-          <td class="text-nowrap">${user}</td>
-          <td>${note}</td>
+          <td class="text-nowrap" dir="ltr">${escapeHtml(r.time)}</td>
+          <td class="text-nowrap">${escapeHtml(labelDelta(r.delta))}</td>
+          <td>${escapeHtml(r.location)}</td>
+          <td>${escapeHtml(r.user)}</td>
+          <td>${escapeHtml(r.note)}</td>
         </tr>
-      `;
-    }).join('');
+      `).join('');
+
+    } catch (err) {
+      showMsg('خطأ اتصال: ' + (err && err.message ? err.message : err), 'danger');
+    }
   }
 
   document.addEventListener('click', function (e) {
     const btn = e.target.closest('.btn-moves');
     if (!btn) return;
 
-    const id   = btn.getAttribute('data-id');
-    const name = btn.getAttribute('data-name') || '';
+    const id = btn.getAttribute('data-id');
+    if (!id) return;
 
-    if (titleEl) titleEl.textContent = name ? `سجل حركة القطعة: ${name}` : 'سجل حركة القطعة';
+    titleEl.textContent = 'سجل حركة القطعة';
+    loadMovements(id);
 
     if (bsModal) bsModal.show();
-    loadMoves(id);
   });
 })();
 </script>
-
 
 <?php require_once APPROOT . '/views/layouts/footer.php'; ?>
