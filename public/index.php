@@ -184,6 +184,7 @@ $routes = [
 // -------------------------
 $route = normalize_route((string)($_GET['page'] ?? 'dashboard/index'));
 $routeKey = strtolower($route);
+$routeKey = strtolower(trim($_GET['page'] ?? 'dashboard/index'));
 
 try {
   // Special routes that need method_exists protection (print/labels)
@@ -228,6 +229,16 @@ try {
     exit;
   }
 
+  // movements JSON (سجل الحركة)
+if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)) {
+    if (class_exists('SparePartsController')) {
+        (new SparePartsController())->movements();
+    } else {
+        (new DashboardController())->index();
+    }
+    exit;
+}
+
   if (in_array($routeKey, ['spare_parts/add', 'spareparts/add'], true)) {
     if (class_exists('SparePartsController')) {
       (new SparePartsController())->add();
@@ -255,28 +266,25 @@ try {
     exit;
   }
 
-if (in_array(needle: $routeKey, haystack: ['spare_parts/adjust', 'spareparts/adjust'], strict: true)) {
-  if (class_exists(class: 'SparePartsController')) {
-    (new SparePartsController())->adjust();
-  } else {
-    (new DashboardController())->index();
+  if (in_array($routeKey, ['spare_parts/adjust', 'spareparts/adjust'], true)) {
+    if (class_exists('SparePartsController')) {
+      (new SparePartsController())->adjust();
+    } else {
+      (new DashboardController())->index();
+    }
+    exit;
   }
-  exit;
-}
-
 
   // JSON movements for modal
- if (in_array(needle: $routeKey, haystack: ['spare_parts/movements', 'spareparts/movements'], strict: true)) {
-  if (class_exists(class: 'SparePartsController')) {
-    (new SparePartsController())->movements();
-  } else {
-    // لو ما فيه كنترولر رجّع JSON بدل صفحة
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'message' => 'Controller not found', 'rows' => []], JSON_UNESCAPED_UNICODE);
+  if (in_array($routeKey, ['spare_parts/movements', 'spareparts/movements'], true)) {
+    if (class_exists('SparePartsController') && method_exists('SparePartsController', 'movements')) {
+      (new SparePartsController())->movements();
+    } else {
+      header('Content-Type: application/json; charset=utf-8');
+      echo json_encode(['ok' => false, 'error' => 'Movements route not available'], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
   }
-  exit;
-}
-
 
   // Normal routes
   if (isset($routes[$routeKey])) {
