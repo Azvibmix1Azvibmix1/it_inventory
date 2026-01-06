@@ -1,4 +1,19 @@
 <?php require_once APPROOT . '/views/layouts/header.php'; ?>
+<?php
+  $printMode = !empty($data['print_mode']);
+
+  $f = $data['filters'] ?? [];
+  $paramsBase = [
+    'q' => $f['q'] ?? '',
+    'location_id' => (int)($f['location_id'] ?? 0),
+    'status' => $f['status'] ?? '',
+    'sort' => $f['sort'] ?? 'name',
+    'dir'  => $f['dir'] ?? 'asc',
+  ];
+
+  $printUrl  = 'index.php?' . http_build_query(['page' => 'spareparts/print'] + $paramsBase);
+  $exportUrl = 'index.php?' . http_build_query(['page' => 'spareparts/export'] + $paramsBase);
+?>
 
 <?php
   // Dashboard counts
@@ -30,6 +45,20 @@
     border-radius: 14px;
   }
   .kpi-card .card-text { opacity: .9; }
+@media print {
+  .no-print { display: none !important; }
+
+  /* حاول نخفي عناصر الواجهة العامة */
+  header, nav, footer,
+  .navbar, .sidebar, .offcanvas, .topbar, .menu, .btn, .actions,
+  .modal, .toast, .alert { display: none !important; }
+
+  body { background: #fff !important; }
+  .container { max-width: 100% !important; padding: 0 !important; }
+}
+
+  .container { max-width: 100% !important; }
+
 </style>
 
 <div class="container mt-4">
@@ -38,11 +67,34 @@
         <div class="col-md-6">
             <h1><i class="fa fa-microchip text-navy"></i> إدارة قطع الغيار</h1>
         </div>
-        <div class="col-md-6 text-md-end">
-            <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/add" class="btn btn-primary">
-                <i class="fa fa-plus"></i> إضافة قطعة جديدة
-            </a>
-        </div>
+        <?php
+$f = $data['filters'] ?? [];
+$baseParams = [
+  'q' => $f['q'] ?? '',
+  'location_id' => $f['location_id'] ?? 0,
+  'status' => $f['status'] ?? '',
+  'sort' => $f['sort'] ?? 'name',
+  'dir' => $f['dir'] ?? 'asc',
+];
+
+$printUrl  = 'index.php?' . http_build_query(array_merge(['page'=>'spareparts/print'], $baseParams));
+$exportUrl = 'index.php?' . http_build_query(array_merge(['page'=>'spareparts/export'], $baseParams));
+?>
+
+        <div class="col-md-6 text-md-end no-print">
+  <a href="<?php echo URLROOT; ?>/index.php?page=spareParts/add" class="btn btn-primary">
+    <i class="fa fa-plus"></i> إضافة قطعة جديدة
+  </a>
+
+  <a href="<?= $printUrl ?>" target="_blank" class="btn btn-outline-secondary ms-2">
+    <i class="bi bi-printer"></i> طباعة
+  </a>
+
+  <a href="<?= $exportUrl ?>" class="btn btn-success ms-2">
+    <i class="bi bi-file-earmark-excel"></i> Excel
+  </a>
+</div>
+
     </div>
 
     <div class="row mb-4 text-center">
@@ -80,7 +132,8 @@
   $status = $f['status'] ?? '';
 ?>
 
-<div class="card shadow-sm mb-3">
+<div class="card shadow-sm mb-3 no-print">
+
   <div class="card-body">
     <form method="get" action="index.php" class="row g-2 align-items-end">
       <input type="hidden" name="page" value="spareparts/index">
@@ -321,7 +374,7 @@
 ?>
 
 <?php if ($pg && ($pg['total_pages'] ?? 1) > 1): ?>
-  <nav class="mt-3">
+  <nav class="mt-3 no-print">
     <ul class="pagination justify-content-center flex-wrap">
       <?php $current = (int)$pg['page']; $total = (int)$pg['total_pages']; ?>
 
@@ -386,18 +439,20 @@
 
         <div class="table-responsive">
           <table class="table table-sm align-middle">
-            <thead class="table-light">
-              <tr>
-                <th class="text-nowrap">الوقت</th>
-                <th class="text-nowrap">الحركة</th>
-                <th class="text-nowrap">الموقع</th>
-                <th class="text-nowrap">المستخدم</th>
-                <th>ملاحظة</th>
-              </tr>
-            </thead>
-            <tbody id="movesTbody">
-              <tr><td colspan="5" class="text-center text-muted py-4">...</td></tr>
-            </tbody>
+           <thead class="table-light">
+  <tr>
+    <th class="text-nowrap">التاريخ</th>
+    <th class="text-nowrap">الوقت</th>
+    <th class="text-nowrap">الحركة</th>
+    <th class="text-nowrap">الموقع</th>
+    <th class="text-nowrap">المستخدم</th>
+    <th>ملاحظة</th>
+  </tr>
+</thead>
+<tbody id="movesTbody">
+  <tr><td colspan="6" class="text-center text-muted py-4">...</td></tr>
+</tbody>
+
           </table>
         </div>
 
@@ -432,24 +487,46 @@
     alertEl.classList.add('d-none');
     alertEl.textContent = '';
   }
-  function setLoading() {
-    tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">جاري التحميل...</td></tr>';
+function setLoading() {
+  tbodyEl.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">جاري التحميل...</td></tr>';
+}
+
+function splitDT(x) {
+  if (!x) return { d: '', t: '' };
+  const s = String(x);
+  // يتوقع شكل: YYYY-MM-DD HH:MM:SS
+  if (s.includes(' ')) {
+    const parts = s.split(' ');
+    return { d: parts[0] || '', t: parts[1] || '' };
   }
-  function renderRows(rows) {
-    if (!rows || !rows.length) {
-      tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات مسجلة</td></tr>';
-      return;
-    }
-    tbodyEl.innerHTML = rows.map(r => `
+  return { d: '', t: s };
+}
+
+function renderRows(rows) {
+  if (!rows || !rows.length) {
+    tbodyEl.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">لا توجد حركات مسجلة</td></tr>';
+    return;
+  }
+
+  tbodyEl.innerHTML = rows.map(r => {
+    // يدعم الجديد (date/time) + يدعم القديم (time أو time_full)
+    const dt = splitDT(r.time_full ?? r.time ?? '');
+    const date = esc(r.date ?? dt.d);
+    const time = esc(r.time ?? dt.t);
+
+    return `
       <tr>
-        <td>${esc(r.time)}</td>
+        <td>${date}</td>
+        <td>${time}</td>
         <td>${esc(r.move)}</td>
         <td>${esc(r.location)}</td>
         <td>${esc(r.user)}</td>
         <td>${esc(r.note)}</td>
       </tr>
-    `).join('');
-  }
+    `;
+  }).join('');
+}
+
 
   modalEl.addEventListener('show.bs.modal', async (ev) => {
     const btn = ev.relatedTarget;
@@ -483,5 +560,13 @@
 })();
 </script>
 
+<?php if (!empty($printMode)): ?>
+  <script>
+    window.addEventListener('load', () => {
+      window.print();
+      window.onafterprint = () => window.close();
+    });
+  </script>
+<?php endif; ?>
 
 <?php require_once APPROOT . '/views/layouts/footer.php'; ?>

@@ -543,9 +543,6 @@ public function movements($id = null): void
   exit;
 }
 
-
-
-
 public function movementsJson($id = null): void
 {
   header('Content-Type: application/json; charset=utf-8');
@@ -603,5 +600,244 @@ public function movementsJson($id = null): void
   return;
 }
 
+public function exportCsv(): void
+{
+  // اقفل أي output قبل الهيدر
+  while (ob_get_level() > 0) { @ob_end_clean(); }
+
+  // اجلب كل القطع
+  $allParts = method_exists($this->spareModel, 'getParts')
+    ? $this->spareModel->getParts()
+    : (method_exists($this->spareModel, 'getAll') ? $this->spareModel->getAll() : []);
+
+  if (!is_array($allParts)) $allParts = [];
+
+  // فلاتر GET
+  $q = trim($_GET['q'] ?? '');
+  $locationId = (int)($_GET['location_id'] ?? 0);
+  $status = trim($_GET['status'] ?? '');
+  $sort = trim($_GET['sort'] ?? 'name');
+  $dir  = strtolower(trim($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
+
+  // Unicode-safe labels (بدون أحرف عربية مباشرة داخل الملف)
+  $L = [
+    'title'   => "\u{0642}\u{0627}\u{0626}\u{0645}\u{0629}\u{0020}\u{0642}\u{0637}\u{0639}\u{0020}\u{0627}\u{0644}\u{063A}\u{064A}\u{0627}\u{0631}",
+    'name'    => "\u{0627}\u{0633}\u{0645}\u{0020}\u{0627}\u{0644}\u{0642}\u{0637}\u{0639}\u{0629}",
+    'pn'      => "PN",
+    'qty'     => "\u{0627}\u{0644}\u{0643}\u{0645}\u{064A}\u{0629}",
+    'min'     => "\u{0627}\u{0644}\u{062D}\u{062F}\u{0020}\u{0627}\u{0644}\u{0623}\u{062F}\u{0646}\u{0649}",
+    'loc'     => "\u{0627}\u{0644}\u{0645}\u{0648}\u{0642}\u{0639}",
+    'status'  => "\u{0627}\u{0644}\u{062D}\u{0627}\u{0644}\u{0629}",
+    'ok'      => "\u{0645}\u{062A}\u{0648}\u{0641}\u{0631}",
+    'low'     => "\u{0645}\u{0646}\u{062E}\u{0641}\u{0636}",
+    'out'     => "\u{0645}\u{0646}\u{062A}\u{0647}\u{064A}\u{0629}",
+    'locHash' => "\u{0645}\u{0648}\u{0642}\u{0639}\u{0020}\u{0023}",
+  ];
+
+  // فلترة
+  $parts = array_values(array_filter($allParts, function($p) use ($q, $locationId, $status) {
+    $name = mb_strtolower((string)($p->name ?? ''));
+    $pn   = mb_strtolower((string)($p->part_number ?? ''));
+    $qLower = mb_strtolower($q);
+
+    if ($qLower !== '' && mb_strpos($name, $qLower) === false && mb_strpos($pn, $qLower) === false) return false;
+
+    $locId = (int)($p->location_id ?? 0);
+    if ($locationId > 0 && $locId !== $locationId) return false;
+
+    $qty = (int)($p->quantity ?? 0);
+    $min = (int)($p->min_quantity ?? 0);
+
+    if ($status === 'ok')  return $qty > $min;
+    if ($status === 'low') return $qty > 0 && $qty <= $min;
+    if ($status === 'out') return $qty <= 0;
+
+    return true;
+  }));
+
+  // ترتيب
+  usort($parts, function($a, $b) use ($sort, $dir) {
+    $cmp = 0;
+
+    if ($sort === 'qty') {
+      $cmp = ((int)($a->quantity ?? 0)) <=> ((int)($b->quantity ?? 0));
+    } elseif ($sort === 'location') {
+      $la = (string)($a->location_name_ar ?? $a->location_name_en ?? '');
+      $lb = (string)($b->location_name_ar ?? $b->location_name_en ?? '');
+      $cmp = strcmp($la, $lb);
+      if ($cmp === 0) $cmp = ((int)($a->location_id ?? 0)) <=> ((int)($b->location_id ?? 0));
+    } elseif ($sort === 'status') {
+      $qa = (int)($a->quantity ?? 0); $ma = (int)($a->min_quantity ?? 0);
+      $qb = (int)($b->quantity ?? 0); $mb = (int)($b->min_quantity ?? 0);
+      $sa = ($qa <= 0) ? 0 : (($qa <= $ma) ? 1 : 2);
+      $sb = ($qb <= 0) ? 0 : (($qb <= $mb) ? 1 : 2);
+      $cmp = $sa <=> $sb;
+    } else {
+      $cmp = strcmp(mb_strtolower((string)($a->name ?? '')), mb_strtolower((string)($b->name ?? '')));
+    }
+
+    return $dir === 'desc' ? -$cmp : $cmp;
+  });
+
+  // Excel HTML export
+  $dt = date('Y-m-d_H-i');
+  $filename = "spare_parts_{$dt}.xls";
+
+  header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+  header('Content-Disposition: attachment; filename="'.$filename.'"');
+  header('Pragma: no-cache');
+  header('Expires: 0');
+
+  // BOM UTF-8
+  echo "\xEF\xBB\xBF";
+
+  $esc = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+
+  echo '<html><head><meta charset="utf-8">';
+echo '<style>
+  body{font-family: Tahoma, Arial, sans-serif; direction: rtl;}
+  table{border-collapse:collapse; direction: rtl;}
+  th,td{border:1px solid #000; padding:6px 10px; text-align:right; white-space:nowrap;}
+  th{background:#f2f2f2;}
+</style>';
+echo '</head><body>';
+
+  echo '<table border="1" cellpadding="4" cellspacing="0">';
+  echo '<tr style="font-weight:bold;">';
+  echo '<th>'.$esc($L['name']).'</th>';
+  echo '<th>'.$esc($L['pn']).'</th>';
+  echo '<th>'.$esc($L['qty']).'</th>';
+  echo '<th>'.$esc($L['min']).'</th>';
+  echo '<th>'.$esc($L['loc']).'</th>';
+  echo '<th>'.$esc($L['status']).'</th>';
+  echo '</tr>';
+
+  foreach ($parts as $p) {
+    $name = (string)($p->name ?? '');
+    $pn   = (string)($p->part_number ?? '');
+    $qty  = (int)($p->quantity ?? 0);
+    $min  = (int)($p->min_quantity ?? 0);
+
+    $locName = (string)($p->location_name_ar ?? $p->location_name_en ?? '');
+    if ($locName === '') {
+      $lid = (int)($p->location_id ?? 0);
+      $locName = $lid > 0 ? ($L['locHash'].$lid) : '';
+    }
+
+    $statusText = $L['ok'];
+    if ($qty <= 0) $statusText = $L['out'];
+    elseif ($qty <= $min) $statusText = $L['low'];
+
+    echo '<tr>';
+    echo '<td>'.$esc($name).'</td>';
+    echo '<td>'.$esc($pn).'</td>';
+    echo '<td>'.$esc($qty).'</td>';
+    echo '<td>'.$esc($min).'</td>';
+    echo '<td>'.$esc($locName).'</td>';
+    echo '<td>'.$esc($statusText).'</td>';
+    echo '</tr>';
+  }
+
+  echo '</table></body></html>';
+  exit;
+}
+
+
+public function printList(): void{
+  // نفس صفحة الفهرس لكن بوضع الطباعة + بدون pagination
+  $_GET['print'] = 1;
+
+  // اجلب كل القطع
+  $allParts = method_exists($this->spareModel, 'getParts')
+    ? $this->spareModel->getParts()
+    : (method_exists($this->spareModel, 'getAll') ? $this->spareModel->getAll() : []);
+
+  if (!is_array($allParts)) $allParts = [];
+
+  // فلاتر GET
+  $q = trim($_GET['q'] ?? '');
+  $locationId = (int)($_GET['location_id'] ?? 0);
+  $status = trim($_GET['status'] ?? '');
+
+  $sort = trim($_GET['sort'] ?? 'name');
+  $dir  = strtolower(trim($_GET['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc';
+
+  // فلترة
+  $parts = array_values(array_filter($allParts, function($p) use ($q, $locationId, $status) {
+    $name = mb_strtolower((string)($p->name ?? ''));
+    $pn   = mb_strtolower((string)($p->part_number ?? ''));
+    $qLower = mb_strtolower($q);
+
+    if ($qLower !== '' && mb_strpos($name, $qLower) === false && mb_strpos($pn, $qLower) === false) return false;
+
+    $locId = (int)($p->location_id ?? 0);
+    if ($locationId > 0 && $locId !== $locationId) return false;
+
+    $qty = (int)($p->quantity ?? 0);
+    $min = (int)($p->min_quantity ?? 0);
+
+    if ($status === 'ok')  return $qty > $min;
+    if ($status === 'low') return $qty > 0 && $qty <= $min;
+    if ($status === 'out') return $qty <= 0;
+
+    return true;
+  }));
+
+  // ترتيب
+  usort($parts, function($a, $b) use ($sort, $dir) {
+    $cmp = 0;
+
+    if ($sort === 'qty') {
+      $cmp = ((int)($a->quantity ?? 0)) <=> ((int)($b->quantity ?? 0));
+    } elseif ($sort === 'location') {
+      $la = (string)($a->location_name_ar ?? $a->location_name_en ?? $a->location_name ?? '');
+      $lb = (string)($b->location_name_ar ?? $b->location_name_en ?? $b->location_name ?? '');
+      $cmp = strcmp($la, $lb);
+      if ($cmp === 0) $cmp = ((int)($a->location_id ?? 0)) <=> ((int)($b->location_id ?? 0));
+    } elseif ($sort === 'status') {
+      $qa = (int)($a->quantity ?? 0); $ma = (int)($a->min_quantity ?? 0);
+      $qb = (int)($b->quantity ?? 0); $mb = (int)($b->min_quantity ?? 0);
+      $sa = ($qa <= 0) ? 0 : (($qa <= $ma) ? 1 : 2);
+      $sb = ($qb <= 0) ? 0 : (($qb <= $mb) ? 1 : 2);
+      $cmp = $sa <=> $sb;
+    } else {
+      $cmp = strcmp(mb_strtolower((string)($a->name ?? '')), mb_strtolower((string)($b->name ?? '')));
+    }
+
+    return $dir === 'desc' ? -$cmp : $cmp;
+  });
+
+  // احصائيات
+  $totalParts = count($parts);
+  $outOfStock = 0;
+  $lowStock = 0;
+  foreach ($parts as $part) {
+    $qty = (int)($part->quantity ?? 0);
+    $min = (int)($part->min_quantity ?? 0);
+    if ($qty <= 0) $outOfStock++;
+    elseif ($qty <= $min) $lowStock++;
+  }
+
+  $locations = $this->locationModel->getAll();
+
+  $data = [
+    'parts' => $parts,                 // ✅ بدون pagination
+    'total_parts' => $totalParts,
+    'out_of_stock' => $outOfStock,
+    'low_stock' => $lowStock,
+    'pagination' => null,              // ✅ يخفي pagination بالواجهة
+    'filters' => [
+      'q' => $q,
+      'location_id' => $locationId,
+      'status' => $status,
+      'sort' => $sort,
+      'dir' => $dir,
+    ],
+    'locations' => $locations,
+    'print_mode' => true,              // ✅ نستخدمها لإخفاء الفلاتر
+  ];
+
+  $this->view('spare_parts/index', $data);
+}
 
 }

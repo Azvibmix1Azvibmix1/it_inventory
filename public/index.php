@@ -230,6 +230,25 @@ try {
   }
 
   // movements JSON (سجل الحركة)
+// ✅ SpareParts Print
+if (in_array($routeKey, ['spareparts/print', 'spare_parts/print'], true)) {
+  if (class_exists('SparePartsController')) {
+    (new SparePartsController())->printList();
+  } else {
+    (new DashboardController())->index();
+  }
+  exit;
+}
+
+// ✅ SpareParts Export CSV (Excel)
+if (in_array($routeKey, ['spareparts/export', 'spare_parts/export'], true)) {
+  if (class_exists('SparePartsController')) {
+    (new SparePartsController())->exportCsv();
+  } else {
+    (new DashboardController())->index();
+  }
+  exit;
+}
 
 
   if (in_array($routeKey, ['spare_parts/add', 'spareparts/add'], true)) {
