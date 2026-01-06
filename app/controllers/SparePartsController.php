@@ -489,13 +489,15 @@ public function movements($id = null): void
   $rows = [];
   foreach ($moves as $m) {
     $delta = (int)($m->delta ?? 0);
-    $rows[] = [
-      'time'     => (string)($m->created_at ?? ''),
-      'move'     => $delta >= 0 ? ('توريد +' . $delta) : ('صرف ' . $delta),
-      'location' => (string)($m->location_name ?? ''),
-      'user'     => (string)($m->user_name ?? ''),
-      'note'     => (string)($m->note ?? ''),
-    ];
+
+if ($delta === 0) {
+  $moveText = 'نقل';
+} elseif ($delta > 0) {
+  $moveText = 'توريد +' . $delta;
+} else {
+  $moveText = 'صرف ' . $delta; // بيطلع بالسالب مثل -3 وهذا واضح
+}
+
   }
 
   echo json_encode([

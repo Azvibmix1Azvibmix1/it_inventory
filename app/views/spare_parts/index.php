@@ -276,12 +276,15 @@
     
 <button type="button"
   class="btn btn-sm btn-outline-secondary btn-moves"
+  data-bs-toggle="modal"
+  data-bs-target="#movesModal"
   data-id="<?= (int)$part->id ?>"
   data-name="<?= htmlspecialchars((string)($part->name ?? ''), ENT_QUOTES, 'UTF-8') ?>"
   data-pn="<?= htmlspecialchars((string)($part->part_number ?? ''), ENT_QUOTES, 'UTF-8') ?>"
   title="سجل الحركة">
   <i class="bi bi-clock-history"></i>
 </button>
+
 
 
   </div>
@@ -406,12 +409,9 @@
 <script>
 (function () {
   function esc(s) {
-    return String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+    return String(s ?? '').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[m]));
   }
 
   const modalEl = document.getElementById('movesModal');
@@ -421,128 +421,11 @@
 
   if (!modalEl || !titleEl || !tbodyEl || !alertEl) return;
 
-  const bsModal = (window.bootstrap && bootstrap.Modal)
-    ? new bootstrap.Modal(modalEl)
-    : null;
-
   function showError(msg) {
-    alertEl.textContent = msg;
-    alertEl.classList.remove('d-none');
-  }
-
-  function hideError() {
-    alertEl.classList.add('d-none');
-    alertEl.textContent = '';
-  }
-
-  function setLoading() {
-    tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">جارٍ التحميل...</td></tr>';
-  }
-
-  function renderRows(rows) {
-    if (!rows || !rows.length) {
-      tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات</td></tr>';
-      return;
-    }
-
-    let html = '';
-    for (const r of rows) {
-      const delta = Number(r.delta || 0);
-      const moveText = delta > 0 ? ('توريد +' + delta) : ('صرف ' + delta); // delta سالب
-      html += `
-        <tr>
-          <td class="text-nowrap">${esc(r.time)}</td>
-          <td class="text-nowrap">${esc(moveText)}</td>
-          <td class="text-nowrap">${esc(r.location || 'غير محدد')}</td>
-          <td class="text-nowrap">${esc(r.user || 'غير معروف')}</td>
-          <td>${esc(r.note || '')}</td>
-        </tr>
-      `;
-    }
-    tbodyEl.innerHTML = html;
-  }
-
-  async function loadMoves(partId, partName, partPn) {
-    hideError();
-    setLoading();
-
-    // مهم: نفس الراوت اللي في public/index.php
-    const url = 'index.php?page=spareparts/movements&id=' + encodeURIComponent(partId) + '&_=' + Date.now();
-
-    try {
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-
-      const ct = (res.headers.get('content-type') || '').toLowerCase();
-
-      // لو رجع HTML بدل JSON، اعرض أول جزء للتشخيص
-      if (!ct.includes('application/json')) {
-        const text = await res.text();
-        showError('الرد ليس JSON (غالباً تحويل/تحذير). أول جزء من الرد:\n' + text.slice(0, 200));
-        renderRows([]);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!data || data.ok !== true) {
-        showError((data && data.message) ? data.message : 'فشل جلب السجل');
-        renderRows([]);
-        return;
-      }
-
-      const p = data.part || {};
-      const title = `سجل حركة القطعة: ${p.name || partName || ''}` + (p.pn || partPn ? ` (PN: ${p.pn || partPn})` : '');
-      titleEl.textContent = title;
-
-      renderRows(data.rows || []);
-    } catch (e) {
-      showError('خطأ أثناء جلب السجل: ' + (e && e.message ? e.message : e));
-      renderRows([]);
-    }
-  }
-
-  // Event delegation عشان يشتغل مع أي زر داخل الجدول
-  document.addEventListener('click', function (ev) {
-    const btn = ev.target.closest('.btn-moves');
-    if (!btn) return;
-
-    const id = btn.getAttribute('data-id');
-    const name = btn.getAttribute('data-name') || '';
-    const pn = btn.getAttribute('data-pn') || '';
-
-    if (!id) return;
-
-    titleEl.textContent = 'سجل حركة القطعة';
-    hideError();
-    setLoading();
-
-    if (bsModal) bsModal.show();
-
-    loadMoves(id, name, pn);
-  });
-})();
-</script>
-
-<script>
-(function () {
-  function esc(s) {
-    return String(s ?? '').replace(/[&<>"']/g, m => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[m]));
-  }
-
-  const modalEl = document.getElementById('movesModal');
-  const titleEl = document.getElementById('movesModalTitle');
-  const tbodyEl = document.getElementById('movesTbody');
-  const alertEl = document.getElementById('movesAlert');
-
-  function showError(msg) {
-    if (!alertEl) return;
     alertEl.classList.remove('d-none');
     alertEl.textContent = msg;
   }
   function hideError() {
-    if (!alertEl) return;
     alertEl.classList.add('d-none');
     alertEl.textContent = '';
   }
@@ -551,76 +434,45 @@
   }
   function renderRows(rows) {
     if (!rows || !rows.length) {
-      tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات</td></tr>';
+      tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات مسجلة</td></tr>';
       return;
     }
     tbodyEl.innerHTML = rows.map(r => `
       <tr>
-        <td class="text-nowrap">${esc(r.time)}</td>
-        <td class="text-nowrap">${esc(r.move)}</td>
-        <td class="text-nowrap">${esc(r.location)}</td>
-        <td class="text-nowrap">${esc(r.user)}</td>
+        <td>${esc(r.time)}</td>
+        <td>${esc(r.move)}</td>
+        <td>${esc(r.location)}</td>
+        <td>${esc(r.user)}</td>
         <td>${esc(r.note)}</td>
       </tr>
     `).join('');
   }
 
-  // Bootstrap modal instance (لو موجود)
-  let bsModal = null;
-  if (modalEl && window.bootstrap && window.bootstrap.Modal) {
-    bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-  }
+  // لما الـ Modal ينفتح (Bootstrap يرسل show.bs.modal)
+  modalEl.addEventListener('show.bs.modal', async function (ev) {
+    const btn = ev.relatedTarget; // الزر اللي فتح المودال
+    const id = btn?.getAttribute('data-id');
+    const name = btn?.getAttribute('data-name') || '';
+    const pn = btn?.getAttribute('data-pn') || '';
 
-  async function loadMoves(id, name, pn) {
+    titleEl.textContent = `سجل حركة: ${name}${pn ? ` (PN: ${pn})` : ''}`;
+
     hideError();
     setLoading();
 
-    const url = `index.php?page=spareparts/movements&id=${encodeURIComponent(id)}`;
-
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-
-    // اقرأ كنص أولاً عشان لو رجع HTML نوريه كخطأ واضح
-    const text = await res.text();
-
-    let data;
     try {
-      data = JSON.parse(text);
+      const url = `index.php?page=spareparts/movements&id=${encodeURIComponent(id)}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const data = await res.json();
+
+      if (!data || data.ok !== true) {
+        showError((data && data.message) ? data.message : 'تعذر جلب السجل');
+        renderRows([]);
+        return;
+      }
+      renderRows(data.rows || []);
     } catch (e) {
-      throw new Error('الرد ليس JSON (غالباً الراوت رجّع صفحة HTML):\n' + text.slice(0, 200));
-    }
-
-    if (!res.ok || !data.ok) {
-      throw new Error(data.message || 'فشل تحميل السجل');
-    }
-
-    const partName = data.part?.name || name || '';
-    const partPn   = data.part?.pn   || pn   || '';
-
-    titleEl.textContent = `سجل حركة القطعة: ${partName}${partPn ? ' (PN: ' + partPn + ')' : ''}`;
-    renderRows(data.rows || []);
-  }
-
-  // event delegation
-  document.addEventListener('click', async function (ev) {
-    const btn = ev.target.closest('.btn-moves');
-    if (!btn) return;
-
-    const id = btn.getAttribute('data-id');
-    const name = btn.getAttribute('data-name') || '';
-    const pn = btn.getAttribute('data-pn') || '';
-
-    if (!id) return;
-
-    titleEl.textContent = 'سجل حركة القطعة';
-    hideError();
-    setLoading();
-
-    if (bsModal) bsModal.show();
-
-    try {
-      await loadMoves(id, name, pn);
-    } catch (err) {
-      showError(err && err.message ? err.message : String(err));
+      showError('خطأ أثناء جلب السجل: ' + (e?.message || e));
       renderRows([]);
     }
   });
