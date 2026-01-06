@@ -213,46 +213,6 @@ public function transferLocation($id, $toLocationId) {
   return $this->db->execute();
 }
 
-public function getPartById($id)
-{
-    $id = (int)$id;
-    $this->db->query("SELECT id, name, part_number, location_id FROM spare_parts WHERE id = :id LIMIT 1");
-    $this->db->bind(':id', $id);
-    return $this->db->single();
-}
-
-public function getMovementsByPart($partId, $limit = 100)
-{
-  $partId = (int)$partId;
-  $limit  = max(1, (int)$limit);
-
-  $sql = "
-    SELECT
-      m.id,
-      m.created_at,
-      m.delta,
-      m.note,
-
-      sp.name        AS part_name,
-      sp.part_number AS part_number,
-
-      COALESCE(l.name_ar, l.name, CONCAT('موقع #', m.location_id)) AS location_name,
-      COALESCE(u.name, u.username, CONCAT('User #', m.created_by)) AS user_name
-
-    FROM spare_movements m
-    LEFT JOIN spare_parts sp ON sp.id = m.spare_part_id
-    LEFT JOIN locations  l  ON l.id  = m.location_id
-    LEFT JOIN users      u  ON u.id  = m.created_by
-
-    WHERE m.spare_part_id = :id
-    ORDER BY m.created_at DESC, m.id DESC
-    LIMIT {$limit}
-  ";
-
-  $this->db->query($sql);
-  $this->db->bind(':id', $partId);
-  return $this->db->resultSet();
-}
 
 
 /**
@@ -278,6 +238,36 @@ public function addMovement($partId, $locationId, $delta, $note = '', $createdBy
     $this->db->bind(':uid', $createdBy);
 
     return $this->db->execute();
+}
+
+public function getMovements(int $partId, int $limit = 50): array
+{
+  $partId = (int)$partId;
+  $limit  = max(1, min(200, (int)$limit));
+
+  $sql = "
+    SELECT
+      m.id,
+      m.delta,
+      m.note,
+      m.created_at,
+      m.location_id,
+      l.name_ar AS location_name_ar,
+      l.name_en AS location_name_en,
+      m.created_by,
+      u.name AS user_name
+    FROM spare_movements m
+    LEFT JOIN locations l ON l.id = m.location_id
+    LEFT JOIN users u ON u.id = m.created_by
+    WHERE m.spare_part_id = :pid
+    ORDER BY m.created_at DESC, m.id DESC
+    LIMIT {$limit}
+  ";
+
+  $this->db->query($sql);
+  $this->db->bind(':pid', $partId);
+
+  return $this->db->resultSet();
 }
 
 public function getMovementsDetailed(int $sparePartId): array
@@ -310,5 +300,50 @@ public function getMovementsDetailed(int $sparePartId): array
   return $this->db->resultSet() ?? [];
 }
 
+public function getPartById(int $id)
+{
+  $this->db->query("SELECT * FROM spare_parts WHERE id = :id LIMIT 1");
+  $this->db->bind(':id', $id);
+  return $this->db->single();
+}
+
+public function getMovementsWithMeta(int $partId): array
+{
+  // عدّل أسماء الأعمدة إذا قاعدة بياناتك مختلفة
+  $sql = "
+    SELECT
+      m.id,
+      m.spare_part_id,
+      m.location_id,
+      m.delta,
+      m.note,
+      m.created_at,
+      u.name AS user_name,
+      l.name AS location_name
+    FROM spare_movements m
+    LEFT JOIN users u ON u.id = m.created_by
+    LEFT JOIN locations l ON l.id = m.location_id
+    WHERE m.spare_part_id = :pid
+    ORDER BY m.created_at DESC, m.id DESC
+    LIMIT 200
+  ";
+
+  $this->db->query($sql);
+  $this->db->bind(':pid', $partId);
+  $rows = $this->db->resultSet();
+
+  // رجّعها كمصفوفة Arrays (بدل Objects) عشان JSON يكون واضح
+  $out = [];
+  foreach ($rows as $r) {
+    $out[] = [
+      'time' => (string)($r->created_at ?? ''),
+      'delta' => (int)($r->delta ?? 0),
+      'location' => (string)($r->location_name ?? 'غير محدد'),
+      'user' => (string)($r->user_name ?? 'غير معروف'),
+      'note' => (string)($r->note ?? ''),
+    ];
+  }
+  return $out;
+}
 
 }

@@ -389,6 +389,8 @@ return;
 
   }
 
+  
+
   /**
  * نقل قطعة لموقع آخر + تسجيل حركة (delta=0)
  * POST: id, to_location_id, return_to
@@ -452,90 +454,68 @@ public function transfer() {
 }
 
 
-public function movementsJson($id = null): void
-{
-    // لو عندك حماية/تسجيل دخول خله هنا
-    // requireLogin();
-
-    $id = $id ?? ($_GET['id'] ?? 0);
-    $id = (int)$id;
-
-    header('Content-Type: application/json; charset=utf-8');
-
-    if ($id <= 0) {
-        echo json_encode(['ok' => false, 'message' => 'ID غير صحيح']);
-        return;
-    }
-
-    $part = method_exists($this->spareModel, 'getPartById')
-        ? $this->spareModel->getPartById($id)
-        : null;
-
-    if (!$part) {
-        echo json_encode(['ok' => false, 'message' => 'القطعة غير موجودة']);
-        return;
-    }
-
-    $moves = method_exists($this->spareModel, 'getMovementsByPart')
-        ? $this->spareModel->getMovementsByPart($id)
-        : [];
-
-    echo json_encode([
-        'ok' => true,
-        'part' => [
-            'id' => (int)$part->id,
-            'name' => (string)($part->name ?? ''),
-            'part_number' => (string)($part->part_number ?? ''),
-            'location_id' => (int)($part->location_id ?? 0),
-        ],
-        'movements' => $moves
-    ], JSON_UNESCAPED_UNICODE);
-
-    return;
-}
-
-
+// JSON endpoint: movements
 public function movements(): void
 {
-  // مهم: ما نطبع أي HTML هنا
+  $this->movementsJson();
+}
+
+public function movementsJson($id = null): void
+{
   header('Content-Type: application/json; charset=utf-8');
 
-  $id = (int)($_GET['id'] ?? 0);
+  // لو فيه أي output قبل JSON (warnings/spaces) نظّفه
+  if (ob_get_length()) { @ob_clean(); }
+
+  $id = $id ?? ($_GET['id'] ?? 0);
+  $id = (int)$id;
+
   if ($id <= 0) {
-    echo json_encode(['ok' => false, 'message' => 'ID غير صحيح']);
-    exit;
+    echo json_encode(['ok' => false, 'message' => 'ID غير صحيح'], JSON_UNESCAPED_UNICODE);
+    return;
   }
 
-  try {
-    $rows = method_exists($this->spareModel, 'getMovementsDetailed')
-      ? $this->spareModel->getMovementsDetailed($id)
-      : [];
+  $part = method_exists($this->spareModel, 'getPartById')
+    ? $this->spareModel->getPartById($id)
+    : null;
 
-    $partName = '';
-    if (!empty($rows) && isset($rows[0]->part_name)) $partName = (string)$rows[0]->part_name;
-
-    $movements = [];
-    foreach ($rows as $r) {
-      $movements[] = [
-        'time'     => $r->created_at ?? '',
-        'delta'    => (int)($r->delta ?? 0),
-        'location' => $r->location_name ?? '',
-        'user'     => $r->user_name ?? '',
-        'note'     => $r->note ?? '',
-      ];
-    }
-
-    echo json_encode([
-      'ok' => true,
-      'part_name' => $partName,
-      'movements' => $movements,
-    ], JSON_UNESCAPED_UNICODE);
-
-  } catch (Throwable $e) {
-    echo json_encode(['ok' => false, 'message' => 'خطأ بالسيرفر: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+  if (!$part) {
+    echo json_encode(['ok' => false, 'message' => 'القطعة غير موجودة'], JSON_UNESCAPED_UNICODE);
+    return;
   }
 
-  exit;
+  // جلب الحركات مع اسم الموقع واسم المستخدم
+  $rows = [];
+  if (method_exists($this->spareModel, 'getMovementsDetailed')) {
+    $rows = $this->spareModel->getMovementsDetailed($id);
+  } elseif (method_exists($this->spareModel, 'getMovementsByPart')) {
+    $rows = $this->spareModel->getMovementsByPart($id);
+  }
+
+  // توحيد شكل البيانات للـ JS
+  $moves = [];
+  foreach ($rows as $r) {
+    $moves[] = [
+      'time'     => (string)($r->created_at ?? $r->time ?? ''),
+      'delta'    => (int)($r->delta ?? 0),
+      'location' => (string)($r->location_name ?? $r->location ?? '-'),
+      'user'     => (string)($r->user_name ?? $r->user ?? '-'),
+      'note'     => (string)($r->note ?? ''),
+    ];
+  }
+
+  echo json_encode([
+    'ok' => true,
+    'part' => [
+      'id'   => (int)($part->id ?? $id),
+      'name' => (string)($part->name ?? ''),
+      'pn'   => (string)($part->part_number ?? ''),
+    ],
+    'movements' => $moves,
+  ], JSON_UNESCAPED_UNICODE);
+
+  return;
 }
+
 
 }

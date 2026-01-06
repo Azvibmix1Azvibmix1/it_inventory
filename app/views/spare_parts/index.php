@@ -277,10 +277,12 @@
 <button type="button"
   class="btn btn-sm btn-outline-secondary btn-moves"
   data-id="<?= (int)$part->id ?>"
-  data-name="<?= htmlspecialchars($part->name ?? '') ?>"
+  data-name="<?= htmlspecialchars((string)($part->name ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+  data-pn="<?= htmlspecialchars((string)($part->part_number ?? ''), ENT_QUOTES, 'UTF-8') ?>"
   title="سجل الحركة">
   <i class="bi bi-clock-history"></i>
 </button>
+
 
   </div>
 </td>
@@ -365,233 +367,158 @@
     </div>
 
 </div>
-<!-- Moves Modal -->
+
+
+<!-- Movements Modal -->
 <div class="modal fade" id="movesModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">سجل حركة القطعة</h5>
+        <h5 class="modal-title" id="movesModalTitle">سجل حركة القطعة</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-
       <div class="modal-body">
-        <div id="movesLoading" class="text-muted">جارٍ التحميل...</div>
-        <div id="movesError" class="alert alert-danger d-none"></div>
+
+        <div id="movesAlert" class="alert alert-danger d-none"></div>
 
         <div class="table-responsive">
           <table class="table table-sm align-middle">
-            <thead>
-              <tr>
-                <th>الوقت</th>
-                <th>الحركة</th>
-                <th>الموقع</th>
-                <th>المستخدم</th>
-                <th>ملاحظة</th>
-              </tr>
-            </thead>
-            <tbody id="movesTbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<script>
-(function () {
-  const modalEl = document.getElementById('movesModal');
-  if (!modalEl) return;
-
-  // نربطها بطريقة delegation عشان لو الجدول يتغير/يتحدث
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.btn-moves');
-    if (!btn) return;
-
-    const id = btn.getAttribute('data-id');
-    if (!id) return;
-
-    const modal = new bootstrap.Modal(modalEl);
-
-    const loadingEl = document.getElementById('movesLoading');
-    const wrapEl = document.getElementById('movesTableWrap');
-    const tbodyEl = document.getElementById('movesTbody');
-
-    loadingEl.textContent = 'جاري التحميل...';
-    loadingEl.classList.remove('d-none');
-    wrapEl.classList.add('d-none');
-    tbodyEl.innerHTML = '';
-
-    modal.show();
-
-    try {
-      const res = await fetch(`index.php?page=spareparts/movements&id=${encodeURIComponent(id)}`);
-      const data = await res.json();
-
-      if (!data.ok) {
-        loadingEl.textContent = data.message || 'فشل التحميل';
-        return;
-      }
-
-      const rows = data.rows || [];
-      if (!rows.length) {
-        loadingEl.textContent = 'لا يوجد حركات';
-        return;
-      }
-
-      rows.forEach(r => {
-        const delta = parseInt(r.delta || 0, 10);
-        const moveLabel = delta > 0 ? `توريد +${delta}` : `صرف ${delta}`;
-
-        tbodyEl.insertAdjacentHTML('beforeend', `
-          <tr>
-            <td dir="ltr">${r.created_at ?? ''}</td>
-            <td>${moveLabel}</td>
-            <td>${r.location_name ?? '-'}</td>
-            <td>${r.user_name ?? '-'}</td>
-            <td>${r.note ?? ''}</td>
-          </tr>
-        `);
-      });
-
-      loadingEl.classList.add('d-none');
-      wrapEl.classList.remove('d-none');
-    } catch (err) {
-      loadingEl.textContent = 'صار خطأ أثناء التحميل';
-    }
-  });
-})();
-</script>
-<script>
-
-<div class="modal fade" id="movesModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="movesTitle">سجل حركة القطعة</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-      </div>
-
-      <div class="modal-body">
-        <div id="movesMsg" class="alert alert-info py-2 d-none"></div>
-
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th>الوقت</th>
-                <th>الحركة</th>
-                <th>الموقع</th>
-                <th>المستخدم</th>
+                <th class="text-nowrap">الوقت</th>
+                <th class="text-nowrap">الحركة</th>
+                <th class="text-nowrap">الموقع</th>
+                <th class="text-nowrap">المستخدم</th>
                 <th>ملاحظة</th>
               </tr>
             </thead>
-            <tbody id="movesBody"></tbody>
+            <tbody id="movesTbody">
+              <tr><td colspan="5" class="text-center text-muted py-4">...</td></tr>
+            </tbody>
           </table>
         </div>
-      </div>
 
+      </div>
     </div>
   </div>
 </div>
 
 <script>
 (function () {
-  const modalEl = document.getElementById('movesModal');
-  const titleEl = document.getElementById('movesTitle');
-  const bodyEl  = document.getElementById('movesBody');
-  const msgEl   = document.getElementById('movesMsg');
+  function esc(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
-  if (!modalEl || !titleEl || !bodyEl || !msgEl) return;
+  const modalEl = document.getElementById('movesModal');
+  const titleEl = document.getElementById('movesModalTitle');
+  const tbodyEl = document.getElementById('movesTbody');
+  const alertEl = document.getElementById('movesAlert');
+
+  if (!modalEl || !titleEl || !tbodyEl || !alertEl) return;
 
   const bsModal = (window.bootstrap && bootstrap.Modal)
     ? new bootstrap.Modal(modalEl)
     : null;
 
-  function showMsg(text, type) {
-    msgEl.className = 'alert alert-' + (type || 'info') + ' py-2';
-    msgEl.textContent = text;
-    msgEl.classList.remove('d-none');
-  }
-  function hideMsg() {
-    msgEl.classList.add('d-none');
+  function showError(msg) {
+    alertEl.textContent = msg;
+    alertEl.classList.remove('d-none');
   }
 
-  function escapeHtml(s) {
-    return String(s ?? '').replace(/[&<>"']/g, m => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-    }[m]));
+  function hideError() {
+    alertEl.classList.add('d-none');
+    alertEl.textContent = '';
   }
 
-  function labelDelta(d) {
-    d = Number(d || 0);
-    if (d > 0) return 'توريد +' + d;
-    if (d < 0) return 'صرف ' + d;
-    return String(d);
+  function setLoading() {
+    tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">جارٍ التحميل...</td></tr>';
   }
 
-  async function loadMovements(partId) {
-    hideMsg();
-    bodyEl.innerHTML = '';
-    showMsg('... جاري التحميل', 'info');
+  function renderRows(rows) {
+    if (!rows || !rows.length) {
+      tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات</td></tr>';
+      return;
+    }
 
-    const url = 'index.php?page=spareparts/movements&id=' + encodeURIComponent(partId);
-
-    let res, text, data;
-    try {
-      res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      text = await res.text();
-
-      // لو رجع HTML بالغلط، بنعرض سبب واضح بدل ما يطيح Unexpected token
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        showMsg('الرد ليس JSON (غالبًا Route غلط أو فيه Warning قبل JSON).', 'danger');
-        bodyEl.innerHTML = '<tr><td colspan="5" class="text-muted small" dir="ltr">'
-          + escapeHtml(text.slice(0, 300)) + '...</td></tr>';
-        return;
-      }
-
-      if (!data.ok) {
-        showMsg(data.message || 'فشل جلب السجل', 'danger');
-        return;
-      }
-
-      titleEl.textContent = 'سجل حركة القطعة: ' + (data.part_name || '');
-
-      const rows = data.movements || [];
-      if (!rows.length) {
-        showMsg('لا يوجد حركات.', 'secondary');
-        return;
-      }
-
-      hideMsg();
-      bodyEl.innerHTML = rows.map(r => `
+    let html = '';
+    for (const r of rows) {
+      const delta = Number(r.delta || 0);
+      const moveText = delta > 0 ? ('توريد +' + delta) : ('صرف ' + delta); // delta سالب
+      html += `
         <tr>
-          <td class="text-nowrap" dir="ltr">${escapeHtml(r.time)}</td>
-          <td class="text-nowrap">${escapeHtml(labelDelta(r.delta))}</td>
-          <td>${escapeHtml(r.location)}</td>
-          <td>${escapeHtml(r.user)}</td>
-          <td>${escapeHtml(r.note)}</td>
+          <td class="text-nowrap">${esc(r.time)}</td>
+          <td class="text-nowrap">${esc(moveText)}</td>
+          <td class="text-nowrap">${esc(r.location || 'غير محدد')}</td>
+          <td class="text-nowrap">${esc(r.user || 'غير معروف')}</td>
+          <td>${esc(r.note || '')}</td>
         </tr>
-      `).join('');
+      `;
+    }
+    tbodyEl.innerHTML = html;
+  }
 
-    } catch (err) {
-      showMsg('خطأ اتصال: ' + (err && err.message ? err.message : err), 'danger');
+  async function loadMoves(partId, partName, partPn) {
+    hideError();
+    setLoading();
+
+    // مهم: نفس الراوت اللي في public/index.php
+    const url = 'index.php?page=spareparts/movements&id=' + encodeURIComponent(partId) + '&_=' + Date.now();
+
+    try {
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+
+      // لو رجع HTML بدل JSON، اعرض أول جزء للتشخيص
+      if (!ct.includes('application/json')) {
+        const text = await res.text();
+        showError('الرد ليس JSON (غالباً تحويل/تحذير). أول جزء من الرد:\n' + text.slice(0, 200));
+        renderRows([]);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data || data.ok !== true) {
+        showError((data && data.message) ? data.message : 'فشل جلب السجل');
+        renderRows([]);
+        return;
+      }
+
+      const p = data.part || {};
+      const title = `سجل حركة القطعة: ${p.name || partName || ''}` + (p.pn || partPn ? ` (PN: ${p.pn || partPn})` : '');
+      titleEl.textContent = title;
+
+      renderRows(data.rows || []);
+    } catch (e) {
+      showError('خطأ أثناء جلب السجل: ' + (e && e.message ? e.message : e));
+      renderRows([]);
     }
   }
 
-  document.addEventListener('click', function (e) {
-    const btn = e.target.closest('.btn-moves');
+  // Event delegation عشان يشتغل مع أي زر داخل الجدول
+  document.addEventListener('click', function (ev) {
+    const btn = ev.target.closest('.btn-moves');
     if (!btn) return;
 
     const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const pn = btn.getAttribute('data-pn') || '';
+
     if (!id) return;
 
     titleEl.textContent = 'سجل حركة القطعة';
-    loadMovements(id);
+    hideError();
+    setLoading();
 
     if (bsModal) bsModal.show();
+
+    loadMoves(id, name, pn);
   });
 })();
 </script>

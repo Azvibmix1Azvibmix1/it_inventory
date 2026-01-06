@@ -230,14 +230,7 @@ try {
   }
 
   // movements JSON (سجل الحركة)
-if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)) {
-    if (class_exists('SparePartsController')) {
-        (new SparePartsController())->movements();
-    } else {
-        (new DashboardController())->index();
-    }
-    exit;
-}
+
 
   if (in_array($routeKey, ['spare_parts/add', 'spareparts/add'], true)) {
     if (class_exists('SparePartsController')) {
@@ -265,6 +258,16 @@ if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)
     }
     exit;
   }
+// Movements JSON (AJAX)
+if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)) {
+  if (class_exists('SparePartsController')) {
+    (new SparePartsController())->movements();
+  } else {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'message' => 'SparePartsController غير موجود'], JSON_UNESCAPED_UNICODE);
+  }
+  exit;
+}
 
   if (in_array($routeKey, ['spare_parts/adjust', 'spareparts/adjust'], true)) {
     if (class_exists('SparePartsController')) {
@@ -274,19 +277,6 @@ if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)
     }
     exit;
   }
-
-  // JSON movements for modal
-  // Movements JSON (AJAX)
-if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)) {
-  if (class_exists('SparePartsController')) {
-    (new SparePartsController())->movements();
-  } else {
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'message' => 'SparePartsController غير موجود']);
-  }
-  exit;
-}
-
 
   // Normal routes
   if (isset($routes[$routeKey])) {
