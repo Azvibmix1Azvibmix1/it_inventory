@@ -451,26 +451,72 @@ public function transfer() {
   redirect($returnTo ?: 'index.php?page=spareParts/index');
 }
 
-public function movements($id = null)
+public function movements()
 {
-  // Ajax فقط
-  $id = $id ?? ($_GET['id'] ?? 0);
-  $id = (int)$id;
-
   header('Content-Type: application/json; charset=utf-8');
 
+  // GET فقط
+  if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    echo json_encode(['ok' => false, 'message' => 'Method not allowed', 'rows' => []], JSON_UNESCAPED_UNICODE);
+    return;
+  }
+
+  $id = (int)($_GET['id'] ?? 0);
   if ($id <= 0) {
-    echo json_encode(['ok' => false, 'message' => 'ID غير صحيح']);
+    echo json_encode(['ok' => false, 'message' => 'id غير صحيح', 'rows' => []], JSON_UNESCAPED_UNICODE);
     return;
   }
 
-  if (!method_exists($this->spareModel, 'getMovementsByPart')) {
-    echo json_encode(['ok' => false, 'message' => 'الدالة getMovementsByPart غير موجودة في الموديل']);
-    return;
-  }
+  $rows = method_exists($this->spareModel, 'getMovementsByPart')
+    ? $this->spareModel->getMovementsByPart($id, 100)
+    : [];
 
-  $rows = $this->spareModel->getMovementsByPart($id, 10); // آخر 10
-  echo json_encode(['ok' => true, 'rows' => $rows]);
+  echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
+  return;
+}
+
+
+
+public function movementsJson($id = null): void
+{
+    // لو عندك حماية/تسجيل دخول خله هنا
+    // requireLogin();
+
+    $id = $id ?? ($_GET['id'] ?? 0);
+    $id = (int)$id;
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    if ($id <= 0) {
+        echo json_encode(['ok' => false, 'message' => 'ID غير صحيح']);
+        return;
+    }
+
+    $part = method_exists($this->spareModel, 'getPartById')
+        ? $this->spareModel->getPartById($id)
+        : null;
+
+    if (!$part) {
+        echo json_encode(['ok' => false, 'message' => 'القطعة غير موجودة']);
+        return;
+    }
+
+    $moves = method_exists($this->spareModel, 'getMovementsByPart')
+        ? $this->spareModel->getMovementsByPart($id)
+        : [];
+
+    echo json_encode([
+        'ok' => true,
+        'part' => [
+            'id' => (int)$part->id,
+            'name' => (string)($part->name ?? ''),
+            'part_number' => (string)($part->part_number ?? ''),
+            'location_id' => (int)($part->location_id ?? 0),
+        ],
+        'movements' => $moves
+    ], JSON_UNESCAPED_UNICODE);
+
+    return;
 }
 
 }

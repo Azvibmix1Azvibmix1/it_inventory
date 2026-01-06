@@ -228,7 +228,7 @@
                                     <?php endif; ?>
                                 </td>
 
-                                <td class="text-nowrap">
+<td class="text-nowrap">
   <div class="d-inline-flex gap-1 align-items-center">
     <?php $returnTo = $_SERVER['REQUEST_URI']; ?>
     <?php $locId = (int)($part->location_id ?? 0); ?>
@@ -245,15 +245,17 @@
     </form>
 
     <!-- صرف -1 -->
-    <form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
-      <input type="hidden" name="id" value="<?= (int)$part->id ?>">
-      <input type="hidden" name="delta" value="-1">
-      <input type="hidden" name="location_id" value="<?= $locId ?>">
-      <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-      <button type="submit" class="btn btn-sm btn-warning" title="صرف -1">
-        <i class="bi bi-dash-circle"></i>
-      </button>
-    </form>
+    <!-- صرف -1 -->
+<form method="post" action="index.php?page=spareparts/adjust" class="d-inline">
+  <input type="hidden" name="id" value="<?= (int)$part->id ?>">
+  <input type="hidden" name="delta" value="-1">
+  <input type="hidden" name="location_id" value="<?= $locId ?>">
+  <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
+  <button type="submit" class="btn btn-sm btn-warning" title="-1 صرف">
+    <i class="bi bi-dash-circle"></i>
+  </button>
+</form>
+
 
     <!-- تعديل -->
     <a href="index.php?page=spareparts/edit&id=<?= (int)$part->id ?>"
@@ -270,14 +272,21 @@
         <i class="bi bi-trash"></i>
       </button>
     </form>
+
+    
+<button type="button"
+  class="btn btn-sm btn-outline-secondary btn-moves"
+  data-id="<?= (int)$part->id ?>"
+  data-name="<?= htmlspecialchars($part->name ?? '') ?>"
+  title="سجل الحركة">
+  <i class="bi bi-clock-history"></i>
+</button>
+
   </div>
 </td>
 
 
-<button type="button" class="btn btn-sm btn-outline-secondary btn-moves"
-        data-id="<?= (int)$part->id ?>" title="سجل الحركة">
-  <i class="bi bi-clock-history"></i>
-</button>
+
 
                             </tr>
                             <?php endforeach; ?>
@@ -364,12 +373,14 @@
         <h5 class="modal-title">سجل حركة القطعة</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <div id="movesLoading" class="text-muted">جاري التحميل...</div>
 
-        <div class="table-responsive d-none" id="movesTableWrap">
+      <div class="modal-body">
+        <div id="movesLoading" class="text-muted">جارٍ التحميل...</div>
+        <div id="movesError" class="alert alert-danger d-none"></div>
+
+        <div class="table-responsive">
           <table class="table table-sm align-middle">
-            <thead class="table-light">
+            <thead>
               <tr>
                 <th>الوقت</th>
                 <th>الحركة</th>
@@ -378,17 +389,14 @@
                 <th>ملاحظة</th>
               </tr>
             </thead>
-            <tbody id="movesTbody">
-
-
-            
-            </tbody>
+            <tbody id="movesTbody"></tbody>
           </table>
         </div>
       </div>
     </div>
   </div>
 </div>
+
 
 <script>
 (function () {
@@ -454,5 +462,99 @@
   });
 })();
 </script>
+<script>
+(function () {
+  const modalEl   = document.getElementById('movesModal');
+  const titleEl   = document.getElementById('movesModalLabel');
+  const tbodyEl   = document.getElementById('movesTbody');
+  const alertEl   = document.getElementById('movesAlert'); // إذا عندك div للرسائل
+  const bsModal   = modalEl ? new bootstrap.Modal(modalEl) : null;
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[m]));
+  }
+
+  function movementText(delta, note) {
+    delta = Number(delta || 0);
+    if (delta > 0) return `توريد +${delta}`;
+    if (delta < 0) return `صرف ${delta}`; // بيطلع -1 -2 طبيعي
+    return note ? `نقل` : `تعديل`;
+  }
+
+  async function loadMoves(partId) {
+    tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">جارٍ التحميل...</td></tr>`;
+    if (alertEl) alertEl.classList.add('d-none');
+
+    const url = `index.php?page=spareparts/movements&id=${encodeURIComponent(partId)}`;
+
+    let res, data;
+    try {
+      res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const txt = await res.text();
+
+      // لو رجع HTML بالغلط (doctype) بنطلع خطأ واضح
+      if (txt.trim().startsWith('<')) {
+        throw new Error('الرد ليس JSON (Route/Redirect يرجع HTML). تأكد من public/index.php routes.');
+      }
+
+      data = JSON.parse(txt);
+    } catch (e) {
+      tbodyEl.innerHTML = '';
+      if (alertEl) {
+        alertEl.textContent = 'صار خطأ أثناء جلب السجل: ' + e.message;
+        alertEl.classList.remove('d-none');
+      } else {
+        tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">${esc(e.message)}</td></tr>`;
+      }
+      return;
+    }
+
+    if (!data || !data.ok) {
+      const msg = (data && data.message) ? data.message : 'فشل جلب السجل';
+      tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">${esc(msg)}</td></tr>`;
+      return;
+    }
+
+    const rows = data.rows || [];
+    if (!rows.length) {
+      tbodyEl.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">لا توجد حركات لهذه القطعة</td></tr>`;
+      return;
+    }
+
+    tbodyEl.innerHTML = rows.map(r => {
+      const time = esc(r.created_at);
+      const move = esc(movementText(r.delta, r.note));
+      const loc  = esc(r.location_name || '-');
+      const user = esc(r.user_name || '-');
+      const note = esc(r.note || '');
+      return `
+        <tr>
+          <td class="text-nowrap">${time}</td>
+          <td class="text-nowrap">${move}</td>
+          <td class="text-nowrap">${loc}</td>
+          <td class="text-nowrap">${user}</td>
+          <td>${note}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-moves');
+    if (!btn) return;
+
+    const id   = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+
+    if (titleEl) titleEl.textContent = name ? `سجل حركة القطعة: ${name}` : 'سجل حركة القطعة';
+
+    if (bsModal) bsModal.show();
+    loadMoves(id);
+  });
+})();
+</script>
+
 
 <?php require_once APPROOT . '/views/layouts/footer.php'; ?>

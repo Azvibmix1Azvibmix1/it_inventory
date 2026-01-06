@@ -69,12 +69,7 @@ class SparePart
     return $this->db->execute();
   }
 
-  public function getPartById($id)
-  {
-    $this->db->query("SELECT * FROM spare_parts WHERE id = :id LIMIT 1");
-    $this->db->bind(':id', (int)$id);
-    return $this->db->single();
-  }
+
 
   public function update($data)
   {
@@ -186,19 +181,7 @@ class SparePart
      Requires table: spare_movements
   ========================= */
 
-  public function addMovement($sparePartId, $locationId, $delta, $note = null, $createdBy = null)
-{
-  $this->db->query("
-    INSERT INTO spare_movements (spare_part_id, location_id, delta, note, created_by, created_at)
-    VALUES (:spare_part_id, :location_id, :delta, :note, :created_by, NOW())
-  ");
-  $this->db->bind(':spare_part_id', (int)$sparePartId);
-  $this->db->bind(':location_id', $locationId ? (int)$locationId : null);
-  $this->db->bind(':delta', (int)$delta);
-  $this->db->bind(':note', ($note !== null && trim($note) !== '') ? trim($note) : null);
-  $this->db->bind(':created_by', $createdBy ? (int)$createdBy : null);
-  return $this->db->execute();
-}
+  
 
 
   public function getMovementsByLocation($locationId, $limit = 20)
@@ -230,27 +213,72 @@ public function transferLocation($id, $toLocationId) {
   return $this->db->execute();
 }
 
-public function getMovementsByPart($sparePartId, $limit = 10)
+public function getPartById($id)
 {
-  $sparePartId = (int)$sparePartId;
-  $limit = (int)$limit;
+    $id = (int)$id;
+    $this->db->query("SELECT id, name, part_number, location_id FROM spare_parts WHERE id = :id LIMIT 1");
+    $this->db->bind(':id', $id);
+    return $this->db->single();
+}
 
-  $this->db->query("
-    SELECT 
+public function getMovementsByPart($partId, $limit = 100)
+{
+  $partId = (int)$partId;
+  $limit  = max(1, (int)$limit);
+
+  $sql = "
+    SELECT
+      m.id,
       m.created_at,
       m.delta,
       m.note,
-      u.username AS user_name,
-      l.name_ar AS location_name
+
+      sp.name        AS part_name,
+      sp.part_number AS part_number,
+
+      COALESCE(l.name_ar, l.name, CONCAT('موقع #', m.location_id)) AS location_name,
+      COALESCE(u.name, u.username, CONCAT('User #', m.created_by)) AS user_name
+
     FROM spare_movements m
-    LEFT JOIN users u ON u.id = m.created_by
-    LEFT JOIN locations l ON l.id = m.location_id
+    LEFT JOIN spare_parts sp ON sp.id = m.spare_part_id
+    LEFT JOIN locations  l  ON l.id  = m.location_id
+    LEFT JOIN users      u  ON u.id  = m.created_by
+
     WHERE m.spare_part_id = :id
-    ORDER BY m.created_at DESC
+    ORDER BY m.created_at DESC, m.id DESC
     LIMIT {$limit}
-  ");
-  $this->db->bind(':id', $sparePartId);
+  ";
+
+  $this->db->query($sql);
+  $this->db->bind(':id', $partId);
   return $this->db->resultSet();
 }
+
+
+/**
+ * لو addMovement عندك مختلفة، خلها بهذا الشكل عشان تحفظ created_by + created_at
+ */
+public function addMovement($partId, $locationId, $delta, $note = '', $createdBy = null)
+{
+    $partId = (int)$partId;
+    $locationId = !empty($locationId) ? (int)$locationId : null;
+    $delta = (int)$delta;
+    $note = (string)$note;
+    $createdBy = !empty($createdBy) ? (int)$createdBy : null;
+
+    $this->db->query("
+        INSERT INTO spare_movements (spare_part_id, location_id, delta, note, created_by, created_at)
+        VALUES (:pid, :loc, :delta, :note, :uid, NOW())
+    ");
+
+    $this->db->bind(':pid', $partId);
+    $this->db->bind(':loc', $locationId);
+    $this->db->bind(':delta', $delta);
+    $this->db->bind(':note', $note);
+    $this->db->bind(':uid', $createdBy);
+
+    return $this->db->execute();
+}
+
 
 }
