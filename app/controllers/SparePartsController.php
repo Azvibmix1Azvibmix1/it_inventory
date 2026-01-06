@@ -455,10 +455,62 @@ public function transfer() {
 
 
 // JSON endpoint: movements
-public function movements(): void
+public function movements($id = null): void
 {
-  $this->movementsJson();
+  // لازم يرجع JSON فقط
+  header('Content-Type: application/json; charset=utf-8');
+
+  // تنظيف أي output سابق (Warnings/Spaces) قبل JSON
+  if (ob_get_length()) { @ob_clean(); }
+
+  $id = $id ?? ($_GET['id'] ?? 0);
+  $id = (int)$id;
+
+  if ($id <= 0) {
+    echo json_encode(['ok' => false, 'message' => 'ID غير صحيح'], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  // بيانات القطعة
+  $part = method_exists($this->spareModel, 'getPartById')
+    ? $this->spareModel->getPartById($id)
+    : null;
+
+  if (!$part) {
+    echo json_encode(['ok' => false, 'message' => 'القطعة غير موجودة'], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
+  // الحركات مع اسم المستخدم + الموقع + PN (موجودة عندك بالموديل)
+  $moves = method_exists($this->spareModel, 'getMovementsByPart')
+    ? $this->spareModel->getMovementsByPart($id, 200)
+    : [];
+
+  $rows = [];
+  foreach ($moves as $m) {
+    $delta = (int)($m->delta ?? 0);
+    $rows[] = [
+      'time'     => (string)($m->created_at ?? ''),
+      'move'     => $delta >= 0 ? ('توريد +' . $delta) : ('صرف ' . $delta),
+      'location' => (string)($m->location_name ?? ''),
+      'user'     => (string)($m->user_name ?? ''),
+      'note'     => (string)($m->note ?? ''),
+    ];
+  }
+
+  echo json_encode([
+    'ok'   => true,
+    'part' => [
+      'id'   => (int)$part->id,
+      'name' => (string)($part->name ?? ''),
+      'pn'   => (string)($part->part_number ?? ''),
+    ],
+    'rows' => $rows,
+  ], JSON_UNESCAPED_UNICODE);
+
+  exit;
 }
+
 
 public function movementsJson($id = null): void
 {

@@ -523,4 +523,108 @@
 })();
 </script>
 
+<script>
+(function () {
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  const modalEl = document.getElementById('movesModal');
+  const titleEl = document.getElementById('movesModalTitle');
+  const tbodyEl = document.getElementById('movesTbody');
+  const alertEl = document.getElementById('movesAlert');
+
+  function showError(msg) {
+    if (!alertEl) return;
+    alertEl.classList.remove('d-none');
+    alertEl.textContent = msg;
+  }
+  function hideError() {
+    if (!alertEl) return;
+    alertEl.classList.add('d-none');
+    alertEl.textContent = '';
+  }
+  function setLoading() {
+    tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">جاري التحميل...</td></tr>';
+  }
+  function renderRows(rows) {
+    if (!rows || !rows.length) {
+      tbodyEl.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">لا توجد حركات</td></tr>';
+      return;
+    }
+    tbodyEl.innerHTML = rows.map(r => `
+      <tr>
+        <td class="text-nowrap">${esc(r.time)}</td>
+        <td class="text-nowrap">${esc(r.move)}</td>
+        <td class="text-nowrap">${esc(r.location)}</td>
+        <td class="text-nowrap">${esc(r.user)}</td>
+        <td>${esc(r.note)}</td>
+      </tr>
+    `).join('');
+  }
+
+  // Bootstrap modal instance (لو موجود)
+  let bsModal = null;
+  if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+    bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+
+  async function loadMoves(id, name, pn) {
+    hideError();
+    setLoading();
+
+    const url = `index.php?page=spareparts/movements&id=${encodeURIComponent(id)}`;
+
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+
+    // اقرأ كنص أولاً عشان لو رجع HTML نوريه كخطأ واضح
+    const text = await res.text();
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error('الرد ليس JSON (غالباً الراوت رجّع صفحة HTML):\n' + text.slice(0, 200));
+    }
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || 'فشل تحميل السجل');
+    }
+
+    const partName = data.part?.name || name || '';
+    const partPn   = data.part?.pn   || pn   || '';
+
+    titleEl.textContent = `سجل حركة القطعة: ${partName}${partPn ? ' (PN: ' + partPn + ')' : ''}`;
+    renderRows(data.rows || []);
+  }
+
+  // event delegation
+  document.addEventListener('click', async function (ev) {
+    const btn = ev.target.closest('.btn-moves');
+    if (!btn) return;
+
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name') || '';
+    const pn = btn.getAttribute('data-pn') || '';
+
+    if (!id) return;
+
+    titleEl.textContent = 'سجل حركة القطعة';
+    hideError();
+    setLoading();
+
+    if (bsModal) bsModal.show();
+
+    try {
+      await loadMoves(id, name, pn);
+    } catch (err) {
+      showError(err && err.message ? err.message : String(err));
+      renderRows([]);
+    }
+  });
+})();
+</script>
+
 <?php require_once APPROOT . '/views/layouts/footer.php'; ?>
