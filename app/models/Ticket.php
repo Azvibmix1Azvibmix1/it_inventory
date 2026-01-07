@@ -125,33 +125,55 @@ class Ticket
     }
 
     // 5) تذاكر مستخدم (يشوف: اللي أنشأها أو اللي مطلوبة له أو المعيّنة عليه)
-    public function getTicketsByUserId($user_id)
-    {
-        $sql = $this->baseSelectSql() . "
-            WHERE t.created_by = :uid
-               OR t.requested_for_user_id = :uid
-               OR t.assigned_to = :uid
-            ORDER BY t.created_at DESC
-        ";
-        $this->db->query($sql);
-        $this->db->bind(':uid', (int)$user_id);
-        return $this->db->resultSet();
-    }
+    // تذاكر مستخدم (أنشأها/مطلوبة له/مكلف بها) مع الأسماء
+public function getTicketsByUserId($user_id) {
+    $this->db->query("
+        SELECT
+            t.*,
+            u.name  AS user_name,
+            u.email AS user_email,
+            rf.name AS requested_for_name,
+            au.name AS assigned_to_name,
+            a.asset_tag, a.brand, a.model
+        FROM tickets t
+        JOIN users u ON t.created_by = u.id
+        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
+        LEFT JOIN users au ON t.assigned_to = au.id
+        LEFT JOIN assets a ON t.asset_id = a.id
+        WHERE t.created_by = :uid
+           OR t.requested_for_user_id = :uid
+           OR t.assigned_to = :uid
+        ORDER BY t.created_at DESC
+    ");
+    $this->db->bind(':uid', (int)$user_id);
+    return $this->db->resultSet();
+}
+
 
     // 6) تذاكر مدير (يشوف تذاكر فريقه) - يفترض وجود manager_id في جدول users
-    public function getTicketsByManagerId($manager_id)
-    {
-        $sql = $this->baseSelectSql() . "
-            WHERE
-                u.manager_id = :mid
-                OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
-                OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
-            ORDER BY t.created_at DESC
-        ";
-        $this->db->query($sql);
-        $this->db->bind(':mid', (int)$manager_id);
-        return $this->db->resultSet();
-    }
+    public function getTicketsByManagerId($manager_id) {
+    $this->db->query("
+        SELECT
+            t.*,
+            u.name  AS user_name,
+            u.email AS user_email,
+            rf.name AS requested_for_name,
+            au.name AS assigned_to_name,
+            a.asset_tag, a.brand, a.model
+        FROM tickets t
+        JOIN users u ON t.created_by = u.id
+        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
+        LEFT JOIN users au ON t.assigned_to = au.id
+        LEFT JOIN assets a ON t.asset_id = a.id
+        WHERE u.manager_id = :mid
+           OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
+           OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
+        ORDER BY t.created_at DESC
+    ");
+    $this->db->bind(':mid', (int)$manager_id);
+    return $this->db->resultSet();
+}
+
 
     // 7) تفاصيل تذكرة واحدة
     public function getTicketById($id)
@@ -196,4 +218,148 @@ class Ticket
         $this->db->bind(':id', (int)$id);
         return $this->db->execute();
     }
+
+    // جلب الأقسام/الفرق الموجودة (لـ dropdown)
+public function getDistinctTeams(): array {
+    $this->db->query("SELECT DISTINCT team FROM tickets WHERE team IS NOT NULL AND team <> '' ORDER BY team ASC");
+    $rows = $this->db->resultSet();
+    $teams = [];
+    foreach ($rows as $r) {
+        $teams[] = $r->team;
+    }
+    return $teams;
+}
+
+private function applyFiltersToSql(string $baseSql, array $filters, array &$binds): string {
+    $where = [];
+
+    // q: بحث عام
+    if (!empty($filters['q'])) {
+        $where[] = "(t.ticket_no LIKE :q OR t.subject LIKE :q OR t.description LIKE :q OR a.asset_tag LIKE :q OR u.name LIKE :q OR rf.name LIKE :q OR au.name LIKE :q)";
+        $binds[':q'] = '%' . $filters['q'] . '%';
+    }
+
+    // status
+    if (!empty($filters['status'])) {
+        $where[] = "t.status = :status";
+        $binds[':status'] = $filters['status'];
+    }
+
+    // priority
+    if (!empty($filters['priority'])) {
+        $where[] = "t.priority = :priority";
+        $binds[':priority'] = $filters['priority'];
+    }
+
+    // team
+    if (!empty($filters['team'])) {
+        $where[] = "t.team = :team";
+        $binds[':team'] = $filters['team'];
+    }
+
+    // assigned_to
+    if (!empty($filters['assigned_to']) && (int)$filters['assigned_to'] > 0) {
+        $where[] = "t.assigned_to = :assigned_to";
+        $binds[':assigned_to'] = (int)$filters['assigned_to'];
+    }
+
+    if (!empty($where)) {
+        // لو الاستعلام فيه WHERE مسبقًا نضيف AND
+        if (stripos($baseSql, ' where ') !== false) {
+            $baseSql .= " AND " . implode(" AND ", $where);
+        } else {
+            $baseSql .= " WHERE " . implode(" AND ", $where);
+        }
+    }
+
+    return $baseSql;
+}
+
+// فلترة للسوبر أدمن
+public function searchAll(array $filters = []) {
+    $binds = [];
+
+    $sql = "
+        SELECT
+            t.*,
+            u.name  AS user_name,
+            rf.name AS requested_for_name,
+            au.name AS assigned_to_name,
+            a.asset_tag, a.brand, a.model
+        FROM tickets t
+        JOIN users u ON t.created_by = u.id
+        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
+        LEFT JOIN users au ON t.assigned_to = au.id
+        LEFT JOIN assets a ON t.asset_id = a.id
+    ";
+
+    $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+    $sql .= " ORDER BY t.created_at DESC";
+
+    $this->db->query($sql);
+    foreach ($binds as $k => $v) $this->db->bind($k, $v);
+    return $this->db->resultSet();
+}
+
+// فلترة للمدير (فريقه + اللي معيّنة عليهم/مطلوبة لهم)
+public function searchByManagerId(int $managerId, array $filters = []) {
+    $binds = [':mid' => $managerId];
+
+    $sql = "
+        SELECT
+            t.*,
+            u.name  AS user_name,
+            rf.name AS requested_for_name,
+            au.name AS assigned_to_name,
+            a.asset_tag, a.brand, a.model
+        FROM tickets t
+        JOIN users u ON t.created_by = u.id
+        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
+        LEFT JOIN users au ON t.assigned_to = au.id
+        LEFT JOIN assets a ON t.asset_id = a.id
+        WHERE
+            u.manager_id = :mid
+            OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
+            OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
+    ";
+
+    $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+    $sql .= " ORDER BY t.created_at DESC";
+
+    $this->db->query($sql);
+    foreach ($binds as $k => $v) $this->db->bind($k, $v);
+    return $this->db->resultSet();
+}
+
+// فلترة للموظف (تذاكره/المطلوبة له/المكلف بها)
+public function searchByUserId(int $userId, array $filters = []) {
+    $binds = [':uid' => $userId];
+
+    $sql = "
+        SELECT
+            t.*,
+            u.name  AS user_name,
+            rf.name AS requested_for_name,
+            au.name AS assigned_to_name,
+            a.asset_tag, a.brand, a.model
+        FROM tickets t
+        JOIN users u ON t.created_by = u.id
+        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
+        LEFT JOIN users au ON t.assigned_to = au.id
+        LEFT JOIN assets a ON t.asset_id = a.id
+        WHERE
+            t.created_by = :uid
+            OR t.requested_for_user_id = :uid
+            OR t.assigned_to = :uid
+    ";
+
+    // ملاحظة: الموظف ممكن يفلتر داخل نطاقه عادي
+    $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+    $sql .= " ORDER BY t.created_at DESC";
+
+    $this->db->query($sql);
+    foreach ($binds as $k => $v) $this->db->bind($k, $v);
+    return $this->db->resultSet();
+}
+
 }

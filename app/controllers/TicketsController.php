@@ -85,33 +85,57 @@ class TicketsController extends Controller {
 
    
     public function index() {
-        if (function_exists('isSuperAdmin') && isSuperAdmin()) {
-            $tickets = $this->ticketModel->getAll();
-        } elseif (function_exists('isManager') && isManager() && method_exists($this->ticketModel, 'getTicketsByManagerId')) {
-            $tickets = $this->ticketModel->getTicketsByManagerId($_SESSION['user_id']);
-        } elseif (function_exists('isManager') && isManager()) {
-            // fallback مؤقت
-            $tickets = $this->ticketModel->getAll();
-        } else {
-            $tickets = $this->ticketModel->getTicketsByUserId($_SESSION['user_id']);
-        }
+    // الفلاتر من GET
+    $filters = [
+        'q'          => trim($_GET['q'] ?? ''),
+        'status'     => trim($_GET['status'] ?? ''),
+        'priority'   => trim($_GET['priority'] ?? ''),
+        'team'       => trim($_GET['team'] ?? ''),
+        'assigned_to'=> (int)($_GET['assigned_to'] ?? 0),
+    ];
 
-        // ✅ Fallback لأعمدة "أساسية" لو ما كانت موجودة في DB بعد
-        if (is_array($tickets)) {
-            foreach ($tickets as $t) {
-                if (!isset($t->ticket_no) || $t->ticket_no === null || $t->ticket_no === '') {
-                    $id = isset($t->id) ? (int)$t->id : 0;
-                    $t->ticket_no = $id > 0 ? ('TCK-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT)) : '-';
-                }
+    // احضر قائمة الأقسام الموجودة فعليًا
+    $teams = method_exists($this->ticketModel, 'getDistinctTeams')
+        ? $this->ticketModel->getDistinctTeams()
+        : [];
 
-                if (!isset($t->updated_at) || $t->updated_at === null || $t->updated_at === '') {
-                    $t->updated_at = $t->created_at ?? '';
-                }
+    // قائمة المستخدمين للفلاتر (فقط للمدير/السوبر)
+    $usersForFilter = $this->getUsersForForm();
+
+    // جلب التذاكر حسب الصلاحيات + فلاتر
+    if (function_exists('isSuperAdmin') && isSuperAdmin()) {
+        $tickets = method_exists($this->ticketModel, 'searchAll')
+            ? $this->ticketModel->searchAll($filters)
+            : $this->ticketModel->getAll();
+    } elseif (function_exists('isManager') && isManager() && method_exists($this->ticketModel, 'searchByManagerId')) {
+        $tickets = $this->ticketModel->searchByManagerId((int)$_SESSION['user_id'], $filters);
+    } else {
+        $tickets = method_exists($this->ticketModel, 'searchByUserId')
+            ? $this->ticketModel->searchByUserId((int)$_SESSION['user_id'], $filters)
+            : $this->ticketModel->getTicketsByUserId((int)$_SESSION['user_id']);
+    }
+
+    // fallback بسيط لـ ticket_no/updated_at لو DB ما فيها الأعمدة
+    if (is_array($tickets)) {
+        foreach ($tickets as $t) {
+            if (!isset($t->ticket_no) || $t->ticket_no === null || $t->ticket_no === '') {
+                $id = isset($t->id) ? (int)$t->id : 0;
+                $t->ticket_no = $id > 0 ? ('TCK-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT)) : '-';
+            }
+            if (!isset($t->updated_at) || $t->updated_at === null || $t->updated_at === '') {
+                $t->updated_at = $t->created_at ?? '';
             }
         }
-
-        $this->view('tickets/index', ['tickets' => $tickets]);
     }
+
+    $this->view('tickets/index', [
+        'tickets' => $tickets,
+        'filters' => $filters,
+        'teams'   => $teams,
+        'users'   => $usersForFilter,
+    ]);
+}
+
 
     public function add() {
         requirePermission('tickets.add', 'tickets/index');
