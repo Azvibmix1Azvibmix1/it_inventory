@@ -84,8 +84,8 @@ class TicketsController extends Controller {
     
 
    
-    public function index() {
-    // الفلاتر من GET
+   public function index()
+{
     $filters = [
         'q'          => trim($_GET['q'] ?? ''),
         'status'     => trim($_GET['status'] ?? ''),
@@ -94,28 +94,50 @@ class TicketsController extends Controller {
         'assigned_to'=> (int)($_GET['assigned_to'] ?? 0),
     ];
 
-    // احضر قائمة الأقسام الموجودة فعليًا
     $teams = method_exists($this->ticketModel, 'getDistinctTeams')
         ? $this->ticketModel->getDistinctTeams()
         : [];
 
-    // قائمة المستخدمين للفلاتر (فقط للمدير/السوبر)
     $usersForFilter = $this->getUsersForForm();
 
-    // جلب التذاكر حسب الصلاحيات + فلاتر
+    $page    = max(1, (int)($_GET['p'] ?? 1));
+    $perPage = 15;
+    $offset  = ($page - 1) * $perPage;
+
+    // حسب الصلاحيات
     if (function_exists('isSuperAdmin') && isSuperAdmin()) {
-        $tickets = method_exists($this->ticketModel, 'searchAll')
-            ? $this->ticketModel->searchAll($filters)
-            : $this->ticketModel->getAll();
-    } elseif (function_exists('isManager') && isManager() && method_exists($this->ticketModel, 'searchByManagerId')) {
-        $tickets = $this->ticketModel->searchByManagerId((int)$_SESSION['user_id'], $filters);
+        $total = method_exists($this->ticketModel, 'countSearchAll')
+            ? $this->ticketModel->countSearchAll($filters)
+            : 0;
+
+        $tickets = method_exists($this->ticketModel, 'searchAllPaged')
+            ? $this->ticketModel->searchAllPaged($filters, $perPage, $offset)
+            : (method_exists($this->ticketModel, 'searchAll') ? $this->ticketModel->searchAll($filters) : $this->ticketModel->getAll());
+
+    } elseif (function_exists('isManager') && isManager()) {
+        $total = method_exists($this->ticketModel, 'countSearchByManagerId')
+            ? $this->ticketModel->countSearchByManagerId((int)$_SESSION['user_id'], $filters)
+            : 0;
+
+        $tickets = method_exists($this->ticketModel, 'searchByManagerIdPaged')
+            ? $this->ticketModel->searchByManagerIdPaged((int)$_SESSION['user_id'], $filters, $perPage, $offset)
+            : (method_exists($this->ticketModel, 'searchByManagerId') ? $this->ticketModel->searchByManagerId((int)$_SESSION['user_id'], $filters) : []);
     } else {
-        $tickets = method_exists($this->ticketModel, 'searchByUserId')
-            ? $this->ticketModel->searchByUserId((int)$_SESSION['user_id'], $filters)
-            : $this->ticketModel->getTicketsByUserId((int)$_SESSION['user_id']);
+        $total = method_exists($this->ticketModel, 'countSearchByUserId')
+            ? $this->ticketModel->countSearchByUserId((int)$_SESSION['user_id'], $filters)
+            : 0;
+
+        $tickets = method_exists($this->ticketModel, 'searchByUserIdPaged')
+            ? $this->ticketModel->searchByUserIdPaged((int)$_SESSION['user_id'], $filters, $perPage, $offset)
+            : (method_exists($this->ticketModel, 'searchByUserId') ? $this->ticketModel->searchByUserId((int)$_SESSION['user_id'], $filters) : $this->ticketModel->getTicketsByUserId((int)$_SESSION['user_id']));
     }
 
-    // fallback بسيط لـ ticket_no/updated_at لو DB ما فيها الأعمدة
+    // fallback لو count غير متوفر
+    if ($total <= 0 && is_array($tickets)) {
+        $total = count($tickets);
+    }
+
+    // fallback ticket_no/updated_at
     if (is_array($tickets)) {
         foreach ($tickets as $t) {
             if (!isset($t->ticket_no) || $t->ticket_no === null || $t->ticket_no === '') {
@@ -128,13 +150,24 @@ class TicketsController extends Controller {
         }
     }
 
+    $pages = (int)ceil($total / $perPage);
+    if ($pages < 1) $pages = 1;
+    if ($page > $pages) $page = $pages;
+
     $this->view('tickets/index', [
         'tickets' => $tickets,
         'filters' => $filters,
         'teams'   => $teams,
         'users'   => $usersForFilter,
+        'pagination' => [
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'pages' => $pages,
+        ],
     ]);
 }
+
 
 
     public function add() {
@@ -386,70 +419,73 @@ class TicketsController extends Controller {
         exit;
     }
 
-    public function upload() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirect('index.php?page=tickets/index');
-            exit;
-        }
+    public function upload()
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        redirect('index.php?page=tickets/index');
+        exit;
+    }
 
-        $ticketId = isset($_POST['ticket_id']) ? (int)$_POST['ticket_id'] : 0;
-        if ($ticketId <= 0) {
-            redirect('index.php?page=tickets/index');
-            exit;
-        }
+    $ticketId = isset($_POST['ticket_id']) ? (int)$_POST['ticket_id'] : 0;
+    if ($ticketId <= 0) {
+        redirect('index.php?page=tickets/index');
+        exit;
+    }
 
-        $ticket = $this->ticketModel->getTicketById($ticketId);
-        if (!$this->canAccessTicket($ticket)) {
-            flash('access_denied', 'لا تملك صلاحية رفع صور لهذه التذكرة', 'alert alert-danger');
-            redirect('index.php?page=tickets/show&id=' . $ticketId);
-            exit;
-        }
-
-        if (!isset($_FILES['images'])) {
-            flash('ticket_msg', 'لم يتم اختيار صور', 'alert alert-warning');
-            redirect('index.php?page=tickets/show&id=' . $ticketId);
-            exit;
-        }
-
-        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-
-        $uploadDir = dirname(__DIR__, 2) . '/public/uploads/tickets/ticket_' . $ticketId . '/';
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0755, true);
-        }
-
-        $files = $_FILES['images'];
-        $count = is_array($files['name']) ? count($files['name']) : 0;
-        $savedAny = false;
-
-        for ($i = 0; $i < $count; $i++) {
-            if ($files['error'][$i] !== UPLOAD_ERR_OK) continue;
-
-            $ext = strtolower(pathinfo($files['name'][$i], PATHINFO_EXTENSION));
-            if (!in_array($ext, $allowed, true)) continue;
-
-            $newName = 'img_' . time() . '_' . $i . '.' . $ext;
-            $dest = $uploadDir . $newName;
-
-            if (move_uploaded_file($files['tmp_name'][$i], $dest)) {
-                $savedAny = true;
-
-                if (method_exists($this->ticketModel, 'addAttachment')) {
-                    $this->ticketModel->addAttachment([
-                        'ticket_id' => $ticketId,
-                        'file_path' => 'uploads/tickets/ticket_' . $ticketId . '/' . $newName,
-                        'uploaded_by' => (int)$_SESSION['user_id'],
-                    ]);
-                }
-            }
-        }
-
-        if ($savedAny) flash('ticket_msg', 'تم رفع الصور بنجاح');
-        else flash('ticket_msg', 'لم يتم رفع أي صورة (تأكد من الامتداد jpg/png/webp)', 'alert alert-warning');
-
+    $ticket = $this->ticketModel->getTicketById($ticketId);
+    if (!$this->canAccessTicket($ticket)) {
+        flash('access_denied', 'لا تملك صلاحية رفع مرفقات لهذه التذكرة', 'alert alert-danger');
         redirect('index.php?page=tickets/show&id=' . $ticketId);
         exit;
     }
+
+    if (!isset($_FILES['files'])) {
+        flash('ticket_msg', 'لم يتم اختيار ملفات', 'alert alert-warning');
+        redirect('index.php?page=tickets/show&id=' . $ticketId);
+        exit;
+    }
+
+    $allowed = ['jpg','jpeg','png','webp','pdf','doc','docx','xls','xlsx','txt','zip'];
+
+    $uploadDir = dirname(__DIR__, 2) . '/public/uploads/tickets/ticket_' . $ticketId . '/';
+    if (!is_dir($uploadDir)) @mkdir($uploadDir, 0755, true);
+
+    $files = $_FILES['files'];
+    $count = is_array($files['name']) ? count($files['name']) : 0;
+
+    $savedAny = false;
+
+    for ($i = 0; $i < $count; $i++) {
+        if (($files['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) continue;
+
+        $originalName = (string)$files['name'][$i];
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        if (!in_array($ext, $allowed, true)) continue;
+
+        $newName = 'file_' . time() . '_' . $i . '.' . $ext;
+        $dest = $uploadDir . $newName;
+
+        if (move_uploaded_file($files['tmp_name'][$i], $dest)) {
+            $savedAny = true;
+
+            if (method_exists($this->ticketModel, 'addAttachment')) {
+                $this->ticketModel->addAttachment([
+                    'ticket_id' => $ticketId,
+                    'file_path' => 'uploads/tickets/ticket_' . $ticketId . '/' . $newName,
+                    'original_name' => $originalName,
+                    'uploaded_by' => (int)$_SESSION['user_id'],
+                ]);
+            }
+        }
+    }
+
+    if ($savedAny) flash('ticket_msg', 'تم رفع المرفقات بنجاح');
+    else flash('ticket_msg', 'لم يتم رفع أي ملف (تحقق من الامتدادات)', 'alert alert-warning');
+
+    redirect('index.php?page=tickets/show&id=' . $ticketId);
+    exit;
+}
+
 }
            
 

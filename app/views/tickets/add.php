@@ -51,7 +51,8 @@
                   <option value="">-- لنفسي (افتراضي) --</option>
                   <?php foreach($data['users'] as $u): ?>
                     <option value="<?php echo (int)$u->id; ?>">
-                      <?php echo htmlspecialchars(isset($u->username) ? $u->username : $u->email, ENT_QUOTES, 'UTF-8'); ?>
+                     <?php echo htmlspecialchars($u->name ?? ($u->username ?? $u->email ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+
                     </option>
                   <?php endforeach; ?>
                 </select>
@@ -64,7 +65,8 @@
                   <option value="">-- بدون تعيين الآن --</option>
                   <?php foreach($data['users'] as $u): ?>
                     <option value="<?php echo (int)$u->id; ?>">
-                      <?php echo htmlspecialchars(isset($u->username) ? $u->username : $u->email, ENT_QUOTES, 'UTF-8'); ?>
+                      <?php echo htmlspecialchars($u->name ?? ($u->username ?? $u->email ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+
                     </option>
                   <?php endforeach; ?>
                 </select>
@@ -135,8 +137,8 @@
               name="description"
               class="form-control <?php echo (!empty($data['description_err'])) ? 'is-invalid' : ''; ?>"
               rows="5"
-              required
-            ><?php echo htmlspecialchars($data['description'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+              required >
+           <?php echo htmlspecialchars($data['description'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
 
             <?php if(!empty($data['description_err'])): ?>
               <div class="invalid-feedback"><?php echo $data['description_err']; ?></div>

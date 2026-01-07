@@ -33,7 +33,76 @@ class Ticket
         ";
     }
 
-    // 1) جلب جميع التذاكر (للسوبر أدمن)
+    private function baseFromSql(): string
+    {
+        return "
+            FROM tickets t
+            JOIN users u ON t.created_by = u.id
+            LEFT JOIN users rf ON t.requested_for_user_id = rf.id
+            LEFT JOIN users au ON t.assigned_to = au.id
+            LEFT JOIN assets a ON t.asset_id = a.id
+        ";
+    }
+
+    private function applyFiltersToSql(string $baseSql, array $filters, array &$binds): string
+    {
+        $where = [];
+
+        // q: بحث عام
+        if (!empty($filters['q'])) {
+            $where[] = "(t.ticket_no LIKE :q
+                      OR t.subject LIKE :q
+                      OR t.description LIKE :q
+                      OR a.asset_tag LIKE :q
+                      OR u.name LIKE :q
+                      OR rf.name LIKE :q
+                      OR au.name LIKE :q)";
+            $binds[':q'] = '%' . $filters['q'] . '%';
+        }
+
+        if (!empty($filters['status'])) {
+            $where[] = "t.status = :status";
+            $binds[':status'] = $filters['status'];
+        }
+
+        if (!empty($filters['priority'])) {
+            $where[] = "t.priority = :priority";
+            $binds[':priority'] = $filters['priority'];
+        }
+
+        if (!empty($filters['team'])) {
+            $where[] = "t.team = :team";
+            $binds[':team'] = $filters['team'];
+        }
+
+        if (!empty($filters['assigned_to']) && (int)$filters['assigned_to'] > 0) {
+            $where[] = "t.assigned_to = :assigned_to";
+            $binds[':assigned_to'] = (int)$filters['assigned_to'];
+        }
+
+        if (!empty($where)) {
+            if (stripos($baseSql, ' where ') !== false) {
+                $baseSql .= " AND " . implode(" AND ", $where);
+            } else {
+                $baseSql .= " WHERE " . implode(" AND ", $where);
+            }
+        }
+
+        return $baseSql;
+    }
+
+    private function applyLimitOffset(string $sql, int $limit, int $offset, array &$binds): string
+    {
+        if ($limit > 0) {
+            $sql .= " LIMIT :limit OFFSET :offset";
+            $binds[':limit'] = (int)$limit;
+            $binds[':offset'] = max(0, (int)$offset);
+        }
+        return $sql;
+    }
+
+    // ---------------- Basic ----------------
+
     public function getAll()
     {
         $sql = $this->baseSelectSql() . " ORDER BY t.created_at DESC";
@@ -41,13 +110,11 @@ class Ticket
         return $this->db->resultSet();
     }
 
-    // alias (توافق)
     public function getAllTickets()
     {
         return $this->getAll();
     }
 
-    // 2) عدد التذاكر
     public function getCount()
     {
         $this->db->query("SELECT COUNT(*) as count FROM tickets");
@@ -55,7 +122,6 @@ class Ticket
         return (int)($result->count ?? 0);
     }
 
-    // 3) آخر 5 تذاكر
     public function getRecentTickets()
     {
         $sql = $this->baseSelectSql() . " ORDER BY t.created_at DESC LIMIT 5";
@@ -63,7 +129,6 @@ class Ticket
         return $this->db->resultSet();
     }
 
-    // 4) إضافة تذكرة
     public function add($data)
     {
         $this->db->query("
@@ -107,7 +172,7 @@ class Ticket
         $ok = $this->db->execute();
         if (!$ok) return false;
 
-        // لو عندك عمود ticket_no (اللي أضفناه بالـ ALTER) نعبّيه تلقائي بعد الإدخال
+        // تعبئة ticket_no إن كان موجود
         if (method_exists($this->db, 'lastInsertId')) {
             $id = (int)$this->db->lastInsertId();
             if ($id > 0) {
@@ -124,58 +189,32 @@ class Ticket
         return true;
     }
 
-    // 5) تذاكر مستخدم (يشوف: اللي أنشأها أو اللي مطلوبة له أو المعيّنة عليه)
-    // تذاكر مستخدم (أنشأها/مطلوبة له/مكلف بها) مع الأسماء
-public function getTicketsByUserId($user_id) {
-    $this->db->query("
-        SELECT
-            t.*,
-            u.name  AS user_name,
-            u.email AS user_email,
-            rf.name AS requested_for_name,
-            au.name AS assigned_to_name,
-            a.asset_tag, a.brand, a.model
-        FROM tickets t
-        JOIN users u ON t.created_by = u.id
-        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
-        LEFT JOIN users au ON t.assigned_to = au.id
-        LEFT JOIN assets a ON t.asset_id = a.id
-        WHERE t.created_by = :uid
-           OR t.requested_for_user_id = :uid
-           OR t.assigned_to = :uid
-        ORDER BY t.created_at DESC
-    ");
-    $this->db->bind(':uid', (int)$user_id);
-    return $this->db->resultSet();
-}
+    public function getTicketsByUserId($user_id)
+    {
+        $sql = $this->baseSelectSql() . "
+            WHERE t.created_by = :uid
+               OR t.requested_for_user_id = :uid
+               OR t.assigned_to = :uid
+            ORDER BY t.created_at DESC
+        ";
+        $this->db->query($sql);
+        $this->db->bind(':uid', (int)$user_id);
+        return $this->db->resultSet();
+    }
 
+    public function getTicketsByManagerId($manager_id)
+    {
+        $sql = $this->baseSelectSql() . "
+            WHERE u.manager_id = :mid
+               OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
+               OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
+            ORDER BY t.created_at DESC
+        ";
+        $this->db->query($sql);
+        $this->db->bind(':mid', (int)$manager_id);
+        return $this->db->resultSet();
+    }
 
-    // 6) تذاكر مدير (يشوف تذاكر فريقه) - يفترض وجود manager_id في جدول users
-    public function getTicketsByManagerId($manager_id) {
-    $this->db->query("
-        SELECT
-            t.*,
-            u.name  AS user_name,
-            u.email AS user_email,
-            rf.name AS requested_for_name,
-            au.name AS assigned_to_name,
-            a.asset_tag, a.brand, a.model
-        FROM tickets t
-        JOIN users u ON t.created_by = u.id
-        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
-        LEFT JOIN users au ON t.assigned_to = au.id
-        LEFT JOIN assets a ON t.asset_id = a.id
-        WHERE u.manager_id = :mid
-           OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
-           OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
-        ORDER BY t.created_at DESC
-    ");
-    $this->db->bind(':mid', (int)$manager_id);
-    return $this->db->resultSet();
-}
-
-
-    // 7) تفاصيل تذكرة واحدة
     public function getTicketById($id)
     {
         $sql = $this->baseSelectSql() . " WHERE t.id = :id";
@@ -184,16 +223,16 @@ public function getTicketsByUserId($user_id) {
         return $this->db->single();
     }
 
-    // 8) تحديث الحالة (مع closed_at)
+    // ---------------- Update ticket (closed_at handled) ----------------
+
     public function updateStatus($id, $status)
     {
         $status = (string)$status;
 
         if ($status === 'Closed' || $status === 'Resolved') {
-            $this->db->query("UPDATE tickets SET status = :status, closed_at = NOW() WHERE id = :id");
+            $this->db->query("UPDATE tickets SET status = :status, closed_at = NOW(), updated_at = NOW() WHERE id = :id");
         } else {
-            // لو رجعنا فتحها نخلي closed_at فاضي
-            $this->db->query("UPDATE tickets SET status = :status, closed_at = NULL WHERE id = :id");
+            $this->db->query("UPDATE tickets SET status = :status, closed_at = NULL, updated_at = NOW() WHERE id = :id");
         }
 
         $this->db->bind(':status', $status);
@@ -201,165 +240,220 @@ public function getTicketsByUserId($user_id) {
         return $this->db->execute();
     }
 
-    // 9) تحديث القسم (للتصعيد)
     public function updateTeam($id, $team)
     {
-        $this->db->query("UPDATE tickets SET team = :team WHERE id = :id");
+        $this->db->query("UPDATE tickets SET team = :team, updated_at = NOW() WHERE id = :id");
         $this->db->bind(':team', $team);
         $this->db->bind(':id', (int)$id);
         return $this->db->execute();
     }
 
-    // 10) تعيين التذكرة لموظف
     public function updateAssignedTo($id, $assigned_to)
     {
-        $this->db->query("UPDATE tickets SET assigned_to = :assigned_to WHERE id = :id");
+        $this->db->query("UPDATE tickets SET assigned_to = :assigned_to, updated_at = NOW() WHERE id = :id");
         $this->db->bind(':assigned_to', !empty($assigned_to) ? (int)$assigned_to : null);
         $this->db->bind(':id', (int)$id);
         return $this->db->execute();
     }
 
-    // جلب الأقسام/الفرق الموجودة (لـ dropdown)
-public function getDistinctTeams(): array {
-    $this->db->query("SELECT DISTINCT team FROM tickets WHERE team IS NOT NULL AND team <> '' ORDER BY team ASC");
-    $rows = $this->db->resultSet();
-    $teams = [];
-    foreach ($rows as $r) {
-        $teams[] = $r->team;
-    }
-    return $teams;
-}
-
-private function applyFiltersToSql(string $baseSql, array $filters, array &$binds): string {
-    $where = [];
-
-    // q: بحث عام
-    if (!empty($filters['q'])) {
-        $where[] = "(t.ticket_no LIKE :q OR t.subject LIKE :q OR t.description LIKE :q OR a.asset_tag LIKE :q OR u.name LIKE :q OR rf.name LIKE :q OR au.name LIKE :q)";
-        $binds[':q'] = '%' . $filters['q'] . '%';
+    public function getDistinctTeams(): array
+    {
+        $this->db->query("SELECT DISTINCT team FROM tickets WHERE team IS NOT NULL AND team <> '' ORDER BY team ASC");
+        $rows = $this->db->resultSet();
+        $teams = [];
+        foreach ($rows as $r) $teams[] = $r->team;
+        return $teams;
     }
 
-    // status
-    if (!empty($filters['status'])) {
-        $where[] = "t.status = :status";
-        $binds[':status'] = $filters['status'];
+    // ---------------- Filters + Pagination ----------------
+
+    public function countSearchAll(array $filters = []): int
+    {
+        $binds = [];
+        $sql = "SELECT COUNT(DISTINCT t.id) AS cnt " . $this->baseFromSql();
+        $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+
+        $this->db->query($sql);
+        foreach ($binds as $k => $v) $this->db->bind($k, $v);
+        $row = $this->db->single();
+        return (int)($row->cnt ?? 0);
     }
 
-    // priority
-    if (!empty($filters['priority'])) {
-        $where[] = "t.priority = :priority";
-        $binds[':priority'] = $filters['priority'];
+    public function countSearchByManagerId(int $managerId, array $filters = []): int
+    {
+        $binds = [':mid' => $managerId];
+        $sql = "SELECT COUNT(DISTINCT t.id) AS cnt " . $this->baseFromSql() . "
+            WHERE u.manager_id = :mid
+               OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
+               OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
+        ";
+        $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+
+        $this->db->query($sql);
+        foreach ($binds as $k => $v) $this->db->bind($k, $v);
+        $row = $this->db->single();
+        return (int)($row->cnt ?? 0);
     }
 
-    // team
-    if (!empty($filters['team'])) {
-        $where[] = "t.team = :team";
-        $binds[':team'] = $filters['team'];
+    public function countSearchByUserId(int $userId, array $filters = []): int
+    {
+        $binds = [':uid' => $userId];
+        $sql = "SELECT COUNT(DISTINCT t.id) AS cnt " . $this->baseFromSql() . "
+            WHERE t.created_by = :uid
+               OR t.requested_for_user_id = :uid
+               OR t.assigned_to = :uid
+        ";
+        $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+
+        $this->db->query($sql);
+        foreach ($binds as $k => $v) $this->db->bind($k, $v);
+        $row = $this->db->single();
+        return (int)($row->cnt ?? 0);
     }
 
-    // assigned_to
-    if (!empty($filters['assigned_to']) && (int)$filters['assigned_to'] > 0) {
-        $where[] = "t.assigned_to = :assigned_to";
-        $binds[':assigned_to'] = (int)$filters['assigned_to'];
+    public function searchAllPaged(array $filters = [], int $limit = 15, int $offset = 0)
+    {
+        $binds = [];
+        $sql = $this->baseSelectSql();
+        $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+        $sql .= " ORDER BY t.created_at DESC";
+        $sql = $this->applyLimitOffset($sql, $limit, $offset, $binds);
+
+        $this->db->query($sql);
+        foreach ($binds as $k => $v) $this->db->bind($k, $v);
+        return $this->db->resultSet();
     }
 
-    if (!empty($where)) {
-        // لو الاستعلام فيه WHERE مسبقًا نضيف AND
-        if (stripos($baseSql, ' where ') !== false) {
-            $baseSql .= " AND " . implode(" AND ", $where);
-        } else {
-            $baseSql .= " WHERE " . implode(" AND ", $where);
+    public function searchByManagerIdPaged(int $managerId, array $filters = [], int $limit = 15, int $offset = 0)
+    {
+        $binds = [':mid' => $managerId];
+        $sql = $this->baseSelectSql() . "
+            WHERE u.manager_id = :mid
+               OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
+               OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
+        ";
+        $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+        $sql .= " ORDER BY t.created_at DESC";
+        $sql = $this->applyLimitOffset($sql, $limit, $offset, $binds);
+
+        $this->db->query($sql);
+        foreach ($binds as $k => $v) $this->db->bind($k, $v);
+        return $this->db->resultSet();
+    }
+
+    public function searchByUserIdPaged(int $userId, array $filters = [], int $limit = 15, int $offset = 0)
+    {
+        $binds = [':uid' => $userId];
+        $sql = $this->baseSelectSql() . "
+            WHERE t.created_by = :uid
+               OR t.requested_for_user_id = :uid
+               OR t.assigned_to = :uid
+        ";
+        $sql = $this->applyFiltersToSql($sql, $filters, $binds);
+        $sql .= " ORDER BY t.created_at DESC";
+        $sql = $this->applyLimitOffset($sql, $limit, $offset, $binds);
+
+        $this->db->query($sql);
+        foreach ($binds as $k => $v) $this->db->bind($k, $v);
+        return $this->db->resultSet();
+    }
+
+    // ---------------- Timeline (Updates) ----------------
+
+    public function getUpdatesByTicketId(int $ticketId): array
+    {
+        try {
+            $this->db->query("
+                SELECT tu.*, u.name AS user_name
+                FROM ticket_updates tu
+                LEFT JOIN users u ON tu.user_id = u.id
+                WHERE tu.ticket_id = :tid
+                ORDER BY tu.created_at DESC
+            ");
+            $this->db->bind(':tid', $ticketId);
+            return $this->db->resultSet();
+        } catch (Throwable $e) {
+            return [];
         }
     }
 
-    return $baseSql;
-}
+    public function addUpdate(array $data): bool
+    {
+        try {
+            $this->db->query("
+                INSERT INTO ticket_updates (ticket_id, user_id, status, comment)
+                VALUES (:ticket_id, :user_id, :status, :comment)
+            ");
+            $this->db->bind(':ticket_id', (int)($data['ticket_id'] ?? 0));
+            $this->db->bind(':user_id', (int)($data['user_id'] ?? 0));
+            $this->db->bind(':status', (string)($data['status'] ?? ''));
+            $this->db->bind(':comment', ($data['comment'] ?? ''));
 
-// فلترة للسوبر أدمن
-public function searchAll(array $filters = []) {
-    $binds = [];
+            $ok = $this->db->execute();
 
-    $sql = "
-        SELECT
-            t.*,
-            u.name  AS user_name,
-            rf.name AS requested_for_name,
-            au.name AS assigned_to_name,
-            a.asset_tag, a.brand, a.model
-        FROM tickets t
-        JOIN users u ON t.created_by = u.id
-        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
-        LEFT JOIN users au ON t.assigned_to = au.id
-        LEFT JOIN assets a ON t.asset_id = a.id
-    ";
+            // تحديث updated_at للتذكرة (إن كان موجود)
+            if ($ok) {
+                $this->db->query("UPDATE tickets SET updated_at = NOW() WHERE id = :id");
+                $this->db->bind(':id', (int)($data['ticket_id'] ?? 0));
+                $this->db->execute();
+            }
 
-    $sql = $this->applyFiltersToSql($sql, $filters, $binds);
-    $sql .= " ORDER BY t.created_at DESC";
+            return (bool)$ok;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
 
-    $this->db->query($sql);
-    foreach ($binds as $k => $v) $this->db->bind($k, $v);
-    return $this->db->resultSet();
-}
+    // ---------------- Attachments ----------------
 
-// فلترة للمدير (فريقه + اللي معيّنة عليهم/مطلوبة لهم)
-public function searchByManagerId(int $managerId, array $filters = []) {
-    $binds = [':mid' => $managerId];
+    public function getAttachmentsByTicketId(int $ticketId): array
+    {
+        try {
+            $this->db->query("
+                SELECT ta.*, u.name AS uploaded_by_name
+                FROM ticket_attachments ta
+                LEFT JOIN users u ON ta.uploaded_by = u.id
+                WHERE ta.ticket_id = :tid
+                ORDER BY ta.created_at DESC
+            ");
+            $this->db->bind(':tid', $ticketId);
+            return $this->db->resultSet();
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
 
-    $sql = "
-        SELECT
-            t.*,
-            u.name  AS user_name,
-            rf.name AS requested_for_name,
-            au.name AS assigned_to_name,
-            a.asset_tag, a.brand, a.model
-        FROM tickets t
-        JOIN users u ON t.created_by = u.id
-        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
-        LEFT JOIN users au ON t.assigned_to = au.id
-        LEFT JOIN assets a ON t.asset_id = a.id
-        WHERE
-            u.manager_id = :mid
-            OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
-            OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
-    ";
+   
 
-    $sql = $this->applyFiltersToSql($sql, $filters, $binds);
-    $sql .= " ORDER BY t.created_at DESC";
 
-    $this->db->query($sql);
-    foreach ($binds as $k => $v) $this->db->bind($k, $v);
-    return $this->db->resultSet();
-}
 
-// فلترة للموظف (تذاكره/المطلوبة له/المكلف بها)
-public function searchByUserId(int $userId, array $filters = []) {
-    $binds = [':uid' => $userId];
 
-    $sql = "
-        SELECT
-            t.*,
-            u.name  AS user_name,
-            rf.name AS requested_for_name,
-            au.name AS assigned_to_name,
-            a.asset_tag, a.brand, a.model
-        FROM tickets t
-        JOIN users u ON t.created_by = u.id
-        LEFT JOIN users rf ON t.requested_for_user_id = rf.id
-        LEFT JOIN users au ON t.assigned_to = au.id
-        LEFT JOIN assets a ON t.asset_id = a.id
-        WHERE
-            t.created_by = :uid
-            OR t.requested_for_user_id = :uid
-            OR t.assigned_to = :uid
-    ";
 
-    // ملاحظة: الموظف ممكن يفلتر داخل نطاقه عادي
-    $sql = $this->applyFiltersToSql($sql, $filters, $binds);
-    $sql .= " ORDER BY t.created_at DESC";
 
-    $this->db->query($sql);
-    foreach ($binds as $k => $v) $this->db->bind($k, $v);
-    return $this->db->resultSet();
+public function addAttachment(array $data): bool
+{
+    try {
+        $this->db->query("
+            INSERT INTO ticket_attachments (ticket_id, file_path, original_name, uploaded_by)
+            VALUES (:ticket_id, :file_path, :original_name, :uploaded_by)
+        ");
+        $this->db->bind(':ticket_id', (int)($data['ticket_id'] ?? 0));
+        $this->db->bind(':file_path', (string)($data['file_path'] ?? ''));
+        $this->db->bind(':original_name', (string)($data['original_name'] ?? ''));
+        $this->db->bind(':uploaded_by', (int)($data['uploaded_by'] ?? 0));
+
+        $ok = $this->db->execute();
+
+        if ($ok) {
+            $this->db->query("UPDATE tickets SET updated_at = NOW() WHERE id = :id");
+            $this->db->bind(':id', (int)($data['ticket_id'] ?? 0));
+            $this->db->execute();
+        }
+
+        return (bool)$ok;
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 }

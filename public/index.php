@@ -193,7 +193,6 @@ $routes = [
 // -------------------------
 $route = normalize_route((string)($_GET['page'] ?? 'dashboard/index'));
 $routeKey = strtolower($route);
-$routeKey = strtolower(trim($_GET['page'] ?? 'dashboard/index'));
 
 try {
   // Special routes that need method_exists protection (print/labels)

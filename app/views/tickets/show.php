@@ -8,6 +8,8 @@ if ($status === 'Open') $badgeClass = 'bg-success';
 if ($status === 'In Progress') $badgeClass = 'bg-warning text-dark';
 if ($status === 'Resolved') $badgeClass = 'bg-info text-dark';
 if ($status === 'Closed') $badgeClass = 'bg-dark';
+
+$assignedToName = $ticket->assigned_to_name ?? 'غير مسند';
 ?>
 
 <div class="row mb-4 align-items-center">
@@ -15,6 +17,9 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
     <h3 class="mb-0">
       <i class="fa fa-ticket-alt text-primary"></i>
       تفاصيل التذكرة #<?php echo (int)$ticket->id; ?>
+      <?php if (!empty($ticket->ticket_no)): ?>
+        <span class="text-muted fs-6">(<?php echo htmlspecialchars($ticket->ticket_no); ?>)</span>
+      <?php endif; ?>
     </h3>
   </div>
   <div class="col-md-4 text-md-end">
@@ -29,15 +34,45 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
 
     <div class="card shadow-sm mb-3">
       <div class="card-header bg-dark text-white">
-        <strong>وصف المشكلة</strong>
+        <strong>بيانات التذكرة</strong>
       </div>
       <div class="card-body">
 
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <div class="text-muted small">صاحب الطلب</div>
+            <div class="fw-bold"><?php echo htmlspecialchars($ticket->user_name ?? '-'); ?></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">المطلوبة لـ</div>
+            <div class="fw-bold"><?php echo htmlspecialchars($ticket->requested_for_name ?? '-'); ?></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">المسؤول</div>
+            <div class="fw-bold"><?php echo htmlspecialchars($assignedToName); ?></div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <div class="text-muted small">القسم</div>
+            <div class="fw-bold"><?php echo htmlspecialchars($ticket->team ?? '-'); ?></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">تاريخ الإنشاء</div>
+            <div class="fw-bold"><?php echo htmlspecialchars($ticket->created_at ?? '-'); ?></div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">إغلاق (إن وجد)</div>
+            <div class="fw-bold"><?php echo htmlspecialchars($ticket->closed_at ?? '-'); ?></div>
+          </div>
+        </div>
+
+        <hr>
+
         <div class="mb-3">
           <label class="text-muted">العنوان:</label>
-          <div class="fw-bold fs-5">
-            <?php echo htmlspecialchars($ticket->subject ?? '-', ENT_QUOTES, 'UTF-8'); ?>
-          </div>
+          <div class="fw-bold fs-5"><?php echo htmlspecialchars($ticket->subject ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
         </div>
 
         <div class="mb-3">
@@ -53,19 +88,12 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
             <div class="fw-bold"><?php echo htmlspecialchars($ticket->contact_info ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
           </div>
           <div class="col-md-6">
-            <label class="text-muted">تاريخ الإنشاء:</label>
-            <div class="fw-bold"><?php echo htmlspecialchars($ticket->created_at ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
+            <label class="text-muted">الأصل:</label>
+            <div class="fw-bold">
+              <?php echo htmlspecialchars($ticket->asset_tag ?? (!empty($ticket->asset_id) ? ('ID: ' . (int)$ticket->asset_id) : '-')); ?>
+            </div>
           </div>
         </div>
-
-        <?php if (!empty($ticket->asset_id)): ?>
-          <hr>
-          <div class="alert alert-info mb-0">
-            <i class="fa fa-laptop me-2"></i>
-            <strong>جهاز مرتبط:</strong>
-            <?php echo htmlspecialchars($ticket->asset_tag ?? ('ID: ' . (int)$ticket->asset_id), ENT_QUOTES, 'UTF-8'); ?>
-          </div>
-        <?php endif; ?>
 
       </div>
     </div>
@@ -82,6 +110,9 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
                 <div class="d-flex justify-content-between">
                   <div>
                     <span class="badge bg-secondary"><?php echo htmlspecialchars($u->status ?? '-', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <?php if (!empty($u->user_name)): ?>
+                      <span class="ms-2 text-muted small">بواسطة: <?php echo htmlspecialchars($u->user_name); ?></span>
+                    <?php endif; ?>
                     <?php if (!empty($u->comment)): ?>
                       <div class="mt-2"><?php echo nl2br(htmlspecialchars($u->comment, ENT_QUOTES, 'UTF-8')); ?></div>
                     <?php endif; ?>
@@ -103,10 +134,25 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
         <div class="card-body">
           <div class="row">
             <?php foreach ($data['attachments'] as $a): ?>
-              <div class="col-md-4 mb-3">
-                <a class="d-block" target="_blank" href="<?php echo URLROOT . '/' . $a->file_path; ?>">
-                  <img class="img-fluid rounded border" src="<?php echo URLROOT . '/' . $a->file_path; ?>" alt="attachment">
-                </a>
+             <?php
+$path = (string)($a->file_path ?? '');
+$name = (string)($a->original_name ?? basename($path));
+$ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+$isImg = in_array($ext, ['jpg','jpeg','png','webp'], true);
+$url = URLROOT . '/' . $path;
+?>
+<?php if ($isImg): ?>
+  <a target="_blank" href="<?php echo $url; ?>">
+    <img src="<?php echo $url; ?>" class="img-fluid rounded border" alt="">
+  </a>
+  <div class="small text-muted mt-1"><?php echo htmlspecialchars($name); ?></div>
+<?php else: ?>
+  <div class="border rounded p-2">
+    <div class="fw-bold small"><?php echo htmlspecialchars($name); ?></div>
+    <a target="_blank" class="btn btn-sm btn-outline-primary mt-2" href="<?php echo $url; ?>">فتح/تحميل</a>
+  </div>
+<?php endif; ?>
+
               </div>
             <?php endforeach; ?>
           </div>
@@ -142,15 +188,21 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
         <form action="<?php echo URLROOT; ?>/index.php?page=tickets/update_status" method="post">
           <input type="hidden" name="ticket_id" value="<?php echo (int)$ticket->id; ?>">
 
-          <?php if (!empty($data['users'])): ?>
-            <div class="mb-3">
-              <label class="form-label">تعيين إلى موظف (اختياري)</label>
-              <select name="assigned_to" class="form-select" disabled>
-                <option value="">-- لاحقاً --</option>
-              </select>
-              <div class="form-text">التعيين نفعّله بعد ما نضيفه بالموديل/الداتابيس بشكل كامل.</div>
-            </div>
-          <?php endif; ?>
+         <?php if (!empty($data['users'])): ?>
+  <div class="mb-3">
+    <label class="form-label">تعيين إلى موظف (اختياري)</label>
+    <select name="assigned_to" class="form-select">
+      <option value="">غير مسند</option>
+      <?php foreach ($data['users'] as $u): ?>
+        <option value="<?php echo (int)$u->id; ?>"
+          <?php echo ((int)($ticket->assigned_to ?? 0) === (int)$u->id) ? 'selected' : ''; ?>>
+          <?php echo htmlspecialchars($u->name ?? ('ID ' . (int)$u->id)); ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+  </div>
+<?php endif; ?>
+
 
           <div class="mb-3">
             <label class="form-label">تغيير الحالة</label>
@@ -209,14 +261,15 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
 
     <div class="card shadow-sm">
       <div class="card-header">
-        <strong><i class="fa fa-image"></i> رفع صور</strong>
+        <strong><i class="fa fa-paperclip"></i> رفع مرفقات</strong>
       </div>
       <div class="card-body">
         <form action="<?php echo URLROOT; ?>/index.php?page=tickets/upload" method="post" enctype="multipart/form-data">
           <input type="hidden" name="ticket_id" value="<?php echo (int)$ticket->id; ?>">
           <div class="mb-2">
-            <input type="file" name="images[]" class="form-control" multiple accept=".jpg,.jpeg,.png,.webp">
-            <div class="form-text">مسموح: jpg, png, webp</div>
+            <input type="file" name="files[]" class="form-control" multiple
+              accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
+            <div class="form-text">مسموح: صور + pdf/doc/docx/xls/xlsx/txt/zip</div>
           </div>
           <div class="d-grid">
             <button class="btn btn-outline-primary" type="submit">رفع</button>
