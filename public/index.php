@@ -243,12 +243,13 @@ if (in_array($routeKey, ['spareparts/print', 'spare_parts/print'], true)) {
 // ✅ SpareParts Export CSV (Excel)
 if (in_array($routeKey, ['spareparts/export', 'spare_parts/export'], true)) {
   if (class_exists('SparePartsController')) {
-    (new SparePartsController())->exportCsv();
+    (new SparePartsController())->exportExcel();
   } else {
     (new DashboardController())->index();
   }
   exit;
 }
+
 
 
   if (in_array($routeKey, ['spare_parts/add', 'spareparts/add'], true)) {
