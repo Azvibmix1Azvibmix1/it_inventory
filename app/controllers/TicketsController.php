@@ -1,5 +1,6 @@
 <?php
 
+
 class TicketsController extends Controller {
     private $ticketModel;
     private $assetModel;
@@ -18,7 +19,7 @@ class TicketsController extends Controller {
 
     // ---------------- Helpers ----------------
 
-    private function getAssetsForCurrentUser(): array {
+   private function getAssetsForCurrentUser(): array {
         if (function_exists('isSuperAdmin') && isSuperAdmin()) {
             return $this->assetModel->getAllAssets();
         }
@@ -80,6 +81,9 @@ class TicketsController extends Controller {
 
     // ---------------- Actions ----------------
 
+    
+
+   
     public function index() {
         if (function_exists('isSuperAdmin') && isSuperAdmin()) {
             $tickets = $this->ticketModel->getAll();
@@ -90,6 +94,20 @@ class TicketsController extends Controller {
             $tickets = $this->ticketModel->getAll();
         } else {
             $tickets = $this->ticketModel->getTicketsByUserId($_SESSION['user_id']);
+        }
+
+        // ✅ Fallback لأعمدة "أساسية" لو ما كانت موجودة في DB بعد
+        if (is_array($tickets)) {
+            foreach ($tickets as $t) {
+                if (!isset($t->ticket_no) || $t->ticket_no === null || $t->ticket_no === '') {
+                    $id = isset($t->id) ? (int)$t->id : 0;
+                    $t->ticket_no = $id > 0 ? ('TCK-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT)) : '-';
+                }
+
+                if (!isset($t->updated_at) || $t->updated_at === null || $t->updated_at === '') {
+                    $t->updated_at = $t->created_at ?? '';
+                }
+            }
         }
 
         $this->view('tickets/index', ['tickets' => $tickets]);
@@ -235,7 +253,6 @@ class TicketsController extends Controller {
     }
 
     public function update_status() {
-
         requirePermission('tickets.assign', 'tickets/index');
 
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -410,3 +427,10 @@ class TicketsController extends Controller {
         exit;
     }
 }
+           
+
+    
+
+    
+
+    

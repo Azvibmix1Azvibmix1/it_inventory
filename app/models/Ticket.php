@@ -1,56 +1,71 @@
 <?php
 
-class Ticket {
+class Ticket
+{
     private $db;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->db = new Database;
     }
 
-    // كل التذاكر (سوبر أدمن)
-    public function getAll() {
-        $this->db->query("
+    /**
+     * استعلام موحد لكل القوائم والتفاصيل
+     * يرجع: اسم المنشئ، اسم المطلوب له، اسم المسؤول، ومعلومات الأصل
+     */
+    private function baseSelectSql(): string
+    {
+        return "
             SELECT
                 t.*,
-                u.name AS user_name,
+                u.name  AS user_name,
                 u.email AS user_email,
                 rf.name AS requested_for_name,
                 au.name AS assigned_to_name,
-                a.asset_tag, a.brand, a.model
+                a.asset_tag,
+                a.brand,
+                a.model
             FROM tickets t
             JOIN users u ON t.created_by = u.id
             LEFT JOIN users rf ON t.requested_for_user_id = rf.id
             LEFT JOIN users au ON t.assigned_to = au.id
             LEFT JOIN assets a ON t.asset_id = a.id
-            ORDER BY t.created_at DESC
-        ");
+        ";
+    }
+
+    // 1) جلب جميع التذاكر (للسوبر أدمن)
+    public function getAll()
+    {
+        $sql = $this->baseSelectSql() . " ORDER BY t.created_at DESC";
+        $this->db->query($sql);
         return $this->db->resultSet();
     }
 
-    public function getAllTickets() {
+    // alias (توافق)
+    public function getAllTickets()
+    {
         return $this->getAll();
     }
 
-    public function getCount(){
+    // 2) عدد التذاكر
+    public function getCount()
+    {
         $this->db->query("SELECT COUNT(*) as count FROM tickets");
         $result = $this->db->single();
-        return (int)$result->count;
+        return (int)($result->count ?? 0);
     }
 
-    public function getRecentTickets(){
-        $this->db->query("
-            SELECT t.*, u.name AS user_name
-            FROM tickets t
-            JOIN users u ON t.created_by = u.id
-            ORDER BY t.created_at DESC
-            LIMIT 5
-        ");
+    // 3) آخر 5 تذاكر
+    public function getRecentTickets()
+    {
+        $sql = $this->baseSelectSql() . " ORDER BY t.created_at DESC LIMIT 5";
+        $this->db->query($sql);
         return $this->db->resultSet();
     }
 
-    // إضافة تذكرة
-    // يعتمد على وجود الأعمدة: subject, team, requested_for_user_id
-    public function add($data) {
+    // 4) إضافة تذكرة
+    public function add($data)
+    {
         $this->db->query("
             INSERT INTO tickets (
                 created_by,
@@ -89,74 +104,93 @@ class Ticket {
         $this->db->bind(':team', $data['team'] ?? 'field_it');
         $this->db->bind(':priority', $data['priority'] ?? 'Medium');
 
-        return $this->db->execute();
+        $ok = $this->db->execute();
+        if (!$ok) return false;
+
+        // لو عندك عمود ticket_no (اللي أضفناه بالـ ALTER) نعبّيه تلقائي بعد الإدخال
+        if (method_exists($this->db, 'lastInsertId')) {
+            $id = (int)$this->db->lastInsertId();
+            if ($id > 0) {
+                $this->db->query("
+                    UPDATE tickets
+                    SET ticket_no = CONCAT('TCK-', LPAD(id, 6, '0'))
+                    WHERE id = :id AND (ticket_no IS NULL OR ticket_no = '')
+                ");
+                $this->db->bind(':id', $id);
+                $this->db->execute();
+            }
+        }
+
+        return true;
     }
 
-    // تذاكر مستخدم (أنشأها/مطلوبة له/مكلف بها)
-    public function getTicketsByUserId($user_id) {
-        $this->db->query("
-            SELECT t.*, a.asset_tag
-            FROM tickets t
-            LEFT JOIN assets a ON t.asset_id = a.id
+    // 5) تذاكر مستخدم (يشوف: اللي أنشأها أو اللي مطلوبة له أو المعيّنة عليه)
+    public function getTicketsByUserId($user_id)
+    {
+        $sql = $this->baseSelectSql() . "
             WHERE t.created_by = :uid
                OR t.requested_for_user_id = :uid
                OR t.assigned_to = :uid
             ORDER BY t.created_at DESC
-        ");
+        ";
+        $this->db->query($sql);
         $this->db->bind(':uid', (int)$user_id);
         return $this->db->resultSet();
     }
 
-    // تذاكر مدير (فريقه) - يفترض users.manager_id موجود
-    public function getTicketsByManagerId($manager_id) {
-        $this->db->query("
-            SELECT t.*, u.name AS user_name, a.asset_tag, a.brand, a.model
-            FROM tickets t
-            JOIN users u ON t.created_by = u.id
-            LEFT JOIN assets a ON t.asset_id = a.id
-            WHERE u.manager_id = :mid
-               OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
-               OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
+    // 6) تذاكر مدير (يشوف تذاكر فريقه) - يفترض وجود manager_id في جدول users
+    public function getTicketsByManagerId($manager_id)
+    {
+        $sql = $this->baseSelectSql() . "
+            WHERE
+                u.manager_id = :mid
+                OR t.assigned_to IN (SELECT id FROM users WHERE manager_id = :mid)
+                OR t.requested_for_user_id IN (SELECT id FROM users WHERE manager_id = :mid)
             ORDER BY t.created_at DESC
-        ");
+        ";
+        $this->db->query($sql);
         $this->db->bind(':mid', (int)$manager_id);
         return $this->db->resultSet();
     }
 
-    public function getTicketById($id) {
-        $this->db->query("
-            SELECT t.*,
-                   u.name AS user_name,
-                   u.email AS user_email,
-                   rf.name AS requested_for_name,
-                   au.name AS assigned_to_name,
-                   a.asset_tag, a.brand, a.model
-            FROM tickets t
-            JOIN users u ON t.created_by = u.id
-            LEFT JOIN users rf ON t.requested_for_user_id = rf.id
-            LEFT JOIN users au ON t.assigned_to = au.id
-            LEFT JOIN assets a ON t.asset_id = a.id
-            WHERE t.id = :id
-        ");
+    // 7) تفاصيل تذكرة واحدة
+    public function getTicketById($id)
+    {
+        $sql = $this->baseSelectSql() . " WHERE t.id = :id";
+        $this->db->query($sql);
         $this->db->bind(':id', (int)$id);
         return $this->db->single();
     }
 
-    public function updateStatus($id, $status) {
-        $this->db->query("UPDATE tickets SET status = :status WHERE id = :id");
+    // 8) تحديث الحالة (مع closed_at)
+    public function updateStatus($id, $status)
+    {
+        $status = (string)$status;
+
+        if ($status === 'Closed' || $status === 'Resolved') {
+            $this->db->query("UPDATE tickets SET status = :status, closed_at = NOW() WHERE id = :id");
+        } else {
+            // لو رجعنا فتحها نخلي closed_at فاضي
+            $this->db->query("UPDATE tickets SET status = :status, closed_at = NULL WHERE id = :id");
+        }
+
         $this->db->bind(':status', $status);
         $this->db->bind(':id', (int)$id);
         return $this->db->execute();
     }
 
-    public function updateTeam($id, $team) {
+    // 9) تحديث القسم (للتصعيد)
+    public function updateTeam($id, $team)
+    {
         $this->db->query("UPDATE tickets SET team = :team WHERE id = :id");
         $this->db->bind(':team', $team);
         $this->db->bind(':id', (int)$id);
         return $this->db->execute();
     }
 
-    public function updateAssignedTo($id, $assigned_to) {
+    // 10) تعيين التذكرة لموظف
+    public function updateAssignedTo($id, $assigned_to)
+    {
         $this->db->query("UPDATE tickets SET assigned_to = :assigned_to WHERE id = :id");
         $this->db->bind(':assigned_to', !empty($assigned_to) ? (int)$assigned_to : null);
         $this->db->bind(':id', (int)$id);
