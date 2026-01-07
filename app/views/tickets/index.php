@@ -5,7 +5,7 @@
         <h1><i class="fa fa-headset"></i> التذاكر والدعم الفني</h1>
     </div>
     <div class="col-md-6 text-start">
-        <a href="<?php echo URLROOT; ?>/index.php?page=Tickets/add" class="btn btn-primary">
+        <a href="<?php echo URLROOT; ?>/index.php?page=tickets/add" class="btn btn-primary">
             <i class="fa fa-plus"></i> فتح تذكرة جديدة
         </a>
     </div>
@@ -107,9 +107,10 @@
                         </td>
 
                         <td style="white-space:nowrap;">
-                            <a href="<?php echo URLROOT; ?>/index.php?page=tickets/add" class="btn btn-primary">
-                              <i class="fa fa-plus"></i> فتح تذكرة جديدة
+                            <a href="<?php echo URLROOT; ?>/index.php?page=tickets/show&id=<?php echo (int)$ticket->id; ?>" class="btn btn-info btn-sm">
+                              <i class="fa fa-eye"></i> تفاصيل
                             </a>
+
 
                         </td>
                     </tr>
@@ -118,8 +119,6 @@
         </tbody>
     </table>
 </div>
-
-    <
 </div>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>
