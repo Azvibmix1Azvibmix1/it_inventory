@@ -162,6 +162,15 @@ $routes = [
   'users/delete'  => [UsersController::class, 'delete'],
   'users/profile' => [UsersController::class, 'profile'],
 
+  // Tickets (الدعم الفني)
+'tickets' => [TicketsController::class, 'index'],
+'tickets/index' => [TicketsController::class, 'index'],
+'tickets/add' => [TicketsController::class, 'add'],
+'tickets/show' => [TicketsController::class, 'show'],
+'tickets/update_status' => [TicketsController::class, 'update_status'],
+'tickets/escalate' => [TicketsController::class, 'escalate'],
+'tickets/upload' => [TicketsController::class, 'upload'],
+
   // assets/assign
   'assets/assign'    => [AssetsController::class, 'assign'],
   'assets/unassign'  => [AssetsController::class, 'unassign'],
