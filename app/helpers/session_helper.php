@@ -128,7 +128,10 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
 
   $map = [
     // Users
-    'users.manage'     => ['superadmin', 'admin', 'manager'],
+    // Users
+    'users.view'   => ['superadmin', 'admin', 'manager'],
+    'users.manage' => ['superadmin'],
+
 
     // Locations (عام)
     'locations.view'   => ['superadmin', 'admin', 'manager', 'user'],
@@ -158,6 +161,15 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
     redirect($redirectTo);
   }
 }
+
+function requireUsersView($redirectTo = 'index.php?page=dashboard') {
+  requirePermission('users.view', $redirectTo);
+}
+
+function requireUsersManage($redirectTo = 'index.php?page=dashboard') {
+  requirePermission('users.manage', $redirectTo);
+}
+
 
 /**
  * ===========================
