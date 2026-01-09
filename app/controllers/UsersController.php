@@ -23,12 +23,18 @@ class UsersController extends Controller {
         $users = [];
 
         // ✅ الحماية بالصلاحيات (تأكد requirePermission موجودة في session_helper)
-        requirePermission('users.manage', 'index.php?page=dashboard');
+        requirePermission('users.view', 'index.php?page=dashboard');
 
-        if (isSuperAdmin()) {
-            $users = $this->userModel->getUsers();
-        } elseif (isManager()) {
-            $users = $this->userModel->getUsersByManager($_SESSION['user_id']);
+        $role = currentRole();
+
+        if ($role === 'superadmin' || $role === 'admin') {
+        $users = $this->userModel->getUsers();
+        } elseif ($role === 'manager') {
+        $users = $this->userModel->getUsersByManager((int)$_SESSION['user_id']);
+        } else {
+        flash('access_denied', 'ليس لديك صلاحية لعرض المستخدمين', 'alert alert-danger');
+        redirect('index.php?page=dashboard');
+        exit;
         }
 
         $data = ['users' => $users];
@@ -64,16 +70,9 @@ class UsersController extends Controller {
             }
 
             // منطق الرتبة والمدير
-            if (isManager()) {
-                $data['role'] = 'user';
-                $data['manager_id'] = $_SESSION['user_id'];
-            } elseif (isSuperAdmin()) {
-                $data['role'] = $_POST['role'] ?? 'user';
-                $data['manager_id'] = null;
-            } else {
-                $data['role'] = 'user';
-                $data['manager_id'] = $_SESSION['user_id'];
-            }
+            // users.manage = superadmin (افتراضيًا)
+            $data['role'] = $_POST['role'] ?? 'user';
+            $data['manager_id'] = null;
 
             if (empty($data['email_err']) && empty($data['name_err']) && empty($data['password_err'])) {
                 $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
@@ -99,9 +98,18 @@ class UsersController extends Controller {
             ];
             $this->view('users/add', $data);
         }
+
+        $data['role'] = $_POST['role'] ?? 'user';
+
+// احتياط أمان: سوبر أدمن فقط يحدد أدوار عالية
+if (!isSuperAdmin() && $data['role'] !== 'user') {
+  $data['role'] = 'user';
+}
+
     }
 
     public function profile(){
+        requireLogin();
         $user = $this->userModel->getUserById($_SESSION['user_id']);
         $data = ['user' => $user];
         $this->view('users/profile', $data);
@@ -110,7 +118,6 @@ class UsersController extends Controller {
     // ✅ تعديل المستخدم (بدون إلزام باراميتر)
     public function edit($id = null){
         requirePermission('users.manage', 'index.php?page=dashboard');
-
         // اقرأ id من GET/POST لو ما جاء باراميتر
         if (empty($id)) {
             $id = $_GET['id'] ?? ($_POST['id'] ?? null);
@@ -122,6 +129,12 @@ class UsersController extends Controller {
         }
 
         $user = $this->userModel->getUserById($id);
+        if ($user && normalizeRole($user->role ?? 'user') === 'superadmin' && !isSuperAdmin()) {
+          flash('access_denied', 'لا يمكنك تعديل حساب سوبر أدمن', 'alert alert-danger');
+          redirect('index.php?page=users/index');
+          exit;
+        }
+
         if (!$user) {
             redirect('index.php?page=users/index');
         }
@@ -145,7 +158,14 @@ class UsersController extends Controller {
                 'name_err' => '',
                 'email_err' => '',
                 'password_err' => ''
+
+                
             ];
+
+            if ((int)$_SESSION['user_id'] === $id) {
+             $data['role'] = $user->role; // لا تغيّر دورك بنفسك
+            }
+
 
             if (empty($data['email'])) $data['email_err'] = 'البريد مطلوب';
             if (empty($data['name'])) $data['name_err'] = 'الاسم مطلوب';
@@ -217,6 +237,12 @@ if ($target && $target->role === 'super_admin' && !isSuperAdmin()) {
         if ($id === (int)$_SESSION['user_id']) {
             flash('user_message', 'لا يمكن حذف حسابك الحالي', 'alert alert-danger');
             redirect('index.php?page=users/index');
+        }
+          $u = $this->userModel->getUserById($id);
+         if ($u && normalizeRole($u->role ?? 'user') === 'superadmin' && !isSuperAdmin()) {
+                flash('user_message', 'لا يمكنك حذف حساب سوبر أدمن', 'alert alert-danger');
+                redirect('index.php?page=users/index');
+        exit;
         }
 
         if ($this->userModel->delete($id)) {
