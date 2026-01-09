@@ -166,7 +166,7 @@ class Ticket
         $this->db->bind(':description', $data['description'] ?? '');
         $this->db->bind(':contact_info', $data['contact_info'] ?? null);
 
-        $this->db->bind(':team', $data['team'] ?? 'field_it');
+        $this->db->bind(':team', $data['team'] ?? 'IT');
         $this->db->bind(':priority', $data['priority'] ?? 'Medium');
 
         $ok = $this->db->execute();

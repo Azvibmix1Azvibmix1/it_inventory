@@ -79,7 +79,7 @@
             <div class="col-md-4 mb-3">
               <label class="form-label">القسم / التصنيف</label>
               <select name="team" class="form-select">
-                <option value="field_it" selected>الدعم الميداني (IT)</option>
+                <option value="IT" selected>الدعم الميداني (IT)</option>
                 <option value="network">الشبكات</option>
                 <option value="security">الأمن السيبراني</option>
                 <option value="electricity">الكهرباء</option>

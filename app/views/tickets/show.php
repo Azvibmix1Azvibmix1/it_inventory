@@ -63,9 +63,16 @@ if ($status === 'Closed') $badgeClass = 'bg-dark';
             <div class="fw-bold"><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($ticket->created_at)), ENT_QUOTES, 'UTF-8'); ?></div>
           </div>
           <div class="col-md-4">
-            <div class="text-muted small">إغلاق (إن وجد)</div>
-            <div class="fw-bold"><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($ticket->created_at)), ENT_QUOTES, 'UTF-8'); ?></div>
-          </div>
+  <div class="text-muted small">إغلاق (إن وجد)</div>
+  <div class="fw-bold">
+    <?php echo !empty($ticket->closed_at)
+      ? htmlspecialchars(date('Y-m-d H:i', strtotime($ticket->closed_at)), ENT_QUOTES, 'UTF-8')
+      : '-';
+    ?>
+  </div>
+</div>
+
+          
         </div>
 
         <hr>
@@ -120,11 +127,17 @@ elseif ($st === 'Closed') $stClass = 'bg-dark';
               <li class="list-group-item">
                 <div class="d-flex justify-content-between">
                   <div>
-                    <span class="badge bg-secondary"><?php echo !empty($u->created_at)
-  ? htmlspecialchars(date('Y-m-d H:i', strtotime($u->created_at)), ENT_QUOTES, 'UTF-8')
-  : '-';
-?>
-</span>
+                    <?php
+                      $us = $u->status ?? '';
+                      $usClass = 'bg-secondary';
+                      if ($us === 'Open') $usClass = 'bg-success';
+                      elseif ($us === 'In Progress') $usClass = 'bg-warning text-dark';
+                      elseif ($us === 'Resolved') $usClass = 'bg-info text-dark';
+                      elseif ($us === 'Closed') $usClass = 'bg-dark';
+                    ?>
+                    <span class="badge <?php echo $usClass; ?>">
+                      <?php echo htmlspecialchars($us ?: '-', ENT_QUOTES, 'UTF-8'); ?>
+                    </span>
                     <?php if (!empty($u->user_name)): ?>
                       <span class="ms-2 text-muted small">بواسطة: <?php echo htmlspecialchars($u->user_name); ?></span>
                     <?php endif; ?>
@@ -132,7 +145,12 @@ elseif ($st === 'Closed') $stClass = 'bg-dark';
                       <div class="mt-2"><?php echo nl2br(htmlspecialchars($u->comment, ENT_QUOTES, 'UTF-8')); ?></div>
                     <?php endif; ?>
                   </div>
-                  <small class="text-muted"><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($ticket->created_at)), ENT_QUOTES, 'UTF-8'); ?></small>
+                <small class="text-muted">
+                 <?php echo !empty($u->created_at)              
+                 ? htmlspecialchars(date('Y-m-d H:i', strtotime($u->created_at)), ENT_QUOTES, 'UTF-8')         
+                : '';                     
+                 ?>                         
+                 </small>              
                 </div>
               </li>
             <?php endforeach; ?>
@@ -148,10 +166,11 @@ elseif ($st === 'Closed') $stClass = 'bg-dark';
         </div>
         <div class="card-body">
           <div class="row">
-            <?php foreach ($data['attachments'] as $a): ?>
+             <?php foreach ($data['attachments'] as $a): ?>
+             <div class="col-md-4 mb-3">
              <?php
-$path = (string)($a->file_path ?? '');
-$name = (string)($a->original_name ?? basename($path));
+             $path = (string)($a->file_path ?? '');
+             $name = (string)($a->original_name ?? basename($path));
 $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 $isImg = in_array($ext, ['jpg','jpeg','png','webp'], true);
 $url = URLROOT . '/' . $path;
@@ -160,10 +179,10 @@ $url = URLROOT . '/' . $path;
   <a target="_blank" href="<?php echo $url; ?>">
     <img src="<?php echo $url; ?>" class="img-fluid rounded border" alt="">
   </a>
-  <div class="small text-muted mt-1"><?php echo htmlspecialchars($name); ?></div>
+  <div class="small text-muted mt-1"><?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?></div>
 <?php else: ?>
   <div class="border rounded p-2">
-    <div class="fw-bold small"><?php echo htmlspecialchars($name); ?></div>
+    <div class="fw-bold small"><?php echo htmlspecialchars($name, ENT_QUOTES, 'UTF-8'); ?></div>
     <a target="_blank" class="btn btn-sm btn-outline-primary mt-2" href="<?php echo $url; ?>">فتح/تحميل</a>
   </div>
 <?php endif; ?>
@@ -258,7 +277,7 @@ $url = URLROOT . '/' . $path;
               <option value="network">الشبكات</option>
               <option value="security">الأمن السيبراني</option>
               <option value="electricity">الكهرباء</option>
-              <option value="field_it">الدعم الميداني (IT)</option>
+              <option value="IT">الدعم الميداني (IT)</option>
             </select>
           </div>
 
