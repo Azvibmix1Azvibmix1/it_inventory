@@ -3,13 +3,13 @@
 <?php
 $ticket = $data['ticket'];
 $status = $ticket->status ?? '';
+$assignedToName = (string)($ticket->assigned_to_name ?? 'غير مسند');
 $badgeClass = 'bg-secondary';
 if ($status === 'Open') $badgeClass = 'bg-success';
 if ($status === 'In Progress') $badgeClass = 'bg-warning text-dark';
 if ($status === 'Resolved') $badgeClass = 'bg-info text-dark';
 if ($status === 'Closed') $badgeClass = 'bg-dark';
 
-echo htmlspecialchars($ticket->assigned_to_name ?? 'غير مسند', ENT_QUOTES, 'UTF-8');
 ?>
 
 <div class="row mb-4 align-items-center">
@@ -49,7 +49,7 @@ echo htmlspecialchars($ticket->assigned_to_name ?? 'غير مسند', ENT_QUOTES
           </div>
           <div class="col-md-4">
             <div class="text-muted small">المسؤول</div>
-            <div class="fw-bold"><?php echo htmlspecialchars($assignedToName); ?></div>
+            <div class="fw-bold"><?php echo htmlspecialchars($assignedToName, ENT_QUOTES, 'UTF-8'); ?></div>
           </div>
         </div>
 
@@ -120,7 +120,11 @@ elseif ($st === 'Closed') $stClass = 'bg-dark';
               <li class="list-group-item">
                 <div class="d-flex justify-content-between">
                   <div>
-                    <span class="badge bg-secondary"><?php echo htmlspecialchars($u->status ?? '-', ENT_QUOTES, 'UTF-8'); ?></span>
+                    <span class="badge bg-secondary"><?php echo !empty($u->created_at)
+  ? htmlspecialchars(date('Y-m-d H:i', strtotime($u->created_at)), ENT_QUOTES, 'UTF-8')
+  : '-';
+?>
+</span>
                     <?php if (!empty($u->user_name)): ?>
                       <span class="ms-2 text-muted small">بواسطة: <?php echo htmlspecialchars($u->user_name); ?></span>
                     <?php endif; ?>
