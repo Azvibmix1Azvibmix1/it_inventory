@@ -79,17 +79,40 @@ class User
     }
 
     public function getUsers()
-    {
-        $this->db->query("SELECT id, name, email, role, manager_id FROM users ORDER BY id DESC");
-        return $this->db->resultSet();
-    }
+{
+    $this->db->query("
+        SELECT
+            id,
+            name,
+            email,
+            role,
+            manager_id,
+            created_at,
+            is_active
+        FROM users
+        ORDER BY id DESC
+    ");
+    return $this->db->resultSet();
+}
 
     public function getUsersByManager($manager_id)
-    {
-        $this->db->query("SELECT id, name, email, role, manager_id FROM users WHERE manager_id = :manager_id ORDER BY id DESC");
-        $this->db->bind(':manager_id', $manager_id);
-        return $this->db->resultSet();
-    }
+{
+    $this->db->query("
+        SELECT
+            id,
+            name,
+            email,
+            role,
+            manager_id,
+            created_at,
+            is_active
+        FROM users
+        WHERE manager_id = :manager_id
+        ORDER BY id DESC
+    ");
+    $this->db->bind(':manager_id', (int)$manager_id);
+    return $this->db->resultSet();
+}
 
     public function update($data)
     {
@@ -129,4 +152,20 @@ class User
         $result = $this->db->single();
         return $result->total ?? 0;
     }
+
+    public function setActive($id, $active) {
+        $this->db->query("UPDATE users SET is_active = :active WHERE id = :id");
+        $this->db->bind(':active', (int)$active);
+        $this->db->bind(':id', (int)$id);
+        return $this->db->execute();
+}
+
+public function setActive($id, $active) {
+  $this->db->query("UPDATE users SET is_active = :active WHERE id = :id");
+  $this->db->bind(':active', (int)$active);
+  $this->db->bind(':id', (int)$id);
+  return $this->db->execute();
+}
+
+
 }

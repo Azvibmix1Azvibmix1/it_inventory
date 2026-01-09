@@ -9,8 +9,9 @@ $role      = function_exists('normalizeRole') ? normalizeRole($role) : (string)$
 $canManage = ($role === 'superadmin'); // users.manage (حسب خريطتك)
 
 // فلاتر GET
-$q          = trim($_GET['q'] ?? '');
-$roleFilter = trim($_GET['role'] ?? '');
+$q           = trim($_GET['q'] ?? '');
+$roleFilter  = trim($_GET['role'] ?? '');
+$statusFilter = trim($_GET['status'] ?? ''); // 1 نشط, 0 معطل
 
 // Helpers للبحث (مع/بدون mbstring)
 $toLower = function ($s) {
@@ -22,12 +23,17 @@ $pos = function ($hay, $needle) {
 
 // فلترة محلية (لين نربطها بالكنترولر/الموديل لاحقًا)
 $users = $allUsers;
-if ($q !== '' || $roleFilter !== '') {
-  $users = array_values(array_filter($users, function ($u) use ($q, $roleFilter, $toLower, $pos) {
+if ($q !== '' || $roleFilter !== '' || $statusFilter !== '') {
+  $users = array_values(array_filter($users, function ($u) use ($q, $roleFilter, $statusFilter, $toLower, $pos) {
 
     $uRole = function_exists('normalizeRole') ? normalizeRole($u->role ?? 'user') : ($u->role ?? 'user');
+    $active = isset($u->is_active) ? (int)$u->is_active : 1;
 
     if ($roleFilter !== '' && $uRole !== $roleFilter) return false;
+
+    if ($statusFilter !== '') {
+      if ((string)$active !== (string)$statusFilter) return false;
+    }
 
     if ($q !== '') {
       $hay = $toLower(($u->name ?? '') . ' ' . ($u->username ?? '') . ' ' . ($u->email ?? ''));
@@ -42,6 +48,7 @@ if ($q !== '' || $roleFilter !== '') {
 // إحصائيات سريعة
 $total = count($users);
 $superCount = 0; $adminCount = 0; $managerCount = 0; $userCount = 0;
+$activeCount = 0; $inactiveCount = 0;
 
 foreach ($users as $u) {
   $r = function_exists('normalizeRole') ? normalizeRole($u->role ?? 'user') : ($u->role ?? 'user');
@@ -49,6 +56,9 @@ foreach ($users as $u) {
   elseif ($r === 'admin') $adminCount++;
   elseif ($r === 'manager') $managerCount++;
   else $userCount++;
+
+  $a = isset($u->is_active) ? (int)$u->is_active : 1;
+  if ($a === 1) $activeCount++; else $inactiveCount++;
 }
 ?>
 
@@ -78,7 +88,7 @@ foreach ($users as $u) {
       <form method="GET" action="<?php echo URLROOT; ?>/index.php" class="row g-2 align-items-center">
         <input type="hidden" name="page" value="users/index">
 
-        <div class="col-md-6">
+        <div class="col-md-5">
           <div class="input-group">
             <span class="input-group-text"><i class="fa fa-search"></i></span>
             <input type="text" name="q" class="form-control" placeholder="ابحث بالاسم أو البريد..." value="<?php echo htmlspecialchars($q); ?>">
@@ -95,7 +105,15 @@ foreach ($users as $u) {
           </select>
         </div>
 
-        <div class="col-md-3 d-flex gap-2">
+        <div class="col-md-2">
+          <select name="status" class="form-select">
+            <option value="">كل الحالات</option>
+            <option value="1" <?php echo ($statusFilter === '1' ? 'selected' : ''); ?>>نشط</option>
+            <option value="0" <?php echo ($statusFilter === '0' ? 'selected' : ''); ?>>مُعطّل</option>
+          </select>
+        </div>
+
+        <div class="col-md-2 d-flex gap-2">
           <button class="btn btn-outline-primary w-100" type="submit">
             <i class="fa fa-filter"></i> تطبيق
           </button>
@@ -107,6 +125,8 @@ foreach ($users as $u) {
 
       <div class="d-flex flex-wrap gap-2 mt-3">
         <span class="badge bg-dark">الإجمالي: <?php echo (int)$total; ?></span>
+        <span class="badge bg-success">نشط: <?php echo (int)$activeCount; ?></span>
+        <span class="badge bg-secondary">مُعطّل: <?php echo (int)$inactiveCount; ?></span>
         <span class="badge bg-secondary">سوبر أدمن: <?php echo (int)$superCount; ?></span>
         <span class="badge bg-primary">أدمن: <?php echo (int)$adminCount; ?></span>
         <span class="badge bg-danger">مدير: <?php echo (int)$managerCount; ?></span>
@@ -126,7 +146,8 @@ foreach ($users as $u) {
               <th>البريد الإلكتروني</th>
               <th>الدور (الصلاحية)</th>
               <th>تاريخ التسجيل</th>
-              <th class="text-center" style="width: 140px;">إجراءات</th>
+              <th>الحالة</th>
+              <th class="text-center" style="width: 160px;">إجراءات</th>
             </tr>
           </thead>
 
@@ -151,6 +172,8 @@ foreach ($users as $u) {
 
                 $createdAt = !empty($user->created_at) ? date('Y-m-d', strtotime($user->created_at)) : '-';
                 $uid = (int)($user->id ?? 0);
+
+                $active = isset($user->is_active) ? (int)$user->is_active : 1;
               ?>
               <tr>
                 <td><?php echo htmlspecialchars($displayName); ?></td>
@@ -158,8 +181,17 @@ foreach ($users as $u) {
                 <td><?php echo $roleBadge; ?></td>
                 <td><span dir="ltr"><?php echo htmlspecialchars($createdAt); ?></span></td>
 
+                <td>
+                  <?php if ($active === 1): ?>
+                    <span class="badge bg-success">نشط</span>
+                  <?php else: ?>
+                    <span class="badge bg-secondary">مُعطّل</span>
+                  <?php endif; ?>
+                </td>
+
                 <td class="text-center">
                   <?php if ($canManage): ?>
+
                     <a href="<?php echo URLROOT; ?>/index.php?page=users/edit&id=<?php echo $uid; ?>"
                        class="btn btn-sm btn-outline-primary" title="تعديل">
                       <i class="fa fa-edit"></i>
@@ -169,14 +201,16 @@ foreach ($users as $u) {
                       <form action="<?php echo URLROOT; ?>/index.php?page=users/delete"
                             method="POST"
                             class="d-inline"
-                            onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
+                            onsubmit="return confirm('<?php echo $active ? 'تعطيل هذا المستخدم؟' : 'تفعيل هذا المستخدم؟'; ?>');">
                         <input type="hidden" name="id" value="<?php echo $uid; ?>">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
-                          <i class="fa fa-trash"></i>
+                        <button type="submit"
+                                class="btn btn-sm <?php echo $active ? 'btn-outline-danger' : 'btn-outline-success'; ?>"
+                                title="<?php echo $active ? 'تعطيل' : 'تفعيل'; ?>">
+                          <i class="fa <?php echo $active ? 'fa-user-times' : 'fa-user-check'; ?>"></i>
                         </button>
                       </form>
                     <?php else: ?>
-                      <button class="btn btn-sm btn-outline-secondary" disabled title="لا يمكنك حذف حسابك">
+                      <button class="btn btn-sm btn-outline-secondary" disabled title="لا يمكنك تعطيل حسابك">
                         <i class="fa fa-ban"></i>
                       </button>
                     <?php endif; ?>
@@ -190,7 +224,7 @@ foreach ($users as $u) {
 
           <?php else: ?>
             <tr>
-              <td colspan="5" class="text-center text-muted py-4">
+              <td colspan="6" class="text-center text-muted py-4">
                 لا يوجد مستخدمين مسجلين.
               </td>
             </tr>

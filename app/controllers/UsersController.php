@@ -50,7 +50,7 @@ class UsersController extends Controller {
         requirePermission('users.manage', 'index.php?page=dashboard');
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+            
 
             $data = [
                 'name' => trim($_POST['name'] ?? ''),
@@ -247,45 +247,52 @@ if (!isSuperAdmin() && $data['role'] !== 'user') {
 
 
     // ✅ حذف المستخدم (بدون إلزام باراميتر)
-    public function delete($id = null){
-        requirePermission('users.manage', 'index.php?page=dashboard');
+   public function delete($id = null)
+{
+    requirePermission('users.manage', 'index.php?page=dashboard');
 
-        if (empty($id)) {
-            $id = $_POST['id'] ?? ($_GET['id'] ?? null);
-        }
-        $id = (int)$id;
+    // اقرأ id من GET/POST لو ما جاء باراميتر
+    if (empty($id)) {
+        $id = $_GET['id'] ?? ($_POST['id'] ?? null);
+    }
+    $id = (int)$id;
 
-        if (!$id) {
-            redirect('index.php?page=users/index');
-        }
-
-        // لا تحذف نفسك
-        if ($id === (int)$_SESSION['user_id']) {
-            flash('user_message', 'لا يمكن حذف حسابك الحالي', 'alert alert-danger');
-            redirect('index.php?page=users/index');
-        }
-          $u = $this->userModel->getUserById($id);
-         if ($u && normalizeRole($u->role ?? 'user') === 'superadmin' && !isSuperAdmin()) {
-                flash('user_message', 'لا يمكنك حذف حساب سوبر أدمن', 'alert alert-danger');
-                redirect('index.php?page=users/index');
+    if (!$id) {
+        redirect('index.php?page=users/index');
         exit;
-        }
+    }
 
-        if ($this->userModel->delete($id)) {
-            flash('user_message', 'تم حذف المستخدم بنجاح');
-            redirect('index.php?page=users/index');
-        } else {
-            die('حدث خطأ أثناء الحذف');
-        }
+    // منع تعطيل نفسك
+    if ($id === (int)($_SESSION['user_id'] ?? 0)) {
+        flash('user_message', 'لا يمكنك تعطيل حسابك', 'alert alert-warning');
+        redirect('index.php?page=users/index');
+        exit;
+    }
 
-        if ((int)$id === currentUserId()) {
-  flash('msg', 'لا يمكنك حذف حسابك', 'alert alert-warning');
-  redirect('users/index');
-  exit;
+    $u = $this->userModel->getUserById($id);
+    if (!$u) {
+        redirect('index.php?page=users/index');
+        exit;
+    }
+
+    // منع تعطيل السوبر أدمن إلا بسوبر أدمن (أنت أصلاً سوبر هنا، بس احتياط)
+    if (normalizeRole($u->role ?? 'user') === 'superadmin' && !isSuperAdmin()) {
+        flash('user_message', 'لا يمكنك تعطيل حساب سوبر أدمن', 'alert alert-danger');
+        redirect('index.php?page=users/index');
+        exit;
+    }
+
+    // Toggle
+    $current = isset($u->is_active) ? (int)$u->is_active : 1;
+    $newVal  = ($current === 1) ? 0 : 1;
+
+    if ($this->userModel->setActive($id, $newVal)) {
+        flash('user_message', $newVal ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم');
+        redirect('index.php?page=users/index');
+        exit;
+    }
+
+    die('حدث خطأ ما');
 }
 
-          requirePermission('users.manage', 'index.php?page=dashboard');
-
-
-    }
 }
