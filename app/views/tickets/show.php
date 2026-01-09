@@ -9,7 +9,7 @@ if ($status === 'In Progress') $badgeClass = 'bg-warning text-dark';
 if ($status === 'Resolved') $badgeClass = 'bg-info text-dark';
 if ($status === 'Closed') $badgeClass = 'bg-dark';
 
-$assignedToName = $ticket->assigned_to_name ?? 'غير مسند';
+echo htmlspecialchars($ticket->assigned_to_name ?? 'غير مسند', ENT_QUOTES, 'UTF-8');
 ?>
 
 <div class="row mb-4 align-items-center">
@@ -60,11 +60,11 @@ $assignedToName = $ticket->assigned_to_name ?? 'غير مسند';
           </div>
           <div class="col-md-4">
             <div class="text-muted small">تاريخ الإنشاء</div>
-            <div class="fw-bold"><?php echo htmlspecialchars($ticket->created_at ?? '-'); ?></div>
+            <div class="fw-bold"><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($ticket->created_at)), ENT_QUOTES, 'UTF-8'); ?></div>
           </div>
           <div class="col-md-4">
             <div class="text-muted small">إغلاق (إن وجد)</div>
-            <div class="fw-bold"><?php echo htmlspecialchars($ticket->closed_at ?? '-'); ?></div>
+            <div class="fw-bold"><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($ticket->created_at)), ENT_QUOTES, 'UTF-8'); ?></div>
           </div>
         </div>
 
@@ -74,6 +74,17 @@ $assignedToName = $ticket->assigned_to_name ?? 'غير مسند';
           <label class="text-muted">العنوان:</label>
           <div class="fw-bold fs-5"><?php echo htmlspecialchars($ticket->subject ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
         </div>
+
+        <?php
+$st = $ticket->status ?? '';
+$stClass = 'bg-secondary';
+if ($st === 'Open') $stClass = 'bg-success';
+elseif ($st === 'In Progress') $stClass = 'bg-warning text-dark';
+elseif ($st === 'Resolved') $stClass = 'bg-info text-dark';
+elseif ($st === 'Closed') $stClass = 'bg-dark';
+?>
+<span class="badge <?php echo $stClass; ?> px-3 py-2"><?php echo htmlspecialchars($st ?: '-', ENT_QUOTES, 'UTF-8'); ?></span>
+
 
         <div class="mb-3">
           <label class="text-muted">الوصف:</label>
@@ -117,7 +128,7 @@ $assignedToName = $ticket->assigned_to_name ?? 'غير مسند';
                       <div class="mt-2"><?php echo nl2br(htmlspecialchars($u->comment, ENT_QUOTES, 'UTF-8')); ?></div>
                     <?php endif; ?>
                   </div>
-                  <small class="text-muted"><?php echo htmlspecialchars($u->created_at ?? '', ENT_QUOTES, 'UTF-8'); ?></small>
+                  <small class="text-muted"><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($ticket->created_at)), ENT_QUOTES, 'UTF-8'); ?></small>
                 </div>
               </li>
             <?php endforeach; ?>

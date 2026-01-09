@@ -265,6 +265,9 @@ class Ticket
         return $teams;
     }
 
+
+
+
     // ---------------- Filters + Pagination ----------------
 
     public function countSearchAll(array $filters = []): int
@@ -341,22 +344,7 @@ class Ticket
         return $this->db->resultSet();
     }
 
-    public function searchByUserIdPaged(int $userId, array $filters = [], int $limit = 15, int $offset = 0)
-    {
-        $binds = [':uid' => $userId];
-        $sql = $this->baseSelectSql() . "
-            WHERE t.created_by = :uid
-               OR t.requested_for_user_id = :uid
-               OR t.assigned_to = :uid
-        ";
-        $sql = $this->applyFiltersToSql($sql, $filters, $binds);
-        $sql .= " ORDER BY t.created_at DESC";
-        $sql = $this->applyLimitOffset($sql, $limit, $offset, $binds);
-
-        $this->db->query($sql);
-        foreach ($binds as $k => $v) $this->db->bind($k, $v);
-        return $this->db->resultSet();
-    }
+   
 
     // ---------------- Timeline (Updates) ----------------
 
@@ -455,5 +443,8 @@ public function addAttachment(array $data): bool
         return false;
     }
 }
+
+
+
 
 }

@@ -149,6 +149,9 @@ class TicketsController extends Controller {
             }
         }
     }
+    $pages = (int)ceil(max(1, $total) / $perPage);
+if ($page > $pages) $page = $pages;
+
 
     $pages = (int)ceil($total / $perPage);
     if ($pages < 1) $pages = 1;
