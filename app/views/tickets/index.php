@@ -97,6 +97,20 @@ function buildTicketsUrl(array $overrides = []): string {
   <div class="table-responsive">
     <table class="table table-hover table-striped bg-white align-middle">
       <thead class="table-dark">
+
+
+      <td style="white-space:nowrap;">
+  <span class="badge bg-light text-dark border">
+    💬 <?php echo (int)($ticket->updates_count ?? 0); ?>
+  </span>
+</td>
+
+<td style="white-space:nowrap;">
+  <span class="badge bg-light text-dark border">
+    📎 <?php echo (int)($ticket->attachments_count ?? 0); ?>
+  </span>
+</td>
+
         <tr>
           <th style="white-space:nowrap;">رقم</th>
           <th>الموضوع</th>
@@ -110,11 +124,26 @@ function buildTicketsUrl(array $overrides = []): string {
   </div>
 <?php endif; ?>
 
-          <th style="white-space:nowrap;">صاحب الطلب</th>
-          <th style="white-space:nowrap;">المطلوبة لـ</th>
-          <th style="white-space:nowrap;">المسؤول</th>
-          <th style="white-space:nowrap;">الأصل</th>
-          <th style="white-space:nowrap;">القسم</th>
+  <tr>
+    <th style="white-space:nowrap;">رقم</th>
+    <th>الموضوع</th>
+    <th style="white-space:nowrap;">صاحب الطلب</th>
+    <th style="white-space:nowrap;">المطلوبة لـ</th>
+    <th style="white-space:nowrap;">المسؤول</th>
+    <th style="white-space:nowrap;">الأصل</th>
+    <th style="white-space:nowrap;">القسم</th>
+    <th style="white-space:nowrap;">الحالة</th>
+    <th style="white-space:nowrap;">الأولوية</th>
+
+    <!-- جديد -->
+    <th style="white-space:nowrap;">تحديثات</th>
+    <th style="white-space:nowrap;">مرفقات</th>
+
+    <th style="white-space:nowrap;">آخر تحديث</th>
+    <th style="white-space:nowrap;">إجراءات</th>
+  </tr>
+
+
           <?php
 $st = $ticket->status ?? '';
 $stClass = 'bg-secondary';

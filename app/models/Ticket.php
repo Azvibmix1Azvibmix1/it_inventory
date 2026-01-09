@@ -14,24 +14,30 @@ class Ticket
      * يرجع: اسم المنشئ، اسم المطلوب له، اسم المسؤول، ومعلومات الأصل
      */
     private function baseSelectSql(): string
-    {
-        return "
-            SELECT
-                t.*,
-                u.name  AS user_name,
-                u.email AS user_email,
-                rf.name AS requested_for_name,
-                au.name AS assigned_to_name,
-                a.asset_tag,
-                a.brand,
-                a.model
-            FROM tickets t
-            JOIN users u ON t.created_by = u.id
-            LEFT JOIN users rf ON t.requested_for_user_id = rf.id
-            LEFT JOIN users au ON t.assigned_to = au.id
-            LEFT JOIN assets a ON t.asset_id = a.id
-        ";
-    }
+{
+  return "
+    SELECT
+      t.*,
+      u.name AS user_name,
+      u.email AS user_email,
+      rf.name AS requested_for_name,
+      au.name AS assigned_to_name,
+      a.asset_tag,
+      a.brand,
+      a.model,
+
+      /* عدّادات السجل/المرفقات */
+      (SELECT COUNT(*) FROM ticket_updates tu WHERE tu.ticket_id = t.id) AS updates_count,
+      (SELECT COUNT(*) FROM ticket_attachments ta WHERE ta.ticket_id = t.id) AS attachments_count
+
+    FROM tickets t
+    JOIN users u ON t.created_by = u.id
+    LEFT JOIN users rf ON t.requested_for_user_id = rf.id
+    LEFT JOIN users au ON t.assigned_to = au.id
+    LEFT JOIN assets a ON t.asset_id = a.id
+  ";
+}
+
 
     private function baseFromSql(): string
     {
