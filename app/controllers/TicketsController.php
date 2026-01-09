@@ -246,6 +246,8 @@ if ($page > $pages) $page = $pages;
             if ($data['subject_err'] === '' && $data['description_err'] === '' && $data['contact_err'] === '') {
                 if ($this->ticketModel->add($data)) {
                     flash('ticket_msg', 'تم فتح التذكرة بنجاح');
+                    if (method_exists($this->ticketModel, 'addUpdate') && method_exists($this->db ?? null, 'lastInsertId')) {
+                    }
                     redirect('index.php?page=tickets/index');
                     exit;
                 }
@@ -356,14 +358,43 @@ if ($page > $pages) $page = $pages;
         }
 
         // سجل تحديثات (إذا عندك جدول updates مستقبلاً)
-        if (method_exists($this->ticketModel, 'addUpdate')) {
-            $this->ticketModel->addUpdate([
-                'ticket_id' => $ticketId,
-                'user_id'   => (int)$_SESSION['user_id'],
-                'status'    => $status,
-                'comment'   => $comment
-            ]);
-        }
+        // سجل تحديثات
+            if (method_exists($this->ticketModel, 'addUpdate')) {
+            $oldStatus = $ticket->status ?? null;
+         $oldAssignee = $ticket->assigned_to ?? null;
+
+            $newAssignee = $oldAssignee;
+           if (!empty($_POST['assigned_to']) && ((function_exists('isSuperAdmin') && isSuperAdmin()) || (function_exists('isManager') && isManager()))) {
+           $newAssignee = (int)$_POST['assigned_to'];
+           }
+
+          $this->ticketModel->addUpdate([
+            'ticket_id' => $ticketId,
+            'user_id' => (int)$_SESSION['user_id'],
+            'old_status' => $oldStatus,
+            'new_status' => $status,
+            'comment' => $comment,
+            'old_assignee_id' => $oldAssignee,
+            'new_assignee_id' => $newAssignee,
+  ]);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         if ($this->ticketModel->updateStatus($ticketId, $status)) {
             flash('ticket_msg', 'تم تحديث حالة التذكرة');

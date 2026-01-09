@@ -116,48 +116,55 @@ elseif ($st === 'Closed') $stClass = 'bg-dark';
       </div>
     </div>
 
-    <?php if (!empty($data['updates'])): ?>
-      <div class="card shadow-sm mb-3">
-        <div class="card-header">
-          <strong><i class="fa fa-history"></i> سجل التحديثات</strong>
-        </div>
-        <div class="card-body">
-          <ul class="list-group">
-            <?php foreach ($data['updates'] as $u): ?>
-              <li class="list-group-item">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    <?php
-                      $us = $u->status ?? '';
-                      $usClass = 'bg-secondary';
-                      if ($us === 'Open') $usClass = 'bg-success';
-                      elseif ($us === 'In Progress') $usClass = 'bg-warning text-dark';
-                      elseif ($us === 'Resolved') $usClass = 'bg-info text-dark';
-                      elseif ($us === 'Closed') $usClass = 'bg-dark';
-                    ?>
-                    <span class="badge <?php echo $usClass; ?>">
-                      <?php echo htmlspecialchars($us ?: '-', ENT_QUOTES, 'UTF-8'); ?>
-                    </span>
-                    <?php if (!empty($u->user_name)): ?>
-                      <span class="ms-2 text-muted small">بواسطة: <?php echo htmlspecialchars($u->user_name); ?></span>
-                    <?php endif; ?>
-                    <?php if (!empty($u->comment)): ?>
-                      <div class="mt-2"><?php echo nl2br(htmlspecialchars($u->comment, ENT_QUOTES, 'UTF-8')); ?></div>
-                    <?php endif; ?>
-                  </div>
-                <small class="text-muted">
-                 <?php echo !empty($u->created_at)              
-                 ? htmlspecialchars(date('Y-m-d H:i', strtotime($u->created_at)), ENT_QUOTES, 'UTF-8')         
-                : '';                     
-                 ?>                         
-                 </small>              
+
+      <div class="card-body">
+  <?php if (empty($data['updates'])): ?>
+    <div class="text-muted">لا يوجد تحديثات حتى الآن.</div>
+  <?php else: ?>
+    <ul class="list-group">
+      <?php foreach ($data['updates'] as $u): ?>
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <div>
+              <?php
+                $us = $u->status ?? '';
+                $usClass = 'bg-secondary';
+                if ($us === 'Open') $usClass = 'bg-success';
+                elseif ($us === 'In Progress') $usClass = 'bg-warning text-dark';
+                elseif ($us === 'Resolved') $usClass = 'bg-info text-dark';
+                elseif ($us === 'Closed') $usClass = 'bg-dark';
+              ?>
+              <span class="badge <?php echo $usClass; ?>">
+                <?php echo htmlspecialchars($us ?: '-', ENT_QUOTES, 'UTF-8'); ?>
+              </span>
+
+              <?php if (!empty($u->user_name)): ?>
+                <span class="ms-2 text-muted small">
+                  بواسطة: <?php echo htmlspecialchars($u->user_name, ENT_QUOTES, 'UTF-8'); ?>
+                </span>
+              <?php endif; ?>
+
+              <?php if (!empty($u->comment)): ?>
+                <div class="mt-2">
+                  <?php echo nl2br(htmlspecialchars($u->comment, ENT_QUOTES, 'UTF-8')); ?>
                 </div>
-              </li>
-            <?php endforeach; ?>
-          </ul>
-        </div>
-      </div>
-    <?php endif; ?>
+              <?php endif; ?>
+            </div>
+
+            <small class="text-muted" dir="ltr">
+              <?php echo !empty($u->created_at)
+                ? htmlspecialchars(date('Y-m-d H:i', strtotime($u->created_at)), ENT_QUOTES, 'UTF-8')
+                : '';
+              ?>
+            </small>
+          </div>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  <?php endif; ?>
+</div>
+
+
 
     <?php if (!empty($data['attachments'])): ?>
       <div class="card shadow-sm mb-3">

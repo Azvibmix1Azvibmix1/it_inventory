@@ -349,48 +349,76 @@ class Ticket
     // ---------------- Timeline (Updates) ----------------
 
     public function getUpdatesByTicketId(int $ticketId): array
-    {
-        try {
-            $this->db->query("
-                SELECT tu.*, u.name AS user_name
-                FROM ticket_updates tu
-                LEFT JOIN users u ON tu.user_id = u.id
-                WHERE tu.ticket_id = :tid
-                ORDER BY tu.created_at DESC
-            ");
-            $this->db->bind(':tid', $ticketId);
-            return $this->db->resultSet();
-        } catch (Throwable $e) {
-            return [];
-        }
+{
+    try {
+        $this->db->query("
+            SELECT
+              tu.*,
+              u.name AS user_name,
+              tu.new_status AS status
+            FROM ticket_updates tu
+            LEFT JOIN users u ON tu.user_id = u.id
+            WHERE tu.ticket_id = :tid
+            ORDER BY tu.created_at DESC
+        ");
+        $this->db->bind(':tid', $ticketId);
+        return $this->db->resultSet();
+    } catch (Throwable $e) {
+        return [];
     }
+}
+
 
     public function addUpdate(array $data): bool
-    {
-        try {
-            $this->db->query("
-                INSERT INTO ticket_updates (ticket_id, user_id, status, comment)
-                VALUES (:ticket_id, :user_id, :status, :comment)
-            ");
-            $this->db->bind(':ticket_id', (int)($data['ticket_id'] ?? 0));
-            $this->db->bind(':user_id', (int)($data['user_id'] ?? 0));
-            $this->db->bind(':status', (string)($data['status'] ?? ''));
-            $this->db->bind(':comment', ($data['comment'] ?? ''));
+{
+    try {
+        $ticketId = (int)($data['ticket_id'] ?? 0);
+        $userId   = (int)($data['user_id'] ?? 0);
 
-            $ok = $this->db->execute();
+        $oldStatus = $data['old_status'] ?? null;
+        $newStatus = $data['new_status'] ?? ($data['status'] ?? null);
 
-            // تحديث updated_at للتذكرة (إن كان موجود)
-            if ($ok) {
-                $this->db->query("UPDATE tickets SET updated_at = NOW() WHERE id = :id");
-                $this->db->bind(':id', (int)($data['ticket_id'] ?? 0));
-                $this->db->execute();
-            }
+        $oldAssignee = isset($data['old_assignee_id']) ? (int)$data['old_assignee_id'] : null;
+        $newAssignee = isset($data['new_assignee_id']) ? (int)$data['new_assignee_id'] : null;
 
-            return (bool)$ok;
-        } catch (Throwable $e) {
-            return false;
+        $comment = (string)($data['comment'] ?? '');
+
+        // تحديد نوع الحركة
+        $action = 'update';
+        if ($oldStatus !== null && $newStatus !== null && $oldStatus !== $newStatus) $action = 'status_change';
+        if ($oldAssignee !== null && $newAssignee !== null && $oldAssignee !== $newAssignee) $action = 'assign_change';
+        if ($comment !== '') $action = ($action === 'update') ? 'comment' : ($action . '+comment');
+
+        $this->db->query("
+            INSERT INTO ticket_updates
+              (ticket_id, user_id, action, comment, old_status, new_status, old_assignee_id, new_assignee_id)
+            VALUES
+              (:ticket_id, :user_id, :action, :comment, :old_status, :new_status, :old_assignee_id, :new_assignee_id)
+        ");
+
+        $this->db->bind(':ticket_id', $ticketId);
+        $this->db->bind(':user_id', $userId);
+        $this->db->bind(':action', $action);
+        $this->db->bind(':comment', $comment !== '' ? $comment : null);
+        $this->db->bind(':old_status', $oldStatus);
+        $this->db->bind(':new_status', $newStatus);
+        $this->db->bind(':old_assignee_id', $oldAssignee);
+        $this->db->bind(':new_assignee_id', $newAssignee);
+
+        $ok = $this->db->execute();
+
+        if ($ok) {
+            $this->db->query("UPDATE tickets SET updated_at = NOW() WHERE id = :id");
+            $this->db->bind(':id', $ticketId);
+            $this->db->execute();
         }
+
+        return (bool)$ok;
+    } catch (Throwable $e) {
+        return false;
     }
+}
+
 
     // ---------------- Attachments ----------------
 
