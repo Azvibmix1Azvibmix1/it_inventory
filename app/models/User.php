@@ -40,13 +40,28 @@ class User
         return false;
     }
 
-    public function findUserByEmail($email)
-    {
+    public function findUserByEmail($email){
         $this->db->query('SELECT id FROM users WHERE email = :email LIMIT 1');
         $this->db->bind(':email', $email);
         $this->db->single();
         return $this->db->rowCount() > 0;
     }
+
+    public function getUserByEmail($email) {
+        $this->db->query('SELECT * FROM users WHERE email = :email LIMIT 1');
+        $this->db->bind(':email', $email);
+        return $this->db->single();
+    }
+
+    public function emailExistsForOtherUser($email, $excludeId) {
+  $this->db->query('SELECT id FROM users WHERE email = :email AND id <> :id LIMIT 1');
+  $this->db->bind(':email', $email);
+  $this->db->bind(':id', (int)$excludeId);
+  $this->db->single();
+  return $this->db->rowCount() > 0;
+}
+
+
 
     public function getUserById($id)
     {
@@ -65,13 +80,13 @@ class User
 
     public function getUsers()
     {
-        $this->db->query("SELECT * FROM users ORDER BY id DESC");
+        $this->db->query("SELECT id, name, email, role, manager_id FROM users ORDER BY id DESC");
         return $this->db->resultSet();
     }
 
     public function getUsersByManager($manager_id)
     {
-        $this->db->query("SELECT * FROM users WHERE manager_id = :manager_id ORDER BY id DESC");
+        $this->db->query("SELECT id, name, email, role, manager_id FROM users WHERE manager_id = :manager_id ORDER BY id DESC");
         $this->db->bind(':manager_id', $manager_id);
         return $this->db->resultSet();
     }

@@ -122,6 +122,9 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
     }
     return;
   }
+function requireManageUsers($redirectTo = 'index.php?page=dashboard') {
+  requirePermission('users.manage', $redirectTo);
+}
 
   // 2) Permission key
   $permission = (string)$permissionOrRoles;
