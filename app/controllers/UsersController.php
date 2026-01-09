@@ -2,12 +2,21 @@
 class UsersController extends Controller {
     private $userModel;
 
-    public function __construct(){
-        if(!isLoggedIn()){
-            redirect('index.php?page=login');
-        }
-        $this->userModel = $this->model('User');
-    }
+    public function __construct() {
+  $this->userModel = $this->model('User');
+
+  // حماية عامة: إذا رايح لأي شيء إداري
+  $page = strtolower(trim($_GET['page'] ?? ''));
+
+  // عدّل أسماء الأكشنز حسب اللي عندك
+  if (strpos($page, 'users/index') === 0
+   || strpos($page, 'users/register') === 0
+   || strpos($page, 'users/edit') === 0
+   || strpos($page, 'users/delete') === 0) {
+    requireManageUsers();
+  }
+}
+
 
     // عرض المستخدمين
     public function index(){
@@ -24,6 +33,8 @@ class UsersController extends Controller {
 
         $data = ['users' => $users];
         $this->view('users/index', $data);
+          requireManageUsers();
+
     }
 
     // إضافة مستخدم
@@ -176,6 +187,17 @@ class UsersController extends Controller {
             ];
             $this->view('users/edit', $data);
         }
+
+        $target = $this->userModel->getUserById((int)$id);
+
+if ($target && $target->role === 'super_admin' && !isSuperAdmin()) {
+  flash('msg', 'لا يمكنك تعديل حساب سوبر أدمن', 'alert alert-danger');
+  redirect('users/index');
+  exit;
+}
+
+          requireManageUsers();
+
     }
 
     // ✅ حذف المستخدم (بدون إلزام باراميتر)
@@ -203,5 +225,14 @@ class UsersController extends Controller {
         } else {
             die('حدث خطأ أثناء الحذف');
         }
+
+        if ((int)$id === currentUserId()) {
+  flash('msg', 'لا يمكنك حذف حسابك', 'alert alert-warning');
+  redirect('users/index');
+  exit;
+}
+
+          requireManageUsers();
+
     }
 }

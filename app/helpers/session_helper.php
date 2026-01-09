@@ -269,4 +269,52 @@ function requireLocationsAccess($redirectTo = 'index.php?page=dashboard/index')
     flash('access_denied', 'ليس لديك صلاحية لعرض صفحة المواقع', 'alert alert-danger');
     redirect($redirectTo);
   }
+
+
+function isLoggedIn(): bool {
+  return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+}
+
+function currentUserId(): ?int {
+  return isLoggedIn() ? (int)$_SESSION['user_id'] : null;
+}
+
+function currentUserRole(): string {
+  return (string)($_SESSION['user_role'] ?? '');
+}
+
+function isSuperAdmin(): bool {
+  return currentUserRole() === 'super_admin';
+}
+
+function isAdminOrManager(): bool {
+  $r = currentUserRole();
+  return in_array($r, ['admin','manager','super_admin'], true);
+}
+
+function requireLogin(): void {
+  if (!isLoggedIn()) {
+    redirect('users/login');
+    exit;
+  }
+}
+
+function requireRole(array $roles): void {
+  requireLogin();
+  $role = currentUserRole();
+  if (!in_array($role, $roles, true)) {
+    flash('msg', 'غير مصرح لك بالوصول لهذه الصفحة', 'alert alert-danger');
+    redirect('dashboard/index');
+    exit;
+  }
+}
+
+/**
+ * للحماية الخاصة بإدارة المستخدمين
+ */
+function requireManageUsers(): void {
+  // كبداية: فقط سوبر أدمن
+  requireRole(['super_admin']);
+}
+
 }
