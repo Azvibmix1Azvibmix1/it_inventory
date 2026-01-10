@@ -155,6 +155,12 @@ function navActive(string $prefix): string {
           <a class="nav-link<?= navActive('dashboard') ?>" href="index.php?page=dashboard/index">الرئيسية</a>
         </li>
 
+        <?php if ($canLocations): ?>
+          <li class="nav-item">
+            <a class="nav-link<?= navActive('locations') ?>" href="index.php?page=locations/index">المواقع</a>
+          </li>
+        <?php endif; ?>
+
         <li class="nav-item">
           <a class="nav-link<?= navActive('assets') ?>" href="index.php?page=assets/index">الأجهزة</a>
         </li>
@@ -167,17 +173,21 @@ function navActive(string $prefix): string {
           <a class="nav-link<?= navActive('tickets') ?>" href="index.php?page=tickets/index">التذاكر</a>
         </li>
 
-        <?php if ($canLocations): ?>
-          <li class="nav-item">
-            <a class="nav-link<?= navActive('locations') ?>" href="index.php?page=locations/index">المواقع</a>
-          </li>
-        <?php endif; ?>
+        <?php if (isLoggedIn() && (isSuperAdmin() || isManager())): ?>
+      <li class="nav-item">
+    <a class="nav-link" href="<?php echo URLROOT; ?>/index.php?page=users/index">
+      <i class="fa fa-users"></i> الموظفين
+    </a>
+  </li>
+<?php endif; ?>
+
 
         <?php if (function_exists('currentRole') && in_array(currentRole(), ['superadmin','manager'], true)): ?>
           <li class="nav-item">
             <a class="nav-link<?= navActive('users') ?>" href="index.php?page=users/index">الموظفين</a>
           </li>
         <?php endif; ?>
+
       </ul>
 
       <!-- الحساب -->

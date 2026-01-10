@@ -1,75 +1,79 @@
+<?php require_once APPROOT . '/views/layouts/header.php'; ?>
+
 <?php
-require_once APPROOT . '/views/layouts/header.php';
+// users تأتي عادة من الكنترولر
+$users = $data['users'] ?? ($users ?? []);
+if (!is_array($users)) $users = [];
 
-$allUsers = $data['users'] ?? [];
+// ===== صلاحيات الصفحة (حل ثاني بدون الاعتماد على session_helper) =====
+$sessionRole = strtolower(trim((string)($_SESSION['user_role'] ?? 'user')));
+$canManageUsers = in_array($sessionRole, ['super_admin', 'superadmin'], true); // سوبر أدمن فقط
+$canViewUsers   = in_array($sessionRole, ['super_admin', 'superadmin', 'manager'], true);
 
-// صلاحيات الواجهة (UI فقط) — الحماية الفعلية بالسيرفر موجودة
-$role      = function_exists('currentRole') ? currentRole() : ($_SESSION['user_role'] ?? '');
-$role      = function_exists('normalizeRole') ? normalizeRole($role) : (string)$role;
-$canManage = ($role === 'superadmin'); // users.manage (حسب خريطتك)
+// ===== فلاتر =====
+$q = trim((string)($_GET['q'] ?? ''));
+$roleFilter = trim((string)($_GET['role'] ?? ''));
+$statusFilter = trim((string)($_GET['status'] ?? ''));
 
-// فلاتر GET
-$q           = trim($_GET['q'] ?? '');
-$roleFilter  = trim($_GET['role'] ?? '');
-$statusFilter = trim($_GET['status'] ?? ''); // 1 نشط, 0 معطل
+$toLower = function($s) { return mb_strtolower((string)$s, 'UTF-8'); };
+$pos = function($hay, $needle) { return mb_stripos((string)$hay, (string)$needle, 0, 'UTF-8'); };
 
-// Helpers للبحث (مع/بدون mbstring)
-$toLower = function ($s) {
-  return function_exists('mb_strtolower') ? mb_strtolower((string)$s, 'UTF-8') : strtolower((string)$s);
+$normRole = function($r) {
+  $r = strtolower(trim((string)$r));
+  if ($r === 'superadmin') return 'super_admin';
+  if ($r === 'super_admin') return 'super_admin';
+  if ($r === 'manager') return 'manager';
+  return 'user';
 };
-$pos = function ($hay, $needle) {
-  return function_exists('mb_strpos') ? mb_strpos((string)$hay, (string)$needle, 0, 'UTF-8') : stripos((string)$hay, (string)$needle);
-};
 
-// فلترة محلية (لين نربطها بالكنترولر/الموديل لاحقًا)
-$users = $allUsers;
+$filtered = $users;
 if ($q !== '' || $roleFilter !== '' || $statusFilter !== '') {
-  $users = array_values(array_filter($users, function ($u) use ($q, $roleFilter, $statusFilter, $toLower, $pos) {
-
-    $uRole = function_exists('normalizeRole') ? normalizeRole($u->role ?? 'user') : ($u->role ?? 'user');
+  $filtered = array_values(array_filter($users, function($u) use ($q, $roleFilter, $statusFilter, $toLower, $pos, $normRole) {
+    $uRole = $normRole($u->role ?? 'user');
     $active = isset($u->is_active) ? (int)$u->is_active : 1;
 
     if ($roleFilter !== '' && $uRole !== $roleFilter) return false;
-
-    if ($statusFilter !== '') {
-      if ((string)$active !== (string)$statusFilter) return false;
-    }
+    if ($statusFilter !== '' && (string)$active !== (string)$statusFilter) return false;
 
     if ($q !== '') {
       $hay = $toLower(($u->name ?? '') . ' ' . ($u->username ?? '') . ' ' . ($u->email ?? ''));
       $needle = $toLower($q);
       if ($pos($hay, $needle) === false) return false;
     }
-
     return true;
   }));
 }
 
-// إحصائيات سريعة
+// ===== إحصائيات =====
 $total = count($users);
-$superCount = 0; $adminCount = 0; $managerCount = 0; $userCount = 0;
-$activeCount = 0; $inactiveCount = 0;
+$superCount = $managerCount = $userCount = 0;
+$activeCount = $inactiveCount = 0;
 
 foreach ($users as $u) {
-  $r = function_exists('normalizeRole') ? normalizeRole($u->role ?? 'user') : ($u->role ?? 'user');
-  if ($r === 'superadmin') $superCount++;
-  elseif ($r === 'admin') $adminCount++;
+  $r = $normRole($u->role ?? 'user');
+  if ($r === 'super_admin') $superCount++;
   elseif ($r === 'manager') $managerCount++;
   else $userCount++;
 
   $a = isset($u->is_active) ? (int)$u->is_active : 1;
   if ($a === 1) $activeCount++; else $inactiveCount++;
 }
+
+function roleBadgeText($r) {
+  if ($r === 'super_admin') return 'سوبر أدمن';
+  if ($r === 'manager') return 'مدير';
+  return 'موظف';
+}
 ?>
 
 <div class="container py-4">
 
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h3 class="mb-0">إدارة المستخدمين</h3>
 
-    <div class="d-flex align-items-center gap-2">
-      <?php if ($canManage): ?>
-        <a href="<?php echo URLROOT; ?>/index.php?page=users/add" class="btn btn-primary">
+    <div class="d-flex gap-2 align-items-center">
+      <?php if ($canManageUsers): ?>
+        <a class="btn btn-primary" href="<?php echo URLROOT; ?>/index.php?page=users/add">
           <i class="fa fa-user-plus"></i> إضافة مستخدم جديد
         </a>
       <?php else: ?>
@@ -85,150 +89,125 @@ foreach ($users as $u) {
   <!-- فلاتر -->
   <div class="card shadow-sm border-0 mb-3">
     <div class="card-body">
-      <form method="GET" action="<?php echo URLROOT; ?>/index.php" class="row g-2 align-items-center">
+      <form class="row g-2 align-items-center" method="GET" action="<?php echo URLROOT; ?>/index.php">
         <input type="hidden" name="page" value="users/index">
 
         <div class="col-md-5">
           <div class="input-group">
-            <span class="input-group-text"><i class="fa fa-search"></i></span>
-            <input type="text" name="q" class="form-control" placeholder="ابحث بالاسم أو البريد..." value="<?php echo htmlspecialchars($q); ?>">
+            <input type="text" name="q" class="form-control" value="<?php echo htmlspecialchars($q); ?>" placeholder="ابحث بالاسم أو البريد...">
+            <button class="btn btn-outline-secondary" type="submit"><i class="fa fa-search"></i></button>
           </div>
         </div>
 
         <div class="col-md-3">
           <select name="role" class="form-select">
             <option value="">كل الأدوار</option>
-            <option value="superadmin" <?php echo ($roleFilter === 'superadmin' ? 'selected' : ''); ?>>سوبر أدمن</option>
-            <option value="admin" <?php echo ($roleFilter === 'admin' ? 'selected' : ''); ?>>أدمن</option>
-            <option value="manager" <?php echo ($roleFilter === 'manager' ? 'selected' : ''); ?>>مدير</option>
-            <option value="user" <?php echo ($roleFilter === 'user' ? 'selected' : ''); ?>>موظف</option>
+            <option value="super_admin" <?php echo ($roleFilter==='super_admin')?'selected':''; ?>>سوبر أدمن</option>
+            <option value="manager" <?php echo ($roleFilter==='manager')?'selected':''; ?>>مدير</option>
+            <option value="user" <?php echo ($roleFilter==='user')?'selected':''; ?>>موظف</option>
           </select>
         </div>
 
         <div class="col-md-2">
           <select name="status" class="form-select">
             <option value="">كل الحالات</option>
-            <option value="1" <?php echo ($statusFilter === '1' ? 'selected' : ''); ?>>نشط</option>
-            <option value="0" <?php echo ($statusFilter === '0' ? 'selected' : ''); ?>>مُعطّل</option>
+            <option value="1" <?php echo ($statusFilter==='1')?'selected':''; ?>>نشط</option>
+            <option value="0" <?php echo ($statusFilter==='0')?'selected':''; ?>>مُعطّل</option>
           </select>
         </div>
 
         <div class="col-md-2 d-flex gap-2">
-          <button class="btn btn-outline-primary w-100" type="submit">
-            <i class="fa fa-filter"></i> تطبيق
-          </button>
-          <a class="btn btn-outline-secondary w-100" href="<?php echo URLROOT; ?>/index.php?page=users/index">
-            إعادة ضبط
-          </a>
+          <button class="btn btn-primary w-100" type="submit"><i class="fa fa-filter"></i> تطبيق</button>
+          <a class="btn btn-outline-secondary w-100" href="<?php echo URLROOT; ?>/index.php?page=users/index">إعادة ضبط</a>
         </div>
       </form>
 
-      <div class="d-flex flex-wrap gap-2 mt-3">
+      <!-- إحصائيات -->
+      <div class="mt-3 d-flex flex-wrap gap-2">
         <span class="badge bg-dark">الإجمالي: <?php echo (int)$total; ?></span>
         <span class="badge bg-success">نشط: <?php echo (int)$activeCount; ?></span>
         <span class="badge bg-secondary">مُعطّل: <?php echo (int)$inactiveCount; ?></span>
-        <span class="badge bg-secondary">سوبر أدمن: <?php echo (int)$superCount; ?></span>
-        <span class="badge bg-primary">أدمن: <?php echo (int)$adminCount; ?></span>
+        <span class="badge bg-primary">سوبر أدمن: <?php echo (int)$superCount; ?></span>
         <span class="badge bg-danger">مدير: <?php echo (int)$managerCount; ?></span>
         <span class="badge bg-info text-dark">موظف: <?php echo (int)$userCount; ?></span>
       </div>
     </div>
   </div>
 
-  <!-- جدول المستخدمين -->
+  <!-- جدول -->
   <div class="card shadow-sm border-0">
-    <div class="card-body">
+    <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table mb-0 align-middle">
           <thead class="table-light">
             <tr>
-              <th>الاسم</th>
-              <th>البريد الإلكتروني</th>
-              <th>الدور (الصلاحية)</th>
-              <th>تاريخ التسجيل</th>
-              <th>الحالة</th>
-              <th class="text-center" style="width: 160px;">إجراءات</th>
+              <th class="text-end">الاسم</th>
+              <th class="text-end">البريد الإلكتروني</th>
+              <th class="text-end">(الصلاحية) الدور</th>
+              <th class="text-end">تاريخ التسجيل</th>
+              <th class="text-end">الحالة</th>
+              <th class="text-center">إجراءات</th>
             </tr>
           </thead>
-
           <tbody>
-          <?php if (!empty($users)): ?>
-            <?php foreach ($users as $user): ?>
-              <?php
-                $displayName = !empty($user->username) ? $user->username : ($user->name ?? '-');
-                $email = $user->email ?? '-';
-                $r = function_exists('normalizeRole') ? normalizeRole($user->role ?? 'user') : ($user->role ?? 'user');
-
-                // بادج الدور
-                if ($r === 'superadmin') {
-                  $roleBadge = '<span class="badge bg-dark">سوبر أدمن</span>';
-                } elseif ($r === 'admin') {
-                  $roleBadge = '<span class="badge bg-primary">أدمن</span>';
-                } elseif ($r === 'manager') {
-                  $roleBadge = '<span class="badge bg-danger">مدير</span>';
-                } else {
-                  $roleBadge = '<span class="badge bg-info text-dark">موظف</span>';
-                }
-
-                $createdAt = !empty($user->created_at) ? date('Y-m-d', strtotime($user->created_at)) : '-';
-                $uid = (int)($user->id ?? 0);
-
-                $active = isset($user->is_active) ? (int)$user->is_active : 1;
-              ?>
+            <?php if (empty($filtered)): ?>
               <tr>
-                <td><?php echo htmlspecialchars($displayName); ?></td>
-                <td dir="ltr"><?php echo htmlspecialchars($email); ?></td>
-                <td><?php echo $roleBadge; ?></td>
-                <td><span dir="ltr"><?php echo htmlspecialchars($createdAt); ?></span></td>
-
-                <td>
-                  <?php if ($active === 1): ?>
-                    <span class="badge bg-success">نشط</span>
-                  <?php else: ?>
-                    <span class="badge bg-secondary">مُعطّل</span>
-                  <?php endif; ?>
-                </td>
-
-                <td class="text-center">
-                  <?php if ($canManage): ?>
-
-                    <a href="<?php echo URLROOT; ?>/index.php?page=users/edit&id=<?php echo $uid; ?>"
-                       class="btn btn-sm btn-outline-primary" title="تعديل">
-                      <i class="fa fa-edit"></i>
-                    </a>
-
-                    <?php if ($uid !== (int)($_SESSION['user_id'] ?? 0)): ?>
-                      <form action="<?php echo URLROOT; ?>/index.php?page=users/delete"
-                            method="POST"
-                            class="d-inline"
-                            onsubmit="return confirm('<?php echo $active ? 'تعطيل هذا المستخدم؟' : 'تفعيل هذا المستخدم؟'; ?>');">
-                        <input type="hidden" name="id" value="<?php echo $uid; ?>">
-                        <button type="submit"
-                                class="btn btn-sm <?php echo $active ? 'btn-outline-danger' : 'btn-outline-success'; ?>"
-                                title="<?php echo $active ? 'تعطيل' : 'تفعيل'; ?>">
-                          <i class="fa <?php echo $active ? 'fa-user-times' : 'fa-user-check'; ?>"></i>
-                        </button>
-                      </form>
-                    <?php else: ?>
-                      <button class="btn btn-sm btn-outline-secondary" disabled title="لا يمكنك تعطيل حسابك">
-                        <i class="fa fa-ban"></i>
-                      </button>
-                    <?php endif; ?>
-
-                  <?php else: ?>
-                    <span class="text-muted">—</span>
-                  <?php endif; ?>
-                </td>
+                <td colspan="6" class="text-center text-muted py-4">لا يوجد مستخدمين مسجلين.</td>
               </tr>
-            <?php endforeach; ?>
+            <?php else: ?>
+              <?php foreach ($filtered as $u): ?>
+                <?php
+                  $name = $u->name ?? ($u->username ?? '-');
+                  $email = $u->email ?? '-';
+                  $r = $normRole($u->role ?? 'user');
+                  $createdAt = !empty($u->created_at) ? date('Y-m-d', strtotime($u->created_at)) : '-';
+                  $uid = (int)($u->id ?? 0);
+                  $active = isset($u->is_active) ? (int)$u->is_active : 1;
+                ?>
+                <tr>
+                  <td class="text-end"><?php echo htmlspecialchars($name); ?></td>
+                  <td class="text-end" dir="ltr"><?php echo htmlspecialchars($email); ?></td>
+                  <td class="text-end">
+                    <?php
+                      $txt = roleBadgeText($r);
+                      $cls = ($r==='super_admin') ? 'bg-dark' : (($r==='manager') ? 'bg-danger' : 'bg-info text-dark');
+                    ?>
+                    <span class="badge <?php echo $cls; ?>"><?php echo $txt; ?></span>
+                  </td>
+                  <td class="text-end" dir="ltr"><?php echo htmlspecialchars($createdAt); ?></td>
+                  <td class="text-end">
+                    <?php if ($active === 1): ?>
+                      <span class="badge bg-success">نشط</span>
+                    <?php else: ?>
+                      <span class="badge bg-secondary">مُعطّل</span>
+                    <?php endif; ?>
+                  </td>
+                  <td class="text-center">
+                    <?php if ($canManageUsers): ?>
+                      <a class="btn btn-sm btn-outline-primary" href="<?php echo URLROOT; ?>/index.php?page=users/edit&id=<?php echo $uid; ?>">
+                        <i class="fa fa-edit"></i>
+                      </a>
 
-          <?php else: ?>
-            <tr>
-              <td colspan="6" class="text-center text-muted py-4">
-                لا يوجد مستخدمين مسجلين.
-              </td>
-            </tr>
-          <?php endif; ?>
+                      <?php if ((int)($_SESSION['user_id'] ?? 0) !== $uid): ?>
+                        <form method="POST" action="<?php echo URLROOT; ?>/index.php?page=users/delete" class="d-inline">
+                          <input type="hidden" name="id" value="<?php echo $uid; ?>">
+                          <button type="submit" class="btn btn-sm <?php echo ($active===1)?'btn-outline-danger':'btn-outline-success'; ?>"
+                                  onclick="return confirm('<?php echo ($active===1)?'تعطيل المستخدم؟':'تفعيل المستخدم؟'; ?>');">
+                            <i class="fa <?php echo ($active===1)?'fa-ban':'fa-check'; ?>"></i>
+                          </button>
+                        </form>
+                      <?php else: ?>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="لا يمكنك تعطيل حسابك">
+                          <i class="fa fa-ban"></i>
+                        </button>
+                      <?php endif; ?>
+                    <?php else: ?>
+                      —
+                    <?php endif; ?>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
           </tbody>
         </table>
       </div>

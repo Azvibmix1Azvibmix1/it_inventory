@@ -43,41 +43,22 @@ function redirect($location)
 /**
  * Auth helpers
  */
-function isLoggedIn()
-{
-  return isset($_SESSION['user_id']);
-}
 
-function requireLogin()
-{
-  if (!isLoggedIn()) {
-    redirect('index.php?page=login');
-  }
-}
+
 
 /**
  * Role helpers
  */
-function normalizeRole($role) {
-  $role = $role ?: 'user';
-  // لو فيه تحويلات قديمة
-  if ($role === 'superadmin') return 'super_admin';
-  return $role; // super_admin / manager / user
-}
 
 
-function currentRole() {
+
+
+
+
+function currentRole(): string {
   return normalizeRole($_SESSION['user_role'] ?? 'user');
 }
 
-
-function isUser() { return currentRole() === 'user'; }
-function isManager()
-{
-  $role = currentRole();
-  return ($role === 'manager' || $role === 'admin');
-}
-function isSuperAdmin() { return currentRole() === 'super_admin'; }
 
 /**
  * ✅ تحديث role من DB إذا تغير
@@ -125,10 +106,7 @@ function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=das
 
   
 if (!function_exists('requireManageUsers')) {
-  function requireManageUsers($redirectTo = 'index.php?page=dashboard'): void {
-    requirePermission('users.manage', $redirectTo);
-  }
-}
+  
 
   // 2) Permission key
   $permission = (string)$permissionOrRoles;
@@ -136,8 +114,9 @@ if (!function_exists('requireManageUsers')) {
   $map = [
     // Users
     // Users
-    'users.view'   => ['superadmin', 'admin', 'manager'],
-    'users.manage' => ['superadmin'],
+    'users.view'   => ['super_admin', 'manager'],
+    'users.manage' => ['super_admin'],
+
 
 
     // Locations (عام)
@@ -168,6 +147,11 @@ if (!function_exists('requireManageUsers')) {
     redirect($redirectTo);
   }
 }
+}
+
+function requireManageUsers($redirectTo = 'index.php?page=dashboard'): void {
+    requirePermission('users.manage', $redirectTo);
+  }
 
 function requireUsersView($redirectTo = 'index.php?page=dashboard') {
   requirePermission('users.view', $redirectTo);
@@ -281,13 +265,15 @@ function canAccessLocationsModule()
   }
 }
 
-function requireLocationsAccess($redirectTo = 'index.php?page=dashboard/index')
-{
+function requireLocationsAccess($redirectTo = 'index.php?page=dashboard/index') {
   requireLogin();
+
   if (!canAccessLocationsModule()) {
     flash('access_denied', 'ليس لديك صلاحية لعرض صفحة المواقع', 'alert alert-danger');
     redirect($redirectTo);
   }
+}
+
 
 
 function isLoggedIn(): bool {
@@ -302,24 +288,14 @@ function currentUserRole(): string {
   return (string)($_SESSION['user_role'] ?? '');
 }
 
-function isSuperAdmin(): bool {
-  return currentUserRole() === 'super_admin';
-}
+
 
 function isAdminOrManager(): bool {
   $r = currentUserRole();
   return in_array($r, ['admin','manager','super_admin'], true);
 }
 
-function requireLogin(): void {
-  if (!isLoggedIn()) {
-    redirect('index.php?page=users/login');
 
-    exit;
-  }
-
-  
-}
 
 function requireRole(array $roles): void {
   requireLogin();
@@ -334,9 +310,39 @@ function requireRole(array $roles): void {
 /**
  * للحماية الخاصة بإدارة المستخدمين
  */
-function requireManageUsers(): void {
-  // كبداية: فقط سوبر أدمن
-  requireRole(['super_admin']);
+
+function requireLogin() {
+  if (!isLoggedIn()) {
+    redirect('index.php?page=users/login');
+
+  }
 }
 
+function normalizeRole($role): string {
+  $r = strtolower(trim((string)($role ?? 'user')));
+
+  // وحّد كل الصيغ لقيم DB
+  if ($r === 'superadmin') return 'super_admin';
+  if ($r === 'super_admin') return 'super_admin';
+
+  if ($r === 'admin') return 'manager'; // إذا عندك بقايا admin قديم
+  if ($r === 'manager') return 'manager';
+
+  return 'user';
 }
+
+
+
+
+
+function isManager(): bool {
+  return currentRole() === 'manager';
+}
+
+
+
+function isSuperAdmin(): bool {
+  return currentRole() === 'super_admin';
+}
+
+
