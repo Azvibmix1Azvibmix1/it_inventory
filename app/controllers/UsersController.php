@@ -1,309 +1,357 @@
 <?php
-class UsersController extends Controller {
+
+class UsersController extends Controller
+{
     private $userModel;
 
-    public function __construct() {
-  $this->userModel = $this->model('User');
-
-  // حماية عامة: إذا رايح لأي شيء إداري
-  $page = strtolower(trim($_GET['page'] ?? ''));
-
-  // عدّل أسماء الأكشنز حسب اللي عندك
-  if (strpos($page, 'users/index') === 0
-   || strpos($page, 'users/register') === 0
-   || strpos($page, 'users/edit') === 0
-   || strpos($page, 'users/delete') === 0) {
-    requirePermission('users.manage', 'index.php?page=dashboard');
-
-  }
-}
-
-
-    // عرض المستخدمين
-    public function index(){
-        $users = [];
-
-        // ✅ الحماية بالصلاحيات (تأكد requirePermission موجودة في session_helper)
-        requirePermission('users.view', 'index.php?page=dashboard');
-
-        $role = currentRole();
-
-        if ($role === 'superadmin' || $role === 'admin') {
-        $users = $this->userModel->getUsers();
-        } elseif ($role === 'manager') {
-        $users = $this->userModel->getUsersByManager((int)$_SESSION['user_id']);
-        } else {
-        flash('access_denied', 'ليس لديك صلاحية لعرض المستخدمين', 'alert alert-danger');
-        redirect('index.php?page=dashboard');
-        exit;
-        }
-
-        $data = ['users' => $users];
-        $this->view('users/index', $data);
-          requirePermission('users.manage', 'index.php?page=dashboard');
-
-
+    public function __construct()
+    {
+        $this->userModel = $this->model('User');
+        // لا تضع حمايات تعتمد على $_GET['page'] هنا (تسبب مشاكل).
+        // كل دالة تحمي نفسها بـ requirePermission/requireLogin.
     }
 
-    // إضافة مستخدم
-    public function add(){
-        requirePermission('users.manage', 'index.php?page=dashboard');
+    // تسجيل الدخول
+    public function login()
+    {
+        // لو مسجل دخول بالفعل
+        if (isLoggedIn()) {
+            redirect('index.php?page=dashboard');
+            exit;
+        }
 
-        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            
-
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = [
-                'name' => trim($_POST['name'] ?? ''),
                 'email' => trim($_POST['email'] ?? ''),
                 'password' => trim($_POST['password'] ?? ''),
-                'role' => '',
-                'manager_id' => null,
-                'name_err' => '',
                 'email_err' => '',
-                'password_err' => ''
+                'password_err' => '',
             ];
 
-            if (empty($data['email'])) $data['email_err'] = 'الرجاء إدخال البريد الإلكتروني';
-            if (empty($data['name'])) $data['name_err'] = 'الرجاء إدخال الاسم';
-            if (empty($data['password'])) $data['password_err'] = 'الرجاء إدخال كلمة المرور';
+            if ($data['email'] === '') {
+                $data['email_err'] = 'الرجاء إدخال البريد الإلكتروني';
+            }
+            if ($data['password'] === '') {
+                $data['password_err'] = 'الرجاء إدخال كلمة المرور';
+            }
 
-            if (!empty($data['email']) && $this->userModel->findUserByEmail($data['email'])) {
+            if ($data['email_err'] === '' && $data['password_err'] === '') {
+                $loggedInUser = $this->userModel->login($data['email'], $data['password']);
+
+                // حساب مُعطّل
+                if ($loggedInUser === 'inactive') {
+                    $data['password_err'] = 'تم تعطيل حسابك. تواصل مع مسؤول النظام.';
+                    $this->view('users/login', $data);
+                    exit;
+                }
+
+                // بيانات خاطئة
+                if ($loggedInUser === false) {
+                    $data['password_err'] = 'بيانات الدخول غير صحيحة';
+                    $this->view('users/login', $data);
+                    exit;
+                }
+
+                // نجاح: أنشئ جلسة
+                $_SESSION['user_id']    = (int)$loggedInUser->id;
+                $_SESSION['user_name']  = $loggedInUser->name ?? $loggedInUser->username ?? '';
+                $_SESSION['user_email'] = $loggedInUser->email ?? '';
+                $_SESSION['user_role']  = $loggedInUser->role ?? 'user';
+                $_SESSION['is_active']  = (int)($loggedInUser->is_active ?? 1);
+
+                redirect('index.php?page=dashboard');
+                exit;
+            }
+
+            $this->view('users/login', $data);
+            exit;
+        }
+
+        // GET
+        $data = [
+            'email' => '',
+            'password' => '',
+            'email_err' => '',
+            'password_err' => '',
+        ];
+        $this->view('users/login', $data);
+        exit;
+    }
+
+    // عرض المستخدمين
+    public function index()
+    {
+        requirePermission('users.view', 'index.php?page=dashboard');
+
+        $role = normalizeRole(currentRole());
+        $users = [];
+
+        if ($role === 'super_admin') {
+            $users = $this->userModel->getUsers();
+        } elseif ($role === 'manager') {
+            $users = $this->userModel->getUsersByManager((int)($_SESSION['user_id'] ?? 0));
+        } else {
+            flash('access_denied', 'ليس لديك صلاحية لعرض المستخدمين', 'alert alert-danger');
+            redirect('index.php?page=dashboard');
+            exit;
+        }
+
+        $this->view('users/index', ['users' => $users]);
+        exit;
+    }
+
+    // إضافة مستخدم (سوبر أدمن فقط)
+    public function add()
+    {
+        requirePermission('users.manage', 'index.php?page=dashboard');
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            $data = [
+                'username'   => trim($_POST['username'] ?? ''),
+                'name'       => trim($_POST['name'] ?? ''),
+                'email'      => trim($_POST['email'] ?? ''),
+                'password'   => trim($_POST['password'] ?? ''),
+                'role'       => normalizeRole($_POST['role'] ?? 'user'),
+                'manager_id' => null,
+
+                'username_err' => '',
+                'name_err'     => '',
+                'email_err'    => '',
+                'password_err' => '',
+                'role_err'     => ''
+            ];
+
+            // توليد username تلقائياً لو فاضي
+            if ($data['username'] === '' && $data['email'] !== '') {
+                $base = strstr($data['email'], '@', true);
+                $base = is_string($base) ? $base : '';
+                $base = preg_replace('/[^a-zA-Z0-9._-]/', '', $base);
+                $data['username'] = $base ?: ('user_' . time());
+            }
+
+            if ($data['username'] === '') $data['username_err'] = 'اسم المستخدم مطلوب';
+            if ($data['name'] === '')     $data['name_err']     = 'الرجاء إدخال الاسم';
+            if ($data['email'] === '')    $data['email_err']    = 'الرجاء إدخال البريد الإلكتروني';
+            if ($data['password'] === '') $data['password_err'] = 'الرجاء إدخال كلمة المرور';
+
+            // تحقق الدور حسب DB
+            $allowedRoles = ['user', 'manager', 'super_admin'];
+            if (!in_array($data['role'], $allowedRoles, true)) {
+                $data['role'] = 'user';
+            }
+
+            // تحقق تكرار البريد
+            if ($data['email'] !== '' && $this->userModel->findUserByEmail($data['email'])) {
                 $data['email_err'] = 'هذا البريد مسجل مسبقاً';
             }
 
-            // منطق الرتبة والمدير
-            // users.manage = superadmin (افتراضيًا)
-            $data['role'] = $_POST['role'] ?? 'user';
-            $data['manager_id'] = null;
+            if ($data['password'] !== '' && strlen($data['password']) < 6) {
+                $data['password_err'] = 'كلمة المرور لازم تكون 6 أحرف على الأقل';
+            }
 
-            if (empty($data['email_err']) && empty($data['name_err']) && empty($data['password_err'])) {
+            if ($data['username_err'] === '' && $data['name_err'] === '' && $data['email_err'] === '' && $data['password_err'] === '') {
                 $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
 
                 if ($this->userModel->register($data)) {
                     flash('register_success', 'تم إضافة المستخدم بنجاح');
                     redirect('index.php?page=users/index');
-                } else {
-                    die('حدث خطأ أثناء الاتصال بقاعدة البيانات');
+                    exit;
                 }
-            } else {
-                $this->view('users/add', $data);
+
+                die('حدث خطأ أثناء الاتصال بقاعدة البيانات');
             }
-        } else {
+
+            $this->view('users/add', $data);
+            exit;
+        }
+
+        // GET
+        $data = [
+            'username' => '',
+            'name' => '',
+            'email' => '',
+            'password' => '',
+            'role' => 'user',
+            'username_err' => '',
+            'name_err' => '',
+            'email_err' => '',
+            'password_err' => '',
+            'role_err' => ''
+        ];
+        $this->view('users/add', $data);
+        exit;
+    }
+
+    public function profile()
+    {
+        requireLogin();
+        $user = $this->userModel->getUserById((int)($_SESSION['user_id'] ?? 0));
+        $this->view('users/profile', ['user' => $user]);
+        exit;
+    }
+
+    // تعديل المستخدم
+    public function edit($id = null)
+    {
+        requirePermission('users.manage', 'index.php?page=dashboard');
+
+        if (empty($id)) {
+            $id = $_GET['id'] ?? ($_POST['id'] ?? null);
+        }
+        $id = (int)$id;
+
+        if (!$id) {
+            redirect('index.php?page=users/index');
+            exit;
+        }
+
+        $user = $this->userModel->getUserById($id);
+        if (!$user) {
+            redirect('index.php?page=users/index');
+            exit;
+        }
+
+        // منع تعديل سوبر أدمن لغير سوبر أدمن
+        if (normalizeRole($user->role ?? 'user') === 'super_admin' && !isSuperAdmin()) {
+            flash('access_denied', 'لا يمكنك تعديل حساب سوبر أدمن', 'alert alert-danger');
+            redirect('index.php?page=users/index');
+            exit;
+        }
+
+        $isSelf = ((int)($_SESSION['user_id'] ?? 0) === $id);
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
             $data = [
-                'name' => '',
-                'email' => '',
-                'password' => '',
-                'role' => 'user',
-                'name_err' => '',
-                'email_err' => '',
+                'id'       => $id,
+                'username' => trim($_POST['username'] ?? ''),
+                'name'     => trim($_POST['name'] ?? ''),
+                'email'    => trim($_POST['email'] ?? ''),
+                'password' => trim($_POST['password'] ?? ''),
+                'role'     => normalizeRole($_POST['role'] ?? ($user->role ?? 'user')),
+
+                'username_err' => '',
+                'name_err'     => '',
+                'email_err'    => '',
                 'password_err' => ''
             ];
-            $this->view('users/add', $data);
-        }
 
-        $data['role'] = $_POST['role'] ?? 'user';
+            if ($data['username'] === '') $data['username_err'] = 'اسم المستخدم مطلوب';
+            if ($data['name'] === '')     $data['name_err']     = 'الاسم مطلوب';
+            if ($data['email'] === '')    $data['email_err']    = 'البريد مطلوب';
 
-// احتياط أمان: سوبر أدمن فقط يحدد أدوار عالية
-if (!isSuperAdmin() && $data['role'] !== 'user') {
-  $data['role'] = 'user';
-}
-$allowedRoles = ['user', 'manager', 'super_admin'];
-if (!in_array($data['role'], $allowedRoles, true)) {
-  $data['role'] = 'user';
-}
-
-
-    }
-
-    public function profile(){
-        requireLogin();
-        $user = $this->userModel->getUserById($_SESSION['user_id']);
-        $data = ['user' => $user];
-        $this->view('users/profile', $data);
-    }
-
-    // ✅ تعديل المستخدم (بدون إلزام باراميتر)
-    public function edit($id = null)
-{
-    requirePermission('users.manage', 'index.php?page=dashboard');
-
-    // اقرأ id من GET/POST لو ما جاء باراميتر
-    if (empty($id)) {
-        $id = $_GET['id'] ?? ($_POST['id'] ?? null);
-    }
-    $id = (int)$id;
-
-    if (!$id) {
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    $user = $this->userModel->getUserById($id);
-    if (!$user) {
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    // منع تعديل حساب سوبر أدمن لغير سوبر أدمن
-    if (normalizeRole($user->role ?? 'user') === 'super_admin' && !isSuperAdmin()) {
-        flash('access_denied', 'لا يمكنك تعديل حساب سوبر أدمن', 'alert alert-danger');
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    $isSelf = ((int)($_SESSION['user_id'] ?? 0) === $id);
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-        $data = [
-            'id'       => $id,
-            'username' => trim($_POST['username'] ?? ''),
-            'name'     => trim($_POST['name'] ?? ''),
-            'email'    => trim($_POST['email'] ?? ''),
-            'password' => trim($_POST['password'] ?? ''),
-            'role'     => normalizeRole($_POST['role'] ?? ($user->role ?? 'user')),
-
-            'username_err' => '',
-            'name_err'     => '',
-            'email_err'    => '',
-            'password_err' => ''
-        ];
-
-        // username إجباري (NOT NULL)
-        if ($data['username'] === '') {
-            // لو فاضي نولده من البريد (كحل مساعد)
-            if ($data['email'] !== '') {
-                $base = strstr($data['email'], '@', true);
-                $base = is_string($base) ? $base : '';
-                $base = preg_replace('/[^a-zA-Z0-9._-]/', '', $base);
-                $data['username'] = $base ?: ($user->username ?? 'user');
-            } else {
-                $data['username_err'] = 'اسم المستخدم مطلوب';
-            }
-        }
-
-        if ($data['email'] === '') $data['email_err'] = 'البريد مطلوب';
-        if ($data['name'] === '')  $data['name_err']  = 'الاسم مطلوب';
-
-        // تحقق: الإيميل غير مكرر (استثناء نفس المستخدم)
-        if ($data['email_err'] === '' && $this->userModel->emailExistsForOtherUser($data['email'], $id)) {
-            $data['email_err'] = 'هذا البريد مسجل لمستخدم آخر';
-        }
-
-        // تحقق الدور حسب DB: super_admin / manager / user
-        $allowedRoles = ['user', 'manager', 'super_admin'];
-        if (!in_array($data['role'], $allowedRoles, true)) {
-            $data['role'] = 'user';
-        }
-
-        // منع تغيير دور نفسك (حتى لو عدّل الـ HTML)
-        if ($isSelf) {
-            $data['role'] = $user->role;
-        }
-
-        // كلمة المرور اختيارية (إذا تركها فاضية ما تتغير)
-        if ($data['password'] !== '' && strlen($data['password']) < 6) {
-            $data['password_err'] = 'كلمة المرور لازم تكون 6 أحرف على الأقل';
-        }
-
-        if ($data['username_err'] === '' && $data['name_err'] === '' && $data['email_err'] === '' && $data['password_err'] === '') {
-
-            if ($data['password'] !== '') {
-                $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
-            } else {
-                $data['password'] = $user->password; // حافظ على القديمة
+            // تحقق: الإيميل غير مكرر (استثناء نفس المستخدم)
+            if ($data['email_err'] === '' && $this->userModel->emailExistsForOtherUser($data['email'], $id)) {
+                $data['email_err'] = 'هذا البريد مسجل لمستخدم آخر';
             }
 
-            if ($this->userModel->update($data)) {
+            // تحقق الدور حسب DB
+            $allowedRoles = ['user', 'manager', 'super_admin'];
+            if (!in_array($data['role'], $allowedRoles, true)) {
+                $data['role'] = 'user';
+            }
 
-                // لو عدّل نفسه: حدّث السيشن
-                if ($isSelf) {
-                    $_SESSION['user_name']  = $data['name'];
-                    $_SESSION['user_email'] = $data['email'];
-                    $_SESSION['user_role']  = $data['role']; // ما يتغير فعليًا لأننا ثبّتناه
+            // منع تغيير دور نفسك
+            if ($isSelf) {
+                $data['role'] = $user->role;
+            }
+
+            // كلمة المرور اختيارية
+            if ($data['password'] !== '' && strlen($data['password']) < 6) {
+                $data['password_err'] = 'كلمة المرور لازم تكون 6 أحرف على الأقل';
+            }
+
+            if ($data['username_err'] === '' && $data['name_err'] === '' && $data['email_err'] === '' && $data['password_err'] === '') {
+
+                if ($data['password'] !== '') {
+                    $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+                } else {
+                    $data['password'] = $user->password;
                 }
 
-                flash('user_message', 'تم تحديث البيانات بنجاح');
-                redirect('index.php?page=users/index');
-                exit;
+                if ($this->userModel->update($data)) {
+
+                    if ($isSelf) {
+                        $_SESSION['user_name']  = $data['name'];
+                        $_SESSION['user_email'] = $data['email'];
+                        // الدور ما يتغير فعليًا لأننا منعناه
+                    }
+
+                    flash('user_message', 'تم تحديث البيانات بنجاح');
+                    redirect('index.php?page=users/index');
+                    exit;
+                }
+
+                die('حدث خطأ ما');
             }
 
-            die('حدث خطأ ما');
+            $this->view('users/edit', $data);
+            exit;
         }
+
+        // GET
+        $data = [
+            'id'       => $user->id,
+            'username' => $user->username ?? '',
+            'name'     => $user->name ?? '',
+            'email'    => $user->email ?? '',
+            'password' => '',
+            'role'     => $user->role ?? 'user',
+            'username_err' => '',
+            'name_err' => '',
+            'email_err' => '',
+            'password_err' => ''
+        ];
 
         $this->view('users/edit', $data);
         exit;
     }
 
-    // GET
-    $data = [
-        'id'       => $user->id,
-        'username' => $user->username ?? '',
-        'name'     => $user->name ?? '',
-        'email'    => $user->email ?? '',
-        'password' => '',
-        'role'     => $user->role ?? 'user',
+    // تعطيل/تفعيل المستخدم (بدل الحذف)
+    public function delete($id = null)
+    {
+        requirePermission('users.manage', 'index.php?page=dashboard');
 
-        'username_err' => '',
-        'name_err'     => '',
-        'email_err'    => '',
-        'password_err' => ''
-    ];
+        if (empty($id)) {
+            $id = $_POST['id'] ?? ($_GET['id'] ?? null);
+        }
+        $id = (int)$id;
 
-    $this->view('users/edit', $data);
-    exit;
-}
+        if (!$id) {
+            redirect('index.php?page=users/index');
+            exit;
+        }
 
+        // لا تعطل نفسك
+        if ($id === (int)($_SESSION['user_id'] ?? 0)) {
+            flash('user_message', 'لا يمكنك تعطيل حسابك', 'alert alert-warning');
+            redirect('index.php?page=users/index');
+            exit;
+        }
 
+        $u = $this->userModel->getUserById($id);
+        if (!$u) {
+            redirect('index.php?page=users/index');
+            exit;
+        }
 
+        // منع تعطيل سوبر أدمن لغير سوبر أدمن
+        if (normalizeRole($u->role ?? 'user') === 'super_admin' && !isSuperAdmin()) {
+            flash('user_message', 'لا يمكنك تعطيل حساب سوبر أدمن', 'alert alert-danger');
+            redirect('index.php?page=users/index');
+            exit;
+        }
 
-    // ✅ حذف المستخدم (بدون إلزام باراميتر)
-   public function delete($id = null)
-{
-    requirePermission('users.manage', 'index.php?page=dashboard');
+        $current = isset($u->is_active) ? (int)$u->is_active : 1;
+        $newVal  = ($current === 1) ? 0 : 1;
 
-    // اقرأ id من GET/POST لو ما جاء باراميتر
-    if (empty($id)) {
-        $id = $_GET['id'] ?? ($_POST['id'] ?? null);
+        if ($this->userModel->setActive($id, $newVal)) {
+            flash('user_message', $newVal ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم');
+            redirect('index.php?page=users/index');
+            exit;
+        }
+
+        die('حدث خطأ أثناء تحديث الحالة');
     }
-    $id = (int)$id;
-
-    if (!$id) {
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    // منع تعطيل نفسك
-    if ($id === (int)($_SESSION['user_id'] ?? 0)) {
-        flash('user_message', 'لا يمكنك تعطيل حسابك', 'alert alert-warning');
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    $u = $this->userModel->getUserById($id);
-    if (!$u) {
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    // منع تعطيل السوبر أدمن إلا بسوبر أدمن (أنت أصلاً سوبر هنا، بس احتياط)
-    if (normalizeRole($u->role ?? 'user') === 'superadmin' && !isSuperAdmin()) {
-        flash('user_message', 'لا يمكنك تعطيل حساب سوبر أدمن', 'alert alert-danger');
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    // Toggle
-    $current = isset($u->is_active) ? (int)$u->is_active : 1;
-    $newVal  = ($current === 1) ? 0 : 1;
-
-    if ($this->userModel->setActive($id, $newVal)) {
-        flash('user_message', $newVal ? 'تم تفعيل المستخدم' : 'تم تعطيل المستخدم');
-        redirect('index.php?page=users/index');
-        exit;
-    }
-
-    die('حدث خطأ ما');
-}
-
 }

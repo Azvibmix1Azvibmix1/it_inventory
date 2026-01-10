@@ -58,18 +58,18 @@ function requireLogin()
 /**
  * Role helpers
  */
-function normalizeRole($role)
-{
-  $role = $role ?? 'user';
-  if ($role === 'super_admin') return 'superadmin';
-  return $role;
+function normalizeRole($role) {
+  $role = $role ?: 'user';
+  // لو فيه تحويلات قديمة
+  if ($role === 'superadmin') return 'super_admin';
+  return $role; // super_admin / manager / user
 }
 
-function currentRole()
-{
-  $r = $_SESSION['user_role'] ?? 'user';
-  return ($r === 'super_admin') ? 'superadmin' : $r;
+
+function currentRole() {
+  return normalizeRole($_SESSION['user_role'] ?? 'user');
 }
+
 
 function isUser() { return currentRole() === 'user'; }
 function isManager()
@@ -77,7 +77,7 @@ function isManager()
   $role = currentRole();
   return ($role === 'manager' || $role === 'admin');
 }
-function isSuperAdmin() { return currentRole() === 'superadmin'; }
+function isSuperAdmin() { return currentRole() === 'super_admin'; }
 
 /**
  * ✅ تحديث role من DB إذا تغير
@@ -313,9 +313,12 @@ function isAdminOrManager(): bool {
 
 function requireLogin(): void {
   if (!isLoggedIn()) {
-    redirect('users/login');
+    redirect('index.php?page=users/login');
+
     exit;
   }
+
+  
 }
 
 function requireRole(array $roles): void {
