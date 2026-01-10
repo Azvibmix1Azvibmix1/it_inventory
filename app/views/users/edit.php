@@ -1,37 +1,50 @@
 <?php require_once APPROOT . '/views/layouts/header.php'; ?>
 
-<div class="container py-4">
+<?php
+// حل ثاني: صلاحية الصفحة بدون الاعتماد على session_helper
+$sessionRole = strtolower(trim((string)($_SESSION['user_role'] ?? 'user')));
+$canManageUsers = in_array($sessionRole, ['super_admin', 'superadmin'], true);
 
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+if (!$canManageUsers) {
+  flash('access_denied', 'ليس لديك صلاحية لتعديل المستخدمين', 'alert alert-danger');
+  redirect('index.php?page=users/index');
+  exit;
+}
+
+$data = $data ?? [];
+$currentUserId = (int)($_SESSION['user_id'] ?? 0);
+$targetId = (int)($data['id'] ?? 0);
+$isSelf = ($currentUserId > 0 && $targetId > 0 && $currentUserId === $targetId);
+
+$roleVal = strtolower(trim((string)($data['role'] ?? 'user')));
+if ($roleVal === 'superadmin') $roleVal = 'super_admin';
+?>
+
+<div class="container py-4" style="max-width: 900px;">
+
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h3 class="mb-1">تعديل بيانات المستخدم</h3>
       <div class="text-muted small">حدّث البيانات والصلاحية. اترك كلمة المرور فارغة إذا لا تريد تغييرها.</div>
     </div>
 
-    <div class="d-flex gap-2">
-      <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">
-        <i class="fa fa-arrow-right"></i> رجوع
-      </a>
-    </div>
+    <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">
+      <i class="fa fa-arrow-right"></i> رجوع
+    </a>
   </div>
 
-  <?php flash('user_message'); ?>
   <?php flash('access_denied'); ?>
+  <?php flash('user_message'); ?>
 
   <div class="card shadow-sm border-0">
-    <div class="card-body">
+    <div class="card-body p-4">
 
-      <form action="<?php echo URLROOT; ?>/index.php?page=users/edit" method="POST" novalidate>
+      <form action="<?php echo URLROOT; ?>/index.php?page=users/edit&id=<?php echo (int)($data['id'] ?? 0); ?>" method="POST" novalidate>
         <input type="hidden" name="id" value="<?php echo (int)($data['id'] ?? 0); ?>">
-
-        <?php
-          $isSelf = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)($data['id'] ?? 0);
-          $roleVal = normalizeRole($data['role'] ?? 'user');
-        ?>
 
         <div class="row g-3">
 
-          <!-- اسم المستخدم -->
+          <!-- username -->
           <div class="col-md-6">
             <label class="form-label">اسم المستخدم (Username) <span class="text-danger">*</span></label>
             <input
@@ -40,7 +53,6 @@
               dir="ltr"
               class="form-control <?php echo (!empty($data['username_err'])) ? 'is-invalid' : ''; ?>"
               value="<?php echo htmlspecialchars($data['username'] ?? ''); ?>"
-              placeholder="مثال: aziz"
               required
             >
             <?php if (!empty($data['username_err'])): ?>
@@ -48,7 +60,7 @@
             <?php endif; ?>
           </div>
 
-          <!-- الاسم -->
+          <!-- name -->
           <div class="col-md-6">
             <label class="form-label">الاسم الكامل <span class="text-danger">*</span></label>
             <input
@@ -63,7 +75,7 @@
             <?php endif; ?>
           </div>
 
-          <!-- البريد -->
+          <!-- email -->
           <div class="col-md-6">
             <label class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
             <input
@@ -81,7 +93,7 @@
             <?php endif; ?>
           </div>
 
-          <!-- كلمة المرور الجديدة -->
+          <!-- password -->
           <div class="col-md-6">
             <label class="form-label">كلمة المرور الجديدة</label>
             <div class="input-group">
@@ -91,7 +103,7 @@
                 dir="ltr"
                 class="form-control <?php echo (!empty($data['password_err'])) ? 'is-invalid' : ''; ?>"
                 value=""
-                placeholder="اتركها فارغة إذا لا تريد التغيير"
+                placeholder="********"
               >
               <button class="btn btn-outline-secondary" type="button" onclick="togglePass(this)">
                 <i class="fa fa-eye"></i>
@@ -104,28 +116,27 @@
             <?php endif; ?>
           </div>
 
-          <!-- الدور -->
+          <!-- role -->
           <div class="col-md-6">
             <label class="form-label">الدور (الصلاحية) <span class="text-danger">*</span></label>
 
             <select name="role" class="form-select" <?php echo $isSelf ? 'disabled' : ''; ?>>
-              <option value="user" <?php echo ($roleVal === 'user') ? 'selected' : ''; ?>>موظف (User)</option>
-              <option value="manager" <?php echo ($roleVal === 'manager') ? 'selected' : ''; ?>>مدير (Manager)</option>
-              <option value="super_admin" <?php echo ($roleVal === 'super_admin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
+              <option value="user" <?php echo ($roleVal==='user') ? 'selected' : ''; ?>>موظف (User)</option>
+              <option value="manager" <?php echo ($roleVal==='manager') ? 'selected' : ''; ?>>مدير (Manager)</option>
+              <option value="super_admin" <?php echo ($roleVal==='super_admin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
             </select>
 
             <?php if ($isSelf): ?>
-              <div class="form-text text-muted">لا يمكنك تغيير دور حسابك من هذه الصفحة.</div>
+              <div class="form-text text-warning">لا يمكنك تغيير دور حسابك من هذه الصفحة.</div>
+              <!-- إذا disabled ما يرسل value، فنضيف hidden عشان POST يستلم role -->
               <input type="hidden" name="role" value="<?php echo htmlspecialchars($roleVal); ?>">
             <?php endif; ?>
           </div>
 
-          <!-- أزرار -->
+          <!-- actions -->
           <div class="col-12">
-            <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
-              <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">
-                إلغاء
-              </a>
+            <div class="d-flex flex-wrap justify-content-end gap-2 mt-2">
+              <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">إلغاء</a>
               <button type="submit" class="btn btn-primary">
                 <i class="fa fa-save"></i> تحديث البيانات
               </button>

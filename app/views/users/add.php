@@ -1,31 +1,43 @@
 <?php require_once APPROOT . '/views/layouts/header.php'; ?>
 
-<div class="container py-4">
+<?php
+// حل ثاني: صلاحية الصفحة بدون الاعتماد على session_helper
+$sessionRole = strtolower(trim((string)($_SESSION['user_role'] ?? 'user')));
+$canManageUsers = in_array($sessionRole, ['super_admin', 'superadmin'], true);
 
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+if (!$canManageUsers) {
+  flash('access_denied', 'ليس لديك صلاحية لإضافة مستخدمين', 'alert alert-danger');
+  redirect('index.php?page=users/index');
+  exit;
+}
+
+$data = $data ?? [];
+?>
+
+<div class="container py-4" style="max-width: 900px;">
+
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
       <h3 class="mb-1">إضافة مستخدم جديد</h3>
-      <div class="text-muted small">إنشاء حساب جديد وتحديد صلاحياته داخل النظام</div>
+      <div class="text-muted small">عبّئ البيانات الأساسية. يمكن توليد اسم المستخدم تلقائيًا من البريد.</div>
     </div>
 
-    <div class="d-flex gap-2">
-      <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">
-        <i class="fa fa-arrow-right"></i> رجوع
-      </a>
-    </div>
+    <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">
+      <i class="fa fa-arrow-right"></i> رجوع
+    </a>
   </div>
 
-  <?php flash('register_success'); ?>
   <?php flash('access_denied'); ?>
   <?php flash('user_message'); ?>
 
   <div class="card shadow-sm border-0">
-    <div class="card-body">
+    <div class="card-body p-4">
 
       <form action="<?php echo URLROOT; ?>/index.php?page=users/add" method="POST" novalidate>
+
         <div class="row g-3">
 
-          <!-- اسم المستخدم -->
+          <!-- username -->
           <div class="col-md-6">
             <label class="form-label">اسم المستخدم (Username) <span class="text-danger">*</span></label>
             <input
@@ -39,11 +51,11 @@
             <?php if (!empty($data['username_err'])): ?>
               <div class="invalid-feedback"><?php echo $data['username_err']; ?></div>
             <?php else: ?>
-              <div class="form-text">إذا تركته فارغًا سيتم توليده من البريد تلقائيًا.</div>
+              <div class="form-text">إذا تركته فارغًا سيتم توليده من البريد الإلكتروني.</div>
             <?php endif; ?>
           </div>
 
-          <!-- الاسم -->
+          <!-- name -->
           <div class="col-md-6">
             <label class="form-label">الاسم الكامل <span class="text-danger">*</span></label>
             <input
@@ -51,14 +63,14 @@
               name="name"
               class="form-control <?php echo (!empty($data['name_err'])) ? 'is-invalid' : ''; ?>"
               value="<?php echo htmlspecialchars($data['name'] ?? ''); ?>"
-              placeholder="مثال: محمد أحمد"
+              required
             >
             <?php if (!empty($data['name_err'])): ?>
               <div class="invalid-feedback"><?php echo $data['name_err']; ?></div>
             <?php endif; ?>
           </div>
 
-          <!-- البريد -->
+          <!-- email -->
           <div class="col-md-6">
             <label class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
             <input
@@ -68,15 +80,14 @@
               class="form-control <?php echo (!empty($data['email_err'])) ? 'is-invalid' : ''; ?>"
               value="<?php echo htmlspecialchars($data['email'] ?? ''); ?>"
               placeholder="name@uj.edu.sa"
+              required
             >
             <?php if (!empty($data['email_err'])): ?>
               <div class="invalid-feedback"><?php echo $data['email_err']; ?></div>
-            <?php else: ?>
-              <div class="form-text">يفضّل استخدام البريد الرسمي إن وجد.</div>
             <?php endif; ?>
           </div>
 
-          <!-- كلمة المرور -->
+          <!-- password -->
           <div class="col-md-6">
             <label class="form-label">كلمة المرور <span class="text-danger">*</span></label>
             <div class="input-group">
@@ -85,43 +96,39 @@
                 name="password"
                 dir="ltr"
                 class="form-control <?php echo (!empty($data['password_err'])) ? 'is-invalid' : ''; ?>"
-                value="<?php echo htmlspecialchars($data['password'] ?? ''); ?>"
+                value=""
                 placeholder="********"
+                required
               >
               <button class="btn btn-outline-secondary" type="button" onclick="togglePass(this)">
                 <i class="fa fa-eye"></i>
               </button>
             </div>
-
             <?php if (!empty($data['password_err'])): ?>
               <div class="invalid-feedback d-block"><?php echo $data['password_err']; ?></div>
             <?php else: ?>
-              <div class="form-text">يفضّل 6 أحرف على الأقل.</div>
+              <div class="form-text">6 أحرف على الأقل.</div>
             <?php endif; ?>
           </div>
 
-          <!-- الدور -->
+          <!-- role -->
           <div class="col-md-6">
-            <label class="form-label">الدور (الصلاحية) <span class="text-danger">*</span></label>
-            <?php $roleVal = normalizeRole($data['role'] ?? 'user'); ?>
+            <label class="form-label">نوع الحساب (الصلاحية) <span class="text-danger">*</span></label>
+            <?php $roleVal = strtolower(trim((string)($data['role'] ?? 'user'))); ?>
             <select name="role" class="form-select">
-              <option value="user" <?php echo ($roleVal === 'user') ? 'selected' : ''; ?>>موظف (User)</option>
-              <option value="manager" <?php echo ($roleVal === 'manager') ? 'selected' : ''; ?>>مدير (Manager)</option>
-              <option value="super_admin" <?php echo ($roleVal === 'super_admin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
+              <option value="user" <?php echo ($roleVal==='user') ? 'selected' : ''; ?>>موظف (User)</option>
+              <option value="manager" <?php echo ($roleVal==='manager') ? 'selected' : ''; ?>>مدير (Manager)</option>
+              <option value="super_admin" <?php echo ($roleVal==='super_admin' || $roleVal==='superadmin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
             </select>
             <div class="form-text">
-              <div><strong>موظف:</strong> استخدام النظام فقط حسب الصلاحيات.</div>
-              <div><strong>مدير:</strong> عرض المستخدمين التابعين له (حسب إعداداتك).</div>
-              <div><strong>سوبر أدمن:</strong> إدارة المستخدمين بالكامل.</div>
+              المدير يرى قوائمه فقط (حسب إعدادات النظام). السوبر أدمن يملك كامل الصلاحيات.
             </div>
           </div>
 
-          <!-- أزرار -->
+          <!-- actions -->
           <div class="col-12">
-            <div class="d-flex flex-wrap gap-2 justify-content-end mt-2">
-              <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">
-                إلغاء
-              </a>
+            <div class="d-flex flex-wrap justify-content-end gap-2 mt-2">
+              <a href="<?php echo URLROOT; ?>/index.php?page=users/index" class="btn btn-outline-secondary">إلغاء</a>
               <button type="submit" class="btn btn-primary">
                 <i class="fa fa-save"></i> حفظ البيانات
               </button>

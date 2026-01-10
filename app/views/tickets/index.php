@@ -1,313 +1,301 @@
-<?php require APPROOT . '/views/layouts/header.php'; ?>
-
 <?php
-// ===== Helpers / Defaults =====
-$pg = $data['pagination'] ?? ['page' => 1, 'perPage' => 15, 'total' => 0, 'pages' => 1];
+// app/views/tickets/index.php  ✅ نسخة نظيفة + تضمين الهيدر/الفوتر + UI جديد
 
-function buildTicketsUrl(array $overrides = []): string
-{
+// ===== Include layout =====
+if (defined('APPROOT')) {
+  require APPROOT . '/views/layouts/header.php';
+} else {
+  require __DIR__ . '/../layouts/header.php';
+}
+
+// ===== Helpers =====
+if (!function_exists('h')) {
+  function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+}
+function urlroot_prefix(): string {
+  return defined('URLROOT') ? rtrim(URLROOT, '/') : '';
+}
+function buildTicketsUrl(array $overrides = []): string {
   $base = $_GET ?? [];
   $base['page'] = 'tickets/index';
 
-  foreach ($overrides as $k => $v) {
-    $base[$k] = $v;
-  }
+  foreach ($overrides as $k => $v) $base[$k] = $v;
 
-  // تنظيف القيم الفاضية
+  // remove empty
   foreach ($base as $k => $v) {
     if ($v === '' || $v === null) unset($base[$k]);
   }
 
-  return URLROOT . '/index.php?' . http_build_query($base);
+  $prefix = urlroot_prefix();
+  return ($prefix !== '' ? $prefix . '/index.php?' : 'index.php?') . http_build_query($base);
 }
 
-// Current filters from GET
-$q          = (string)($_GET['q'] ?? '');
-$status     = (string)($_GET['status'] ?? '');
-$priority   = (string)($_GET['priority'] ?? '');
-$team       = (string)($_GET['team'] ?? ($_GET['department'] ?? ''));
-$assignedTo = (string)($_GET['assigned_to'] ?? '');
+function statusUi(string $st): array {
+  $st = trim($st);
+  if ($st === 'Open')        return ['open',    'مفتوحة',      'bi-circle-fill'];
+  if ($st === 'In Progress') return ['pending', 'قيد المعالجة', 'bi-arrow-repeat'];
+  if ($st === 'Resolved')    return ['pending', 'تم الحل',      'bi-check2-circle'];
+  if ($st === 'Closed')      return ['closed',  'مغلقة',        'bi-lock-fill'];
+  return ['open', ($st ?: '—'), 'bi-circle-fill'];
+}
+function priorityUi(string $pr): array {
+  $pr = trim($pr);
+  if ($pr === 'High')   return ['background:rgba(10,14,21,.14);', 'عالية',   'bi-exclamation-triangle-fill'];
+  if ($pr === 'Medium') return ['background:rgba(10,14,21,.10);', 'متوسطة',  'bi-dash-circle'];
+  if ($pr === 'Low')    return ['background:rgba(10,14,21,.06);', 'منخفضة',  'bi-arrow-down-circle'];
+  return ['', ($pr ?: '—'), 'bi-dash-circle'];
+}
 
-// Option lists
+// ===== Data =====
+$tickets = $data['tickets'] ?? [];
+if (!is_array($tickets)) $tickets = [];
+
+$filters = $data['filters'] ?? [];
+$q        = (string)($filters['q'] ?? ($_GET['q'] ?? ''));
+$status   = (string)($filters['status'] ?? ($_GET['status'] ?? ''));
+$priority = (string)($filters['priority'] ?? ($_GET['priority'] ?? ''));
+$team     = (string)($filters['team'] ?? ($_GET['team'] ?? ''));
+$assTo    = (string)($filters['assigned_to'] ?? ($_GET['assigned_to'] ?? ''));
+
+$teamsList = $data['teams'] ?? [];
+$usersList = $data['users'] ?? [];
+
+$pagination = $data['pagination'] ?? ['page'=>1,'perPage'=>15,'total'=>0,'pages'=>1];
+$page  = (int)($pagination['page'] ?? 1);  if ($page < 1) $page = 1;
+$pages = (int)($pagination['pages'] ?? 1); if ($pages < 1) $pages = 1;
+$total = (int)($pagination['total'] ?? 0);
+
+// Options
 $statusOptions   = ['Open', 'In Progress', 'Resolved', 'Closed'];
 $priorityOptions = ['High', 'Medium', 'Low'];
 
-// Departments/Teams list: from controller if exists, else derive from tickets
-$teamsList = $data['teams'] ?? ($data['departments'] ?? []);
-if (empty($teamsList) && !empty($data['tickets'])) {
-  $seen = [];
-  foreach ($data['tickets'] as $t) {
-    $val = (string)($t->department ?? ($t->team ?? ''));
-    if ($val !== '' && !isset($seen[$val])) $seen[$val] = true;
-  }
-  $teamsList = array_keys($seen);
-  sort($teamsList);
-}
-
-// Users list (for "المسؤول")
-$usersList = $data['users'] ?? [];
+// URLs
+$prefix = urlroot_prefix();
+$addUrl = ($prefix !== '' ? $prefix . '/index.php?page=tickets/add' : 'index.php?page=tickets/add');
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">🎧 التذاكر والدعم الفني</h3>
+<div class="page-wrap">
 
-  <a class="btn btn-primary" href="<?php echo URLROOT; ?>/index.php?page=tickets/add">
-    + فتح تذكرة جديدة
-  </a>
-</div>
-
-<!-- Filters -->
-<form method="get" action="<?php echo URLROOT; ?>/index.php" class="card mb-3">
-  <div class="card-body">
-    <input type="hidden" name="page" value="tickets/index" />
-
-    <div class="row g-2 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label mb-1">بحث (رقم/عنوان/وصف/أصل/اسم)</label>
-        <input type="text" name="q" value="<?php echo htmlspecialchars($q, ENT_QUOTES, 'UTF-8'); ?>" class="form-control"
-               placeholder="بحث (رقم/عنوان/وصف/أصل/اسم)" />
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label mb-1">الحالات</label>
-        <select name="status" class="form-select">
-          <option value="">كل الحالات</option>
-          <?php foreach ($statusOptions as $s): ?>
-            <option value="<?php echo htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); ?>"
-              <?php echo ($status === $s) ? 'selected' : ''; ?>>
-              <?php echo htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label mb-1">الأولويات</label>
-        <select name="priority" class="form-select">
-          <option value="">كل الأولويات</option>
-          <?php foreach ($priorityOptions as $p): ?>
-            <option value="<?php echo htmlspecialchars($p, ENT_QUOTES, 'UTF-8'); ?>"
-              <?php echo ($priority === $p) ? 'selected' : ''; ?>>
-              <?php echo htmlspecialchars($p, ENT_QUOTES, 'UTF-8'); ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label mb-1">الأقسام</label>
-        <select name="team" class="form-select">
-          <option value="">كل الأقسام</option>
-          <?php if (!empty($teamsList)): ?>
-            <?php foreach ($teamsList as $t): ?>
-              <?php
-                $val = is_object($t) ? (string)($t->name ?? $t->team ?? '') : (string)$t;
-              ?>
-              <?php if ($val !== ''): ?>
-                <option value="<?php echo htmlspecialchars($val, ENT_QUOTES, 'UTF-8'); ?>"
-                  <?php echo ($team === $val) ? 'selected' : ''; ?>>
-                  <?php echo htmlspecialchars($val, ENT_QUOTES, 'UTF-8'); ?>
-                </option>
-              <?php endif; ?>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label mb-1">المسؤولين</label>
-        <select name="assigned_to" class="form-select">
-          <option value="">كل المسؤولين</option>
-          <?php if (!empty($usersList)): ?>
-            <?php foreach ($usersList as $u): ?>
-              <?php $uid = (string)($u->id ?? ''); ?>
-              <option value="<?php echo htmlspecialchars($uid, ENT_QUOTES, 'UTF-8'); ?>"
-                <?php echo ($assignedTo !== '' && $assignedTo === $uid) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars((string)($u->name ?? ('ID ' . $uid)), ENT_QUOTES, 'UTF-8'); ?>
-              </option>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </select>
-      </div>
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">التذاكر والدعم الفني</h1>
+      <div class="page-sub">متابعة الطلبات، المسؤولين، والمرفقات بشكل سريع.</div>
     </div>
 
-    <div class="d-flex justify-content-end gap-2 mt-3">
-      <button type="submit" class="btn btn-primary">
-        <i class="fa fa-filter"></i> تطبيق
-      </button>
-
-      <a class="btn btn-outline-secondary" href="<?php echo buildTicketsUrl([
-        'q' => '',
-        'status' => '',
-        'priority' => '',
-        'team' => '',
-        'department' => '',
-        'assigned_to' => '',
-        'p' => 1
-      ]); ?>">
-        مسح
+    <div class="page-actions">
+      <a class="btn btn-dark btn-soft" href="<?= h($addUrl) ?>">
+        <i class="bi bi-plus-lg ms-1"></i> فتح تذكرة جديدة
       </a>
     </div>
   </div>
-</form>
 
-<!-- Table -->
-<div class="card">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-striped align-middle mb-0">
-        <thead class="table-dark">
-          <tr>
-            <th style="white-space:nowrap;">رقم</th>
-            <th>الموضوع</th>
-            <th style="white-space:nowrap;">صاحب الطلب</th>
-            <th style="white-space:nowrap;">المطلوبة لـ</th>
-            <th style="white-space:nowrap;">المسؤول</th>
-            <th style="white-space:nowrap;">الأصل</th>
-            <th style="white-space:nowrap;">القسم</th>
-            <th style="white-space:nowrap;">الحالة</th>
-            <th style="white-space:nowrap;">الأولوية</th>
-            <th style="white-space:nowrap;">تحديثات</th>
-            <th style="white-space:nowrap;">مرفقات</th>
-            <th style="white-space:nowrap;">آخر تحديث</th>
-            <th style="white-space:nowrap;">إجراءات</th>
-          </tr>
-        </thead>
+  <!-- Filters -->
+  <div class="cardx mb-3">
+    <div class="cardx-body">
+      <div class="cardx-title">بحث وفلترة</div>
 
-        <tbody>
-          <?php if (empty($data['tickets'])): ?>
-            <tr>
-              <td colspan="13" class="text-center text-muted py-4">لا توجد تذاكر حالياً.</td>
-            </tr>
-          <?php else: ?>
-            <?php foreach ($data['tickets'] as $ticket): ?>
-              <?php
-                // status badge
-                $st = (string)($ticket->status ?? '');
-                $stClass = 'bg-secondary';
-                if ($st === 'Open') $stClass = 'bg-success';
-                elseif ($st === 'In Progress') $stClass = 'bg-warning text-dark';
-                elseif ($st === 'Resolved') $stClass = 'bg-info text-dark';
-                elseif ($st === 'Closed') $stClass = 'bg-dark';
+      <form method="get" class="filters">
+        <input type="hidden" name="page" value="tickets/index">
+        <input type="hidden" name="p" value="1"><!-- reset page -->
 
-                // priority badge
-                $pr = (string)($ticket->priority ?? '');
-                $prClass = 'bg-secondary';
-                if ($pr === 'High') $prClass = 'bg-danger';
-                elseif ($pr === 'Medium') $prClass = 'bg-warning text-dark';
-                elseif ($pr === 'Low') $prClass = 'bg-secondary';
+        <input class="form-control input-soft" name="q" value="<?= h($q) ?>"
+               placeholder="بحث (رقم/عنوان/وصف/أصل/اسم)">
 
-                $assignedName = (string)($ticket->assigned_to_name ?? 'غير مسند');
+        <select class="form-select select-soft" name="status">
+          <option value="">كل الحالات</option>
+          <?php foreach ($statusOptions as $opt): ?>
+            <option value="<?= h($opt) ?>" <?= $status === $opt ? 'selected' : '' ?>>
+              <?= h($opt) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
 
-                $updatesCount = (int)($ticket->updates_count ?? 0);
-                $attachCount  = (int)($ticket->attachments_count ?? 0);
+        <select class="form-select select-soft" name="priority">
+          <option value="">كل الأولويات</option>
+          <?php foreach ($priorityOptions as $opt): ?>
+            <option value="<?= h($opt) ?>" <?= $priority === $opt ? 'selected' : '' ?>>
+              <?= h($opt) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
 
-                $ticketNo = (string)($ticket->ticket_number ?? ($ticket->ticket_no ?? ('#' . (int)$ticket->id)));
+        <select class="form-select select-soft" name="team">
+          <option value="">كل الأقسام</option>
+          <?php foreach ($teamsList as $t): ?>
+            <?php
+              $val = is_object($t) ? (string)($t->team ?? $t->name ?? '') : (string)$t;
+              if ($val === '') continue;
+            ?>
+            <option value="<?= h($val) ?>" <?= $team === $val ? 'selected' : '' ?>>
+              <?= h($val) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
 
-                $dept = (string)($ticket->department ?? ($ticket->team ?? '-'));
-                $assetTag = (string)($ticket->asset_tag ?? '-');
+        <select class="form-select select-soft" name="assigned_to">
+          <option value="">كل المسؤولين</option>
+          <?php foreach ($usersList as $u): ?>
+            <?php
+              $uid  = is_object($u) ? (string)($u->id ?? '') : (string)($u['id'] ?? '');
+              $name = is_object($u) ? (string)($u->name ?? $u->full_name ?? '') : (string)($u['name'] ?? $u['full_name'] ?? '');
+              if ($uid === '') continue;
+            ?>
+            <option value="<?= h($uid) ?>" <?= $assTo === $uid ? 'selected' : '' ?>>
+              <?= h($name !== '' ? $name : ('ID ' . $uid)) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
 
-                $dt = $ticket->updated_at ?? ($ticket->created_at ?? null);
-
-                $showUrl = URLROOT . '/index.php?page=tickets/show&id=' . (int)$ticket->id;
-              ?>
-              <tr>
-                <td style="white-space:nowrap;" dir="ltr">
-                  <?php echo htmlspecialchars($ticketNo, ENT_QUOTES, 'UTF-8'); ?>
-                </td>
-
-                <td>
-                  <div class="fw-bold">
-                    <?php echo htmlspecialchars((string)($ticket->subject ?? ''), ENT_QUOTES, 'UTF-8'); ?>
-                  </div>
-
-                  <?php if (!empty($ticket->description)): ?>
-                    <div class="text-muted small">
-                      <?php
-                        $desc = preg_replace("/\s+/", " ", (string)$ticket->description);
-                        $short = mb_substr($desc, 0, 80);
-                        echo htmlspecialchars($short, ENT_QUOTES, 'UTF-8') . (mb_strlen($desc) > 80 ? '…' : '');
-                      ?>
-                    </div>
-                  <?php endif; ?>
-                </td>
-
-                <td style="white-space:nowrap;"><?php echo htmlspecialchars((string)($ticket->user_name ?? '-'), ENT_QUOTES, 'UTF-8'); ?></td>
-                <td style="white-space:nowrap;"><?php echo htmlspecialchars((string)($ticket->requested_for_name ?? '-'), ENT_QUOTES, 'UTF-8'); ?></td>
-                <td style="white-space:nowrap;"><?php echo htmlspecialchars($assignedName, ENT_QUOTES, 'UTF-8'); ?></td>
-
-                <td style="white-space:nowrap;"><?php echo htmlspecialchars($assetTag, ENT_QUOTES, 'UTF-8'); ?></td>
-                <td style="white-space:nowrap;"><?php echo htmlspecialchars($dept, ENT_QUOTES, 'UTF-8'); ?></td>
-
-                <td style="white-space:nowrap;">
-                  <span class="badge <?php echo $stClass; ?>">
-                    <?php echo htmlspecialchars($st ?: '-', ENT_QUOTES, 'UTF-8'); ?>
-                  </span>
-                </td>
-
-                <td style="white-space:nowrap;">
-                  <span class="badge <?php echo $prClass; ?>">
-                    <?php echo htmlspecialchars($pr ?: '-', ENT_QUOTES, 'UTF-8'); ?>
-                  </span>
-                </td>
-
-                <td style="white-space:nowrap;">
-                  <span class="badge bg-light text-dark border">💬 <?php echo $updatesCount; ?></span>
-                </td>
-
-                <td style="white-space:nowrap;">
-                  <span class="badge bg-light text-dark border">📎 <?php echo $attachCount; ?></span>
-                </td>
-
-                <td style="white-space:nowrap;">
-                  <span dir="ltr">
-                    <?php echo $dt ? htmlspecialchars(date('Y-m-d H:i', strtotime((string)$dt)), ENT_QUOTES, 'UTF-8') : '-'; ?>
-                  </span>
-                </td>
-
-                <td style="white-space:nowrap;">
-                  <a href="<?php echo $showUrl; ?>" class="btn btn-outline-primary btn-sm">
-                    <i class="fa fa-eye"></i> تفاصيل
-                  </a>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
+        <div class="d-flex gap-2" style="grid-column: 1 / -1; justify-content:flex-start;">
+          <button class="btn btn-dark btn-soft" type="submit">
+            <i class="bi bi-funnel ms-1"></i> تطبيق
+          </button>
+          <a class="btn btn-light border btn-soft" href="<?= h(buildTicketsUrl(['q'=>'','status'=>'','priority'=>'','team'=>'','assigned_to'=>'','p'=>1])) ?>">
+            مسح
+          </a>
+        </div>
+      </form>
     </div>
   </div>
+
+  <!-- Table -->
+  <div class="cardx">
+    <div class="cardx-body p-0">
+      <div class="table-responsive">
+        <table class="table tablex mb-0">
+          <thead>
+            <tr>
+              <th>رقم</th>
+              <th>الموضوع</th>
+              <th>صاحب الطلب</th>
+              <th>المطلوبة لـ</th>
+              <th>المسؤول</th>
+              <th>الأصل</th>
+              <th>القسم</th>
+              <th>الحالة</th>
+              <th>الأولوية</th>
+              <th>💬 تحديثات</th>
+              <th>📎 مرفقات</th>
+              <th>آخر تحديث</th>
+              <th class="text-start">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if (empty($tickets)): ?>
+              <tr>
+                <td colspan="13" class="text-center td-muted py-4">لا توجد تذاكر حالياً.</td>
+              </tr>
+            <?php else: ?>
+              <?php foreach ($tickets as $ticket): ?>
+                <?php
+                  $id = (int)($ticket->id ?? 0);
+
+                  $ticketNo = (string)($ticket->ticket_number ?? ($ticket->ticket_no ?? ('TCK-' . str_pad((string)$id, 6, '0', STR_PAD_LEFT))));
+                  $subject  = (string)($ticket->subject ?? '');
+                  $desc     = (string)($ticket->description ?? '');
+
+                  $requester = (string)($ticket->user_name ?? $ticket->requester_name ?? '-');
+                  $forName   = (string)($ticket->requested_for_name ?? '-');
+                  $assigned  = (string)($ticket->assigned_to_name ?? 'غير مسند');
+
+                  $dept     = (string)($ticket->department ?? ($ticket->team ?? '-'));
+                  $assetTag = (string)($ticket->asset_tag ?? '-');
+
+                  $updatesCount = (int)($ticket->updates_count ?? 0);
+                  $attachCount  = (int)($ticket->attachments_count ?? 0);
+
+                  $dt = $ticket->updated_at ?? ($ticket->created_at ?? '-');
+
+                  [$stCls, $stLbl, $stIcon] = statusUi((string)($ticket->status ?? ''));
+                  [$prStyle, $prLbl, $prIcon] = priorityUi((string)($ticket->priority ?? ''));
+
+                  $showUrl = ($prefix !== '' ? $prefix . '/index.php?page=tickets/show&id=' : 'index.php?page=tickets/show&id=') . $id;
+
+                  $short = $desc;
+                  if (function_exists('mb_substr')) {
+                    $short = mb_substr($desc, 0, 90);
+                    if (mb_strlen($desc) > 90) $short .= '…';
+                  } else {
+                    $short = substr($desc, 0, 90);
+                    if (strlen($desc) > 90) $short .= '…';
+                  }
+                ?>
+                <tr>
+                  <td class="td-muted"><?= h($ticketNo) ?></td>
+
+                  <td style="min-width:260px;">
+                    <div style="font-weight:900;"><?= h($subject !== '' ? $subject : '—') ?></div>
+                    <?php if (trim($desc) !== ''): ?>
+                      <div class="td-muted" style="font-size:12px; margin-top:2px;">
+                        <?= h($short) ?>
+                      </div>
+                    <?php endif; ?>
+                  </td>
+
+                  <td class="td-muted"><?= h($requester) ?></td>
+                  <td class="td-muted"><?= h($forName) ?></td>
+                  <td><?= h($assigned) ?></td>
+                  <td class="td-muted"><?= h($assetTag) ?></td>
+                  <td class="td-muted"><?= h($dept) ?></td>
+
+                  <td>
+                    <span class="badgex <?= h($stCls) ?>">
+                      <i class="bi <?= h($stIcon) ?>"></i> <?= h($stLbl) ?>
+                    </span>
+                  </td>
+
+                  <td>
+                    <span class="badgex" style="<?= h($prStyle) ?>">
+                      <i class="bi <?= h($prIcon) ?>"></i> <?= h($prLbl) ?>
+                    </span>
+                  </td>
+
+                  <td class="td-muted"><?= (int)$updatesCount ?></td>
+                  <td class="td-muted"><?= (int)$attachCount ?></td>
+                  <td class="td-muted"><?= h((string)$dt) ?></td>
+
+                  <td class="text-start">
+                    <a class="icon-btn" href="<?= h($showUrl) ?>" title="تفاصيل">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="cardx-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="td-muted" style="font-weight:900;">
+        الإجمالي: <?= (int)$total ?> — صفحة <?= (int)$page ?> من <?= (int)$pages ?>
+      </div>
+
+      <div class="d-flex gap-2">
+        <?php $prev = max(1, $page - 1); ?>
+        <?php $next = min($pages, $page + 1); ?>
+
+        <a class="btn btn-light border btn-soft <?= $page <= 1 ? 'disabled' : '' ?>"
+           href="<?= h(buildTicketsUrl(['p' => $prev])) ?>">
+          السابق
+        </a>
+
+        <a class="btn btn-light border btn-soft <?= $page >= $pages ? 'disabled' : '' ?>"
+           href="<?= h(buildTicketsUrl(['p' => $next])) ?>">
+          التالي
+        </a>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<!-- Pagination -->
-<?php if (($pg['pages'] ?? 1) > 1): ?>
-  <?php
-    $cur = (int)($pg['page'] ?? 1);
-    $pages = (int)($pg['pages'] ?? 1);
-  ?>
-  <div class="d-flex justify-content-between align-items-center mt-3">
-    <div class="text-muted small">
-      الإجمالي: <?php echo (int)($pg['total'] ?? 0); ?> — صفحة <?php echo $cur; ?> من <?php echo $pages; ?>
-    </div>
-
-    <nav>
-      <ul class="pagination mb-0">
-        <li class="page-item <?php echo ($cur <= 1) ? 'disabled' : ''; ?>">
-          <a class="page-link" href="<?php echo buildTicketsUrl(['p' => max(1, $cur - 1)]); ?>">السابق</a>
-        </li>
-
-        <?php for ($i = max(1, $cur - 2); $i <= min($pages, $cur + 2); $i++): ?>
-          <li class="page-item <?php echo ($i === $cur) ? 'active' : ''; ?>">
-            <a class="page-link" href="<?php echo buildTicketsUrl(['p' => $i]); ?>"><?php echo $i; ?></a>
-          </li>
-        <?php endfor; ?>
-
-        <li class="page-item <?php echo ($cur >= $pages) ? 'disabled' : ''; ?>">
-          <a class="page-link" href="<?php echo buildTicketsUrl(['p' => min($pages, $cur + 1)]); ?>">التالي</a>
-        </li>
-      </ul>
-    </nav>
-  </div>
-<?php endif; ?>
-
-<?php require APPROOT . '/views/layouts/footer.php'; ?>
+<?php
+// ===== Include footer =====
+if (defined('APPROOT')) {
+  require APPROOT . '/views/layouts/footer.php';
+} else {
+  require __DIR__ . '/../layouts/footer.php';
+}
