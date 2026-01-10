@@ -10,8 +10,15 @@ class User
     }
 
     // إنشاء مستخدم
-    public function register($data)
-{
+    public function register($data){
+        // ضمان وجود username حتى لو ما أرسل من الكنترولر
+    if (!isset($data['username']) || trim((string)$data['username']) === '') {
+    $email = trim((string)($data['email'] ?? ''));
+    $base = $email !== '' ? (strstr($email, '@', true) ?: '') : '';
+    $base = preg_replace('/[^a-zA-Z0-9._-]/', '', (string)$base);
+    $data['username'] = $base ?: ('user_' . time());
+}
+
     $this->db->query('
         INSERT INTO users (username, name, email, password, role, manager_id, is_active)
         VALUES (:username, :name, :email, :password, :role, :manager_id, 1)
@@ -28,25 +35,23 @@ class User
 }
 
     // تسجيل دخول
-    public function login($email, $password)
-    {
-        $this->db->query('SELECT * FROM users WHERE email = :email LIMIT 1');
-        $this->db->bind(':email', $email);
-        $row = $this->db->single();
+   public function login($email, $password)
+{
+    $this->db->query('SELECT * FROM users WHERE email = :email LIMIT 1');
+    $this->db->bind(':email', $email);
+    $row = $this->db->single();
 
-        if (!$row) return false;
+    if (!$row) return false;
 
-        return password_verify($password, $row->password) ? $row : false;
+    // منع الدخول إذا الحساب مُعطّل
+    $active = isset($row->is_active) ? (int)$row->is_active : 1;
+    if ($active !== 1) {
+        return 'inactive'; // نرجع قيمة خاصة عشان الكنترولر يعرض رسالة واضحة
     }
 
-    // هل البريد موجود؟
-    public function findUserByEmail($email)
-    {
-        $this->db->query('SELECT id FROM users WHERE email = :email LIMIT 1');
-        $this->db->bind(':email', $email);
-        $this->db->single();
-        return $this->db->rowCount() > 0;
-    }
+    return password_verify($password, $row->password) ? $row : false;
+}
+
 
     // جلب مستخدم عبر البريد (للتحقق أثناء edit)
     public function getUserByEmail($email)
@@ -88,25 +93,29 @@ class User
 
     // تحديث بيانات مستخدم
     // ملاحظة: كنترولرك يمرر password دائماً (إما جديدة hashed أو القديمة)، فهنا نحدثها دائمًا
-    public function update($data)
+   public function update($data)
 {
     $this->db->query('
         UPDATE users
-        SET username = :username,
+        SET
+            username = :username,
             name     = :name,
             email    = :email,
             password = :password,
             role     = :role
         WHERE id = :id
     ');
+
     $this->db->bind(':id', (int)$data['id']);
     $this->db->bind(':username', $data['username']);
     $this->db->bind(':name', $data['name']);
     $this->db->bind(':email', $data['email']);
     $this->db->bind(':password', $data['password']);
-    $this->db->bind(':role', $data['role']); // super_admin / manager / user
+    $this->db->bind(':role', $data['role']); // user / manager / super_admin
+
     return $this->db->execute();
 }
+
 
 
     // تعطيل/تفعيل (Soft)

@@ -64,6 +64,12 @@ class AuthController extends Controller
 
       if (empty($data['email_err']) && empty($data['password_err'])) {
         $loggedInUser = $this->userModel->login($data['email'], $data['password']);
+        if ($loggedInUser === 'inactive') {
+        $data['password_err'] = 'تم تعطيل حسابك. تواصل مع مسؤول النظام.';
+        $this->view('users/login', $data);
+        return;
+}
+
         if ($loggedInUser) {
           $this->createUserSession($loggedInUser);
           return;
