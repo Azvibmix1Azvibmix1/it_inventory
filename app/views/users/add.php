@@ -15,14 +15,33 @@
     </div>
   </div>
 
-  <?php flash('user_message'); ?>
+  <?php flash('register_success'); ?>
   <?php flash('access_denied'); ?>
+  <?php flash('user_message'); ?>
 
   <div class="card shadow-sm border-0">
     <div class="card-body">
 
       <form action="<?php echo URLROOT; ?>/index.php?page=users/add" method="POST" novalidate>
         <div class="row g-3">
+
+          <!-- اسم المستخدم -->
+          <div class="col-md-6">
+            <label class="form-label">اسم المستخدم (Username) <span class="text-danger">*</span></label>
+            <input
+              type="text"
+              name="username"
+              dir="ltr"
+              class="form-control <?php echo (!empty($data['username_err'])) ? 'is-invalid' : ''; ?>"
+              value="<?php echo htmlspecialchars($data['username'] ?? ''); ?>"
+              placeholder="مثال: aziz"
+            >
+            <?php if (!empty($data['username_err'])): ?>
+              <div class="invalid-feedback"><?php echo $data['username_err']; ?></div>
+            <?php else: ?>
+              <div class="form-text">إذا تركته فارغًا سيتم توليده من البريد تلقائيًا.</div>
+            <?php endif; ?>
+          </div>
 
           <!-- الاسم -->
           <div class="col-md-6">
@@ -33,7 +52,6 @@
               class="form-control <?php echo (!empty($data['name_err'])) ? 'is-invalid' : ''; ?>"
               value="<?php echo htmlspecialchars($data['name'] ?? ''); ?>"
               placeholder="مثال: محمد أحمد"
-              required
             >
             <?php if (!empty($data['name_err'])): ?>
               <div class="invalid-feedback"><?php echo $data['name_err']; ?></div>
@@ -50,7 +68,6 @@
               class="form-control <?php echo (!empty($data['email_err'])) ? 'is-invalid' : ''; ?>"
               value="<?php echo htmlspecialchars($data['email'] ?? ''); ?>"
               placeholder="name@uj.edu.sa"
-              required
             >
             <?php if (!empty($data['email_err'])): ?>
               <div class="invalid-feedback"><?php echo $data['email_err']; ?></div>
@@ -70,43 +87,33 @@
                 class="form-control <?php echo (!empty($data['password_err'])) ? 'is-invalid' : ''; ?>"
                 value="<?php echo htmlspecialchars($data['password'] ?? ''); ?>"
                 placeholder="********"
-                required
               >
               <button class="btn btn-outline-secondary" type="button" onclick="togglePass(this)">
                 <i class="fa fa-eye"></i>
               </button>
-              <?php if (!empty($data['password_err'])): ?>
-                <div class="invalid-feedback d-block"><?php echo $data['password_err']; ?></div>
-              <?php else: ?>
-                <div class="form-text">يفضّل 6 أحرف على الأقل.</div>
-              <?php endif; ?>
             </div>
+
+            <?php if (!empty($data['password_err'])): ?>
+              <div class="invalid-feedback d-block"><?php echo $data['password_err']; ?></div>
+            <?php else: ?>
+              <div class="form-text">يفضّل 6 أحرف على الأقل.</div>
+            <?php endif; ?>
           </div>
 
           <!-- الدور -->
           <div class="col-md-6">
             <label class="form-label">الدور (الصلاحية) <span class="text-danger">*</span></label>
-            <select
-              name="role"
-              class="form-select <?php echo (!empty($data['role_err'])) ? 'is-invalid' : ''; ?>"
-              required
-            >
-              <?php $roleVal = normalizeRole($data['role'] ?? 'user'); ?>
+            <?php $roleVal = normalizeRole($data['role'] ?? 'user'); ?>
+            <select name="role" class="form-select">
               <option value="user" <?php echo ($roleVal === 'user') ? 'selected' : ''; ?>>موظف (User)</option>
               <option value="manager" <?php echo ($roleVal === 'manager') ? 'selected' : ''; ?>>مدير (Manager)</option>
-              <option value="admin" <?php echo ($roleVal === 'admin') ? 'selected' : ''; ?>>أدمن (Admin)</option>
-              <option value="superadmin" <?php echo ($roleVal === 'superadmin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
+              <option value="super_admin" <?php echo ($roleVal === 'super_admin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
             </select>
-            <?php if (!empty($data['role_err'])): ?>
-              <div class="invalid-feedback"><?php echo $data['role_err']; ?></div>
-            <?php else: ?>
-              <div class="form-text">
-                <div><strong>موظف:</strong> يستخدم النظام ويقدّم طلبات/تذاكر حسب الصلاحيات.</div>
-                <div><strong>مدير:</strong> إدارة ضمن نطاقه (نفعّلها لاحقًا إذا تبغى).</div>
-                <div><strong>أدمن:</strong> صلاحيات إدارية أعلى (حسب إعدادات النظام).</div>
-                <div><strong>سوبر أدمن:</strong> كل شيء + إدارة المستخدمين بالكامل.</div>
-              </div>
-            <?php endif; ?>
+            <div class="form-text">
+              <div><strong>موظف:</strong> استخدام النظام فقط حسب الصلاحيات.</div>
+              <div><strong>مدير:</strong> عرض المستخدمين التابعين له (حسب إعداداتك).</div>
+              <div><strong>سوبر أدمن:</strong> إدارة المستخدمين بالكامل.</div>
+            </div>
           </div>
 
           <!-- أزرار -->

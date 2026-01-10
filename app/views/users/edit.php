@@ -5,7 +5,7 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
       <h3 class="mb-1">تعديل بيانات المستخدم</h3>
-      <div class="text-muted small">حدّث بيانات المستخدم وصلاحياته. اترك كلمة المرور فارغة إذا لا تريد تغييرها.</div>
+      <div class="text-muted small">حدّث البيانات والصلاحية. اترك كلمة المرور فارغة إذا لا تريد تغييرها.</div>
     </div>
 
     <div class="d-flex gap-2">
@@ -24,7 +24,29 @@
       <form action="<?php echo URLROOT; ?>/index.php?page=users/edit" method="POST" novalidate>
         <input type="hidden" name="id" value="<?php echo (int)($data['id'] ?? 0); ?>">
 
+        <?php
+          $isSelf = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)($data['id'] ?? 0);
+          $roleVal = normalizeRole($data['role'] ?? 'user');
+        ?>
+
         <div class="row g-3">
+
+          <!-- اسم المستخدم -->
+          <div class="col-md-6">
+            <label class="form-label">اسم المستخدم (Username) <span class="text-danger">*</span></label>
+            <input
+              type="text"
+              name="username"
+              dir="ltr"
+              class="form-control <?php echo (!empty($data['username_err'])) ? 'is-invalid' : ''; ?>"
+              value="<?php echo htmlspecialchars($data['username'] ?? ''); ?>"
+              placeholder="مثال: aziz"
+              required
+            >
+            <?php if (!empty($data['username_err'])): ?>
+              <div class="invalid-feedback"><?php echo $data['username_err']; ?></div>
+            <?php endif; ?>
+          </div>
 
           <!-- الاسم -->
           <div class="col-md-6">
@@ -34,7 +56,6 @@
               name="name"
               class="form-control <?php echo (!empty($data['name_err'])) ? 'is-invalid' : ''; ?>"
               value="<?php echo htmlspecialchars($data['name'] ?? ''); ?>"
-              placeholder="مثال: محمد أحمد"
               required
             >
             <?php if (!empty($data['name_err'])): ?>
@@ -51,7 +72,6 @@
               dir="ltr"
               class="form-control <?php echo (!empty($data['email_err'])) ? 'is-invalid' : ''; ?>"
               value="<?php echo htmlspecialchars($data['email'] ?? ''); ?>"
-              placeholder="name@uj.edu.sa"
               required
             >
             <?php if (!empty($data['email_err'])): ?>
@@ -88,26 +108,15 @@
           <div class="col-md-6">
             <label class="form-label">الدور (الصلاحية) <span class="text-danger">*</span></label>
 
-            <?php
-              $currentRole = normalizeRole($data['role'] ?? 'user');
-              $isSelf = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] === (int)($data['id'] ?? 0);
-            ?>
-
-            <select
-              name="role"
-              class="form-select"
-              <?php echo $isSelf ? 'disabled' : ''; ?>
-            >
-              <option value="user" <?php echo ($currentRole === 'user') ? 'selected' : ''; ?>>موظف (User)</option>
-              <option value="manager" <?php echo ($currentRole === 'manager') ? 'selected' : ''; ?>>مدير (Manager)</option>
-              <option value="admin" <?php echo ($currentRole === 'admin') ? 'selected' : ''; ?>>أدمن (Admin)</option>
-              <option value="superadmin" <?php echo ($currentRole === 'superadmin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
+            <select name="role" class="form-select" <?php echo $isSelf ? 'disabled' : ''; ?>>
+              <option value="user" <?php echo ($roleVal === 'user') ? 'selected' : ''; ?>>موظف (User)</option>
+              <option value="manager" <?php echo ($roleVal === 'manager') ? 'selected' : ''; ?>>مدير (Manager)</option>
+              <option value="super_admin" <?php echo ($roleVal === 'super_admin') ? 'selected' : ''; ?>>سوبر أدمن (Super Admin)</option>
             </select>
 
             <?php if ($isSelf): ?>
               <div class="form-text text-muted">لا يمكنك تغيير دور حسابك من هذه الصفحة.</div>
-              <!-- نرسل الدور الحالي مخفيًا لأنه disabled لن يرسل -->
-              <input type="hidden" name="role" value="<?php echo htmlspecialchars($currentRole); ?>">
+              <input type="hidden" name="role" value="<?php echo htmlspecialchars($roleVal); ?>">
             <?php endif; ?>
           </div>
 
