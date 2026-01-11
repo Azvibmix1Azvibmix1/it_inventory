@@ -60,8 +60,14 @@ class Asset
    */
   public function getAssetsFiltered($filters = [], $allowedLocationIds = null)
   {
-    $locationId = (int)($filters['location_id'] ?? 0);
-    $q          = trim($filters['q'] ?? '');
+    $locationId  = (int)($filters['location_id'] ?? 0);
+$locationIds = $filters['location_ids'] ?? []; // ✅ جديد: يشمل التوابع
+$q = trim($filters['q'] ?? '');
+
+// نظّف locationIds
+if (!is_array($locationIds)) $locationIds = [];
+$locationIds = array_values(array_unique(array_filter(array_map('intval', $locationIds), fn($v)=>$v>0)));
+
 
     // لو ما عنده أي موقع مسموح -> رجّع فاضي بسرعة
     if (is_array($allowedLocationIds) && count($allowedLocationIds) === 0) {
@@ -92,10 +98,17 @@ class Asset
       $where[] = "assets.location_id IN (" . implode(',', $placeholders) . ")";
     }
 
-    // فلتر موقع
-    if ($locationId > 0) {
-      $where[] = "assets.location_id = :filter_loc";
-    }
+// ✅ فلتر موقع (يدعم include_children)
+if (!empty($locationIds)) {
+  $ph = [];
+  foreach ($locationIds as $i => $lid) {
+    $ph[] = ':f_loc' . $i;
+  }
+  $where[] = "assets.location_id IN (" . implode(',', $ph) . ")";
+} elseif ($locationId > 0) {
+  $where[] = "assets.location_id = :filter_loc";
+}
+
 
     // بحث
     if ($q !== '') {
@@ -127,9 +140,15 @@ class Asset
     }
 
     // bind فلتر موقع
-    if ($locationId > 0) {
-      $this->db->bind(':filter_loc', $locationId);
-    }
+    // bind فلتر موقع
+if (!empty($locationIds)) {
+  foreach ($locationIds as $i => $lid) {
+    $this->db->bind(':f_loc' . $i, (int)$lid);
+  }
+} elseif ($locationId > 0) {
+  $this->db->bind(':filter_loc', $locationId);
+}
+
 
     // bind بحث
     if ($q !== '') {

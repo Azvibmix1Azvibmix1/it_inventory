@@ -951,7 +951,7 @@ public function exportCsv()
         'include_children' => !empty($_GET['include_children']) ? 1 : 0,
     ];
 
-    $w = $_GET['w'] ?? ''; // soon | expired | (فارغ)
+    $w = $_GET['w'] ?? ($_GET['warranty'] ?? ''); // soon | expired | (فارغ)
 
     // صلاحيات المواقع (إذا عندك دالة/منطق جاهز استخدمه)
     // إذا ما عندك، خله null عشان يجيب الكل
@@ -993,25 +993,25 @@ public function exportCsv()
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM
 
-    fputcsv($out, [
-        'ID','Tag','النوع','الماركة','الموديل','Serial','الحالة','الموقع','انتهاء الضمان','أيام متبقية','ملاحظات'
-    ]);
+    fputcsv($out, [ 'ID','Tag','النوع','الماركة','الموديل','Serial','الحالة','الموقع','انتهاء الضمان','أيام متبقية','ملاحظات' ], ';');
+
 
     foreach ($assets as $a) {
         $days = $calcDays($a->warranty_expiry ?? null);
         fputcsv($out, [
-            $a->id ?? '',
-            $a->asset_tag ?? '',
-            $a->type ?? '',
-            $a->brand ?? '',
-            $a->model ?? '',
-            $a->serial_no ?? '',
-            $a->status ?? '',
-            $a->location_name ?? '',
-            $a->warranty_expiry ?? '',
-            $days === null ? '' : $days,
-            $a->notes ?? '',
-        ]);
+  $a->id ?? '',
+  $a->asset_tag ?? '',
+  $a->type ?? '',
+  $a->brand ?? '',
+  $a->model ?? '',
+  $a->serial_no ?? '',
+  $a->status ?? '',
+  $a->location_name ?? '',
+  $a->warranty_expiry ?? '',
+  $days === null ? '' : $days,
+  $a->notes ?? '',
+], ';');
+
     }
 
     fclose($out);
@@ -1032,5 +1032,66 @@ private function getUserDisplayName(int $userId): string
   // 2) fallback (لو ما عندك getUserById): اعرض رقم المستخدم بشكل لطيف
   return "مستخدم #{$userId}";
 }
+
+// ✅ Alias عشان الرابط يكون: assets/exportcsv
+private function exportCsvFallback(): void
+{
+  // نفس فلاتر index()
+  $filters = [
+    'location_id'      => isset($_GET['location_id']) ? (int)$_GET['location_id'] : 0,
+    'q'                => trim($_GET['q'] ?? ''),
+    'include_children' => !empty($_GET['include_children']) ? 1 : 0,
+  ];
+
+  // جهّز locations + الصلاحيات + include_children مثل index()
+  $locationsAll = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
+  [$childrenMap, $parentMap] = $this->buildLocationMaps($locationsAll);
+
+  $allowedLocationIds = $this->getAllowedLocationIdsForAssets();
+  if (is_array($allowedLocationIds)) {
+    $allowedLocationIds = $this->expandIdsWithDescendants($allowedLocationIds, $childrenMap);
+  }
+
+  if ($filters['location_id'] > 0 && $filters['include_children'] == 1) {
+    $desc = $this->getDescendants($filters['location_id'], $childrenMap);
+    $filters['location_ids'] = array_values(array_unique(array_merge([(int)$filters['location_id']], $desc)));
+  }
+
+  $assets = method_exists($this->assetModel, 'getAssetsFiltered')
+    ? $this->assetModel->getAssetsFiltered($filters, $allowedLocationIds)
+    : [];
+
+  header('Content-Type: text/csv; charset=UTF-8');
+  header('Content-Disposition: attachment; filename="assets_export.csv"');
+
+  $out = fopen('php://output', 'w');
+
+  // BOM عشان Excel بالعربي
+  fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
+
+  fputcsv($out, ['Tag','Type','Brand','Model','Serial','Warranty Expiry','Status','Location']);
+
+  foreach ($assets as $a) {
+    fputcsv($out, [
+  $a->id ?? '',
+  $a->asset_tag ?? '',
+  $a->type ?? '',
+  $a->brand ?? '',
+  $a->model ?? '',
+  $a->serial_no ?? '',
+  $a->status ?? '',
+  $a->location_name ?? '',
+  $a->warranty_expiry ?? '',
+  $days === null ? '' : $days,
+  $a->notes ?? '',
+], ';');
+
+  }
+
+  fclose($out);
+  exit;
+}
+
+
 
 }

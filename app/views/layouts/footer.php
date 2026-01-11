@@ -45,11 +45,13 @@
       });
 
       btnClose?.addEventListener('click', function(){
-        body.classList.remove('sb-open');
-        body.classList.add('sb-collapsed')
-        if(isMobile()) closeMobile();
-        else body.classList.add('sb-collapsed');
-      });
+  if(isMobile()){
+    closeMobile();
+  }else{
+    body.classList.add('sb-collapsed');
+  }
+});
+
 
       backdrop?.addEventListener('click', closeMobile);
 
@@ -63,14 +65,16 @@ if(isMobile()){
 
 
       window.addEventListener('resize', function(){
-        if(isMobile()){
-          body.classList.remove('sb-collapsed');
-          closeMobile();
-        }else{
-          closeMobile();
-          if(!body.classList.contains('sb-collapsed')) body.classList.add('sb-collapsed');
-        }
-      });
+  if(isMobile()){
+    body.classList.remove('sb-collapsed');
+    closeMobile();
+  }else{
+    closeMobile();
+    // على الديسكتوب نخليه مفتوح بشكل طبيعي
+    body.classList.remove('sb-collapsed');
+  }
+});
+
     })();
 
     // ===== Quick menu search =====

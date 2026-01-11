@@ -643,6 +643,95 @@ body.theme-dark .badgex.closed  { background: rgba(255,255,255,.14); }
 .input-soft::placeholder{ color: rgba(78,87,106,.75); font-weight: 700; }
 body.theme-dark .input-soft::placeholder{ color: rgba(224,228,235,.55); }
 
+/* =========================
+   UI Pills + Funnels Bar (مثل الصور)
+   ========================= */
+
+:root{
+  --pill-active-bg: var(--black-100);
+  --pill-active-tx: var(--white-100);
+}
+body.theme-dark{
+  --pill-active-bg: var(--white-100);
+  --pill-active-tx: var(--black-100);
+}
+
+/* Bar مثل Funnels */
+.filterbarx{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow2);
+  padding: 10px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.filterbarx .sep{
+  width:1px;
+  height:30px;
+  background: rgba(209,214,224,.65);
+}
+body.theme-dark .filterbarx .sep{
+  background: rgba(224,228,235,.16);
+}
+
+/* segmented / pills */
+.pills{
+  display:inline-flex;
+  gap:8px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(240,241,245,.65);
+}
+body.theme-dark .pills{
+  background: rgba(255,255,255,.06);
+}
+
+.pill{
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 900;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  transition: transform .08s ease, background .15s ease, box-shadow .15s ease;
+}
+.pill:hover{ background: var(--hover-bg); }
+.pill:active{ transform: translateY(1px); }
+
+.pill.active{
+  background: var(--pill-active-bg);
+  color: var(--pill-active-tx);
+  box-shadow: var(--shadow2);
+}
+
+/* icon square buttons (list/grid مثل الصورة) */
+.icon-toggle{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow2);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--text);
+}
+.icon-toggle.active{
+  background: var(--pill-active-bg);
+  color: var(--pill-active-tx);
+  border-color: transparent;
+}
 
   </style>
 </head>
