@@ -16,65 +16,67 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    // ===== Sidebar toggle (Desktop collapse + Mobile overlay) =====
+    // ===== Sidebar open/close (mobile) + collapse (desktop) =====
     (function(){
       const body = document.body;
-      const btnToggle = document.getElementById('panelToggleBtn');
-      const btnClose  = document.getElementById('panelCloseBtn');
-      const backdrop  = document.getElementById('sbBackdrop');
+      const panelToggleBtn = document.getElementById('panelToggleBtn');
+      const panelCloseBtn  = document.getElementById('panelCloseBtn');
+      const backdrop       = document.getElementById('sbBackdrop');
 
       function isMobile(){
-        return window.matchMedia('(max-width: 992px)').matches;
+        return window.matchMedia('(max-width: 991px)').matches;
       }
 
-      function openMobile(){
+      function openPanel(){
         body.classList.add('sb-open');
       }
-      function closeMobile(){
+      function closePanel(){
         body.classList.remove('sb-open');
       }
 
-      function toggleDesktop(){
-          body.classList.remove('sb-open'); // مهم
-        body.classList.toggle('sb-collapsed');
+      if(panelToggleBtn){
+        panelToggleBtn.addEventListener('click', function(e){
+          e.preventDefault();
+          if(isMobile()){
+            openPanel();
+          }else{
+            body.classList.toggle('sb-collapsed');
+            localStorage.setItem('uj_sb_collapsed', body.classList.contains('sb-collapsed') ? '1' : '0');
+          }
+        });
       }
 
-      btnToggle?.addEventListener('click', function(){
-        if(isMobile()) openMobile();
-        else toggleDesktop();
-      });
+      if(panelCloseBtn){
+        panelCloseBtn.addEventListener('click', function(e){
+          e.preventDefault();
+          closePanel();
+        });
+      }
 
-      btnClose?.addEventListener('click', function(){
-  if(isMobile()){
-    closeMobile();
-  }else{
-    body.classList.add('sb-collapsed');
-  }
-});
+      if(backdrop){
+        backdrop.addEventListener('click', function(){
+          closePanel();
+        });
+      }
 
+      // restore collapsed state (desktop)
+      try{
+        const saved = localStorage.getItem('uj_sb_collapsed');
+        if(saved === '1' && !isMobile()){
+          body.classList.add('sb-collapsed');
+        }
+      }catch(e){}
 
-      backdrop?.addEventListener('click', closeMobile);
-
-      // default behavior on load
-      // default behavior on load
-if(isMobile()){
-  body.classList.remove('sb-collapsed');
-}else{
-  body.classList.remove('sb-collapsed'); // يبدأ مفتوح على الكمبيوتر
-}
-
-
+      // responsive reset
       window.addEventListener('resize', function(){
-  if(isMobile()){
-    body.classList.remove('sb-collapsed');
-    closeMobile();
-  }else{
-    closeMobile();
-    // على الديسكتوب نخليه مفتوح بشكل طبيعي
-    body.classList.remove('sb-collapsed');
-  }
-});
-
+        if(isMobile()){
+          body.classList.remove('sb-collapsed');
+        }else{
+          body.classList.remove('sb-open');
+          const saved = localStorage.getItem('uj_sb_collapsed');
+          if(saved === '1') body.classList.add('sb-collapsed');
+        }
+      });
     })();
 
     // ===== Quick menu search =====
@@ -97,29 +99,45 @@ if(isMobile()){
     (function(){
       const body = document.body;
       const key = 'uj_theme';
-      const btn1 = document.getElementById('themeToggle');
-      const btn2 = document.getElementById('railThemeBtn');
 
-      function apply(v){
-        if(v === 'dark') body.classList.add('theme-dark');
-        else body.classList.remove('theme-dark');
+      function setTheme(mode){
+        if(mode === 'dark'){
+          body.classList.add('theme-dark');
+        }else{
+          body.classList.remove('theme-dark');
+        }
+        try{ localStorage.setItem(key, mode); }catch(e){}
       }
-      function toggle(){
+
+      function getTheme(){
+        try{ return localStorage.getItem(key); }catch(e){}
+        return null;
+      }
+
+      const saved = getTheme();
+      if(saved){
+        setTheme(saved);
+      }
+
+      const btn  = document.getElementById('themeToggle');
+      const rail = document.getElementById('railThemeToggle');
+
+      function toggle(e){
+        if(e) e.preventDefault();
         const isDark = body.classList.contains('theme-dark');
-        const next = isDark ? 'light' : 'dark';
-        localStorage.setItem(key, next);
-        apply(next);
+        setTheme(isDark ? 'light' : 'dark');
       }
-      apply(localStorage.getItem(key) || 'light');
 
-      btn1?.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
-      btn2?.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+      if(btn)  btn.addEventListener('click', toggle);
+      if(rail) rail.addEventListener('click', toggle);
     })();
 
-    // ===== Submit Loading =====
+    // ===== Global UX: loading state on submit =====
     document.addEventListener('submit', function(e){
       const form = e.target;
-      const btn = form.querySelector('button[type="submit"]');
+      if(!form) return;
+
+      const btn = form.querySelector('.js-loading-on-submit');
       if(!btn) return;
 
       if(btn.dataset.loading === "1") return;

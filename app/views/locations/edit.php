@@ -12,8 +12,10 @@
     --radius:16px;
   }
 
-  .wrap{ direction: rtl; text-align: right; }
+  .wrap{ direction: rtl; text-align:right; }
   .page-wrap{ padding:18px 18px 28px; }
+
+  /* Page head */
   .page-head{
     background:var(--surface);
     border:1px solid var(--border);
@@ -39,12 +41,13 @@
     color:#2563eb;
   }
 
-  /* Cards */
+  /* ✅ Global card theme (يشمل كل كارد في الصفحة) */
   .card{
     border:1px solid var(--border)!important;
     border-radius:var(--radius)!important;
     box-shadow:var(--shadow-sm)!important;
     overflow:hidden;
+    background:var(--surface)!important;
   }
   .card-header{
     background:rgba(2,6,23,.03)!important;
@@ -55,14 +58,17 @@
     background:linear-gradient(180deg,#111827,#0b1220)!important;
     border-bottom:none!important;
   }
+  .card-body{ padding:16px!important; }
 
   /* Inputs */
   .form-control,.form-select{
     border-radius:12px!important;
     border-color:rgba(15,23,42,.14)!important;
   }
+  .form-label{ font-weight:800; color:var(--text); }
+  .hint{ color:var(--muted); font-size:.9rem; }
 
-  /* Soft stat tiles */
+  /* Stat tiles */
   .stat-tile{
     background:rgba(2,6,23,.03);
     border:1px solid var(--border);
@@ -71,15 +77,18 @@
   }
 
   /* Tables */
+  .table{ margin-bottom:0; }
   .table thead th{
     background:rgba(2,6,23,.03)!important;
     border-bottom:1px solid var(--border)!important;
     color:var(--text);
     font-weight:900;
+    white-space:nowrap;
   }
   .table td,.table th{ vertical-align:middle; }
 
-  /* Icon buttons */
+  /* Buttons (soft style) */
+  .btn{ border-radius:12px!important; font-weight:800; }
   .btn-icon{
     width:36px;height:36px;
     display:inline-flex;align-items:center;justify-content:center;
@@ -98,9 +107,10 @@
     margin-bottom:10px;
   }
 
-  /* Switch spacing */
+  /* Switch */
   .form-switch .form-check-input{ cursor:pointer; }
 </style>
+
 
 
 

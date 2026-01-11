@@ -31,36 +31,40 @@ $userEmail = $_SESSION['user_email'] ?? '';
   <!-- Font Awesome (للصفحات القديمة) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <!-- خط عربي -->
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
   <style>
-    /* =========================
-       Shades of Gray (مثل الصورة)
-       ========================= */
+<?php
+// NOTE: تم تحديث الـ CSS هنا ليطابق الصور (Pill Active + Black/White)
+// مع إضافة segmented pills جاهزة لاستخدامها كتبات داخل الصفحات.
+?>
+<?php /* CSS Start */ ?>
+<?php echo preg_replace('/^\h*\v+/m', '', '
     :root{
-      --black-100:#0A0E15;
-      --black-90:#212631;
-      --black-80:#373F4E;
-      --black-70:#4E576A;
-      --black-60:#667085;
+      /* ===== Palette (inspired by your reference) ===== */
+      --black-100: #0A0E15;
+      --black-90:  #212631;
+      --black-80:  #373F4E;
+      --black-70:  #4E576A;
+      --black-60:  #667085;
 
-      --white-100:#FFFFFF;
-      --white-90:#F0F1F5;
-      --white-80:#E0E4EB;
-      --white-70:#D1D6E0;
-      --white-60:#BFC6D4;
+      --white-100: #FFFFFF;
+      --white-90:  #F0F1F5;
+      --white-80:  #E0E4EB;
+      --white-70:  #D1D6E0;
+      --white-60:  #BFC6D4;
 
       /* Tokens (Light) */
-      --bg:        var(--white-90);
-      --card:      var(--white-100);
-      --rail:      var(--white-100);
-      --panel:     rgba(255,255,255,.86);
-      --topbar:    rgba(240,241,245,.82);
+      --bg:        #F3F5F8;
+      --card:      #FFFFFF;
+      --rail:      rgba(255,255,255,.90);
+      --panel:     rgba(255,255,255,.82);
+      --topbar:    rgba(255,255,255,.72);
 
       --text:      var(--black-100);
-      --muted:     var(--black-70);
+      --muted:     var(--black-60);
       --icon:      var(--black-70);
-      --border:    var(--white-80);
+      --border:    rgba(209,214,224,.65);
 
       --active-bg: rgba(10,14,21,.08);
       --hover-bg:  rgba(10,14,21,.04);
@@ -73,7 +77,6 @@ $userEmail = $_SESSION['user_email'] ?? '';
       --rail-w: 68px;
       --panel-w: 292px;
       --sb-offset: calc(var(--rail-w) + var(--panel-w));
-
     }
 
     body.theme-dark{
@@ -91,14 +94,17 @@ $userEmail = $_SESSION['user_email'] ?? '';
 
       --active-bg: rgba(255,255,255,.10);
       --hover-bg:  rgba(255,255,255,.06);
+
+      --shadow:  0 22px 44px rgba(0,0,0,.42);
+      --shadow2: 0 12px 26px rgba(0,0,0,.35);
     }
 
     html, body{ height:100%; }
     body{
-      min-height:100vh;
+      margin:0;
+      font-family: "Cairo", sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-family:"Cairo", sans-serif;
       overflow-x:hidden;
     }
 
@@ -115,14 +121,16 @@ $userEmail = $_SESSION['user_email'] ?? '';
       right:0;
       width: var(--rail-w);
       background: var(--rail);
+      backdrop-filter: blur(14px);
       border-left: 1px solid var(--border);
       display:flex;
       flex-direction:column;
       align-items:center;
       padding: 14px 10px;
-      gap: 12px;
-      transition: transform .18s ease;
-
+      gap: 10px;
+    }
+    body.theme-dark .app-rail{
+      border-left: 1px solid rgba(224,228,235,.16);
     }
 
     .rail-logo{
@@ -135,10 +143,11 @@ $userEmail = $_SESSION['user_email'] ?? '';
       color: var(--text);
       font-weight: 900;
       letter-spacing:.5px;
+      user-select:none;
     }
     body.theme-dark .rail-logo{
       background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
-      border: 1px solid rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.10);
     }
 
     .rail-btn{
@@ -148,25 +157,33 @@ $userEmail = $_SESSION['user_email'] ?? '';
       background: transparent;
       display:flex; align-items:center; justify-content:center;
       color: var(--icon);
-      transition: background .15s ease, transform .08s ease, border-color .15s ease, color .15s ease;
+      transition: background .15s ease, transform .08s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
       cursor:pointer;
     }
     .rail-btn:hover{
       background: var(--hover-bg);
       border-color: rgba(10,14,21,.06);
+      box-shadow: var(--shadow2);
     }
     body.theme-dark .rail-btn:hover{
       border-color: rgba(255,255,255,.12);
     }
     .rail-btn:active{ transform: translateY(1px); }
+
+    /* ✅ Active = Pill (Black/White) مثل الصور */
     .rail-btn.active{
-      background: var(--active-bg);
-      border-color: rgba(10,14,21,.16);
-      color: var(--text);
+      background: var(--black-100);
+      color: var(--white-100);
+      border-color: transparent;
+      box-shadow: 0 12px 26px rgba(10,14,21,.18);
     }
     body.theme-dark .rail-btn.active{
-      border-color: rgba(255,255,255,.18);
+      background: var(--white-100);
+      color: var(--black-100);
+      border-color: transparent;
+      box-shadow: 0 12px 26px rgba(0,0,0,.35);
     }
+
     .rail-spacer{ flex:1; }
 
     /* ====== Panel ====== */
@@ -174,13 +191,18 @@ $userEmail = $_SESSION['user_email'] ?? '';
       right: var(--rail-w);
       width: var(--panel-w);
       background: var(--panel);
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(16px);
       border-left: 1px solid var(--border);
-      padding: 14px 14px;
+      box-shadow: var(--shadow);
       display:flex;
       flex-direction:column;
+      padding: 14px;
       gap: 12px;
-      transition: transform .18s ease;
+      border-top-left-radius: 18px;
+      border-bottom-left-radius: 18px;
+    }
+    body.theme-dark .app-panel{
+      border-left: 1px solid rgba(224,228,235,.16);
     }
 
     .panel-head{
@@ -188,33 +210,54 @@ $userEmail = $_SESSION['user_email'] ?? '';
       align-items:center;
       justify-content:space-between;
       gap:10px;
-      padding: 4px 6px;
     }
+
     .brand{
-      display:flex; align-items:center; gap:10px;
+      display:flex;
+      align-items:center;
+      gap:10px;
       min-width:0;
     }
     .brand .dot{
-      width: 34px; height:34px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(10,14,21,.08), rgba(10,14,21,.03));
-      border: 1px solid rgba(10,14,21,.10);
-      display:flex; align-items:center; justify-content:center;
+      width: 40px; height:40px;
+      border-radius: 14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow2);
       color: var(--text);
+      flex:0 0 auto;
     }
-    body.theme-dark .brand .dot{
-      background: linear-gradient(135deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
-      border: 1px solid rgba(255,255,255,.14);
+    .brand .txt{ min-width:0; }
+    .brand .t1{
+      font-weight: 900;
+      font-size: 14px;
+      line-height: 1.2;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .brand .t2{
+      font-weight: 800;
+      font-size: 12px;
+      color: var(--muted);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
 
-    .brand .txt{ min-width:0; }
-    .brand .txt .t1{ font-weight:900; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .brand .txt .t2{ font-size:12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .panel-close{
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 14px;
+      width: 40px; height:40px;
+      display:flex; align-items:center; justify-content:center;
+      box-shadow: var(--shadow2);
+    }
 
     .panel-search{
       border: 1px solid var(--border);
       background: var(--card);
-      border-radius: 14px;
+      border-radius: 999px;
       padding: 10px 12px;
       display:flex;
       align-items:center;
@@ -223,65 +266,70 @@ $userEmail = $_SESSION['user_email'] ?? '';
     }
     .panel-search i{ color: var(--muted); }
     .panel-search input{
-      border:0; outline:0;
-      width:100%;
+      border:0;
+      outline:none;
       background: transparent;
-      font-weight:700;
+      width: 100%;
       color: var(--text);
+      font-weight: 800;
+      font-size: 13px;
     }
-    .panel-search input::placeholder{
-      color: rgba(78,87,106,.85);
-    }
-    body.theme-dark .panel-search input::placeholder{
-      color: rgba(224,228,235,.70);
-    }
+    .panel-search input::placeholder{ color: var(--muted); font-weight:800; }
 
     .panel-sec-title{
       font-size: 12px;
       color: var(--muted);
-      font-weight: 800;
+      font-weight: 900;
       padding: 6px 6px 0;
     }
 
     .menu{
       display:flex;
       flex-direction:column;
-      gap:6px;
+      gap:8px;
     }
     .menu a{
       text-decoration:none;
       color: var(--text);
       border: 1px solid transparent;
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 10px 12px;
       display:flex;
       align-items:center;
-      justify-content:space-between;
       gap:10px;
-      font-weight: 800;
+      font-weight: 900;
       background: transparent;
-      transition: background .15s ease, border-color .15s ease, transform .08s ease;
+      transition: background .15s ease, border-color .15s ease, transform .08s ease, box-shadow .15s ease;
     }
     .menu a .l{
       display:flex; align-items:center; gap:10px; min-width:0;
     }
-    .menu a .l i{ color: var(--icon); }
-    .menu a .l span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .menu a i{ color: var(--icon); }
+    .menu a span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
     .menu a:hover{
       background: var(--hover-bg);
-      border-color: rgba(10,14,21,.06);
+      border-color: rgba(10,14,21,.08);
+      box-shadow: var(--shadow2);
     }
     body.theme-dark .menu a:hover{
-      border-color: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.10);
     }
     .menu a:active{ transform: translateY(1px); }
 
+    /* ✅ Active = Pill (Black/White) مثل الصور */
     .menu a.active{
-      background: var(--active-bg);
-      border-color: rgba(10,14,21,.16);
+      background: var(--black-100);
+      color: var(--white-100);
+      border-color: transparent;
+      box-shadow: 0 14px 30px rgba(10,14,21,.14);
     }
+    .menu a.active i{ color: inherit; }
     body.theme-dark .menu a.active{
-      border-color: rgba(255,255,255,.18);
+      background: var(--white-100);
+      color: var(--black-100);
+      border-color: transparent;
+      box-shadow: 0 14px 30px rgba(0,0,0,.35);
     }
 
     /* ====== Panel footer user ====== */
@@ -298,40 +346,45 @@ $userEmail = $_SESSION['user_email'] ?? '';
     }
 
     .user-card{
-      background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 10px 10px;
+      background: var(--card);
+      border-radius: 18px;
+      padding: 12px;
+      box-shadow: var(--shadow2);
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:10px;
-      box-shadow: var(--shadow2);
     }
-    .user-card .u{
-      display:flex; align-items:center; gap:10px; min-width:0;
+    .user-mini{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
     }
-    .user-card .avatar{
+    .user-avatar{
       width: 40px; height:40px;
-      border-radius: 14px;
-      background: rgba(10,14,21,.06);
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(10,14,21,.06), rgba(10,14,21,.02));
       border: 1px solid rgba(10,14,21,.10);
       display:flex; align-items:center; justify-content:center;
-      color: var(--text);
-      flex: 0 0 auto;
-    }
-    body.theme-dark .user-card .avatar{
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.14);
-    }
-
-    .user-card .meta{ min-width:0; }
-    .user-card .meta .n{
       font-weight: 900;
-      line-height: 1.1;
+      color: var(--text);
+      flex:0 0 auto;
+      user-select:none;
+    }
+    body.theme-dark .user-avatar{
+      background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    .user-info{ min-width:0; }
+    .user-info .n{
+      font-weight: 900;
+      font-size: 13px;
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
-    .user-card .meta .e{
+    .user-info .e{
+      font-weight: 800;
       font-size: 12px;
       color: var(--muted);
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -339,26 +392,23 @@ $userEmail = $_SESSION['user_email'] ?? '';
 
     /* ====== Content wrap ====== */
     .app-content{
-  min-height:100vh;
-  margin-right: var(--sb-offset);
-  display:flex;
-  flex-direction:column;
-}
+      min-height:100vh;
+      margin-right: var(--sb-offset);
+      display:flex;
+      flex-direction:column;
+    }
 
     .app-topbar{
       position: sticky;
       top:0;
       z-index: 1030;
       background: var(--topbar);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(209,214,224,.65);
-      padding: 10px 14px;
-    }
-    body.theme-dark .app-topbar{
-      border-bottom: 1px solid rgba(224,228,235,.16);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
     }
 
     .topbar-inner{
+      padding: 12px 14px;
       display:flex;
       align-items:center;
       justify-content:space-between;
@@ -377,363 +427,120 @@ $userEmail = $_SESSION['user_email'] ?? '';
       background: var(--card);
       border-radius: 14px;
       width: 44px; height:44px;
-      display:flex; align-items:center; justify-content:center;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       box-shadow: var(--shadow2);
       color: var(--text);
     }
 
-    /* ====== Collapsed state (Desktop) ====== */
-   /* ====== Collapsed state (Desktop) - إغلاق كامل ====== */
-   /* ====== Collapsed state (Desktop) - إغلاق كامل بدون بقايا ====== */
-body.sb-collapsed{
-  --sb-offset: 0;
-}
-body.sb-collapsed .app-panel,
-body.sb-collapsed .app-rail{
-  transform: translateX(120%);
-  opacity: 0;
-  pointer-events: none;
-}
+    .topbar-title{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .topbar-title .h{
+      font-size: 14px;
+      font-weight: 900;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .topbar-title .s{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
 
-
-
-    /* ====== Overlay (Mobile/Tablet) ====== */
+    /* Backdrop for mobile */
     .backdrop{
       position: fixed;
       inset:0;
-      background: rgba(10,14,21,.45);
-      z-index: 1038;
+      background: rgba(10,14,21,.20);
+      backdrop-filter: blur(2px);
       opacity:0;
       pointer-events:none;
       transition: opacity .15s ease;
+      z-index: 1039;
     }
     body.sb-open .backdrop{
       opacity:1;
       pointer-events:auto;
     }
 
-    @media (max-width: 992px){
-        :root{ --sb-offset: 0; }
-      .app-rail{ display:none; }
+    /* Mobile / small screens */
+    @media (max-width: 991px){
+      :root{ --panel-w: 300px; --sb-offset: var(--rail-w); }
+
       .app-panel{
-        right:0;
-        width: min(92vw, 360px);
+        right: var(--rail-w);
         transform: translateX(110%);
-        box-shadow: var(--shadow);
+        transition: transform .18s ease;
       }
       body.sb-open .app-panel{
         transform: translateX(0);
       }
-      .app-content{ margin-right: 0; }
-      body.sb-collapsed .app-content{ margin-right: 0; }
-      .app-topbar{ padding: 10px 12px; }
+      .panel-close{ display:flex; }
+      .app-content{ margin-right: var(--rail-w); }
     }
 
-    /* ===== Fix RTL date inputs ===== */
-    input[type="date"], input[type="datetime-local"], input[type="month"], input[type="time"]{
-      direction:ltr;
-      unicode-bidi: plaintext;
-      text-align:right;
+    @media (min-width: 992px){
+      .panel-close{ display:none; }
+      body.sb-collapsed .app-panel{
+        transform: translateX(110%);
+      }
+      body.sb-collapsed .app-content{
+        margin-right: var(--rail-w);
+      }
     }
 
-    /* =========================
-   Page UI (Cards + Tables + Filters)
-   ========================= */
+    /* ====== Segmented pills (للتبويبات داخل الصفحات) ====== */
+    .segmented{
+      display:inline-flex;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.65);
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(10px);
+    }
+    body.theme-dark .segmented{
+      background: rgba(33,38,49,.55);
+    }
+    .segmented .seg-item{
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 900;
+      padding: 10px 14px;
+      border-radius: 999px;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      transition: background .15s ease, color .15s ease, transform .08s ease;
+      cursor:pointer;
+      text-decoration:none;
+    }
+    .segmented .seg-item:hover{
+      background: var(--hover-bg);
+      color: var(--text);
+    }
+    .segmented .seg-item.is-active,
+    .segmented .seg-item.active{
+      background: var(--black-100);
+      color: var(--white-100);
+      box-shadow: 0 14px 30px rgba(10,14,21,.14);
+    }
+    body.theme-dark .segmented .seg-item.is-active,
+    body.theme-dark .segmented .seg-item.active{
+      background: var(--white-100);
+      color: var(--black-100);
+      box-shadow: 0 14px 30px rgba(0,0,0,.35);
+    }
 
-.page-wrap{
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  margin-bottom: 14px;
-}
-.page-title{
-  font-weight: 900;
-  margin:0;
-  font-size: 22px;
-  letter-spacing: .2px;
-}
-.page-sub{
-  margin-top: 4px;
-  color: var(--muted);
-  font-weight: 700;
-  font-size: 13px;
-}
-.page-actions{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
-
-/* Cards */
-.cardx{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow2);
-}
-.cardx-body{ padding: 14px; }
-.cardx-title{
-  font-weight: 900;
-  margin:0 0 10px 0;
-  font-size: 14px;
-}
-.cardx-muted{ color: var(--muted); font-weight: 700; font-size: 12px; }
-
-/* Inputs */
-.input-soft, .select-soft{
-  border-radius: 14px !important;
-  border: 1px solid var(--border) !important;
-  background: transparent !important;
-  color: var(--text) !important;
-  font-weight: 800 !important;
-  height: 44px;
-}
-.input-soft::placeholder{ color: rgba(78,87,106,.75); font-weight: 700; }
-body.theme-dark .input-soft::placeholder{ color: rgba(224,228,235,.55); }
-
-.btn-soft{
-  border-radius: 14px !important;
-  height: 44px;
-  font-weight: 900 !important;
-}
-
-/* Filters row */
-.filters{
-  display:grid;
-  grid-template-columns: 1.2fr .8fr .8fr .8fr auto;
-  gap:10px;
-}
-@media (max-width: 1200px){
-  .filters{ grid-template-columns: 1fr 1fr 1fr; }
-}
-@media (max-width: 768px){
-  .filters{ grid-template-columns: 1fr; }
-}
-
-/* Table */
-.tablex{
-  margin:0;
-  color: var(--text);
-}
-.tablex thead th{
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 900;
-  border-bottom: 1px solid var(--border) !important;
-  background: transparent;
-  padding: 12px 12px;
-  white-space: nowrap;
-}
-.tablex tbody td{
-  border-top: 1px solid var(--border) !important;
-  padding: 12px 12px;
-  vertical-align: middle;
-  font-weight: 800;
-}
-.tablex tbody tr:hover{
-  background: var(--hover-bg);
-}
-.tablex .td-muted{ color: var(--muted); font-weight: 800; }
-
-/* Badges */
-.badgex{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  font-size: 12px;
-  font-weight: 900;
-  background: transparent;
-  color: var(--text);
-  white-space: nowrap;
-}
-.badgex i{ font-size: 12px; opacity: .85; }
-
-/* status colors (Gray-only but still distinct) */
-.badgex.open     { background: rgba(10,14,21,.06); }
-.badgex.pending  { background: rgba(10,14,21,.10); }
-.badgex.closed   { background: rgba(10,14,21,.14); }
-
-body.theme-dark .badgex.open    { background: rgba(255,255,255,.06); }
-body.theme-dark .badgex.pending { background: rgba(255,255,255,.10); }
-body.theme-dark .badgex.closed  { background: rgba(255,255,255,.14); }
-
-/* Action buttons inside table */
-.icon-btn{
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: transparent;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  color: var(--text);
-  text-decoration:none;
-}
-.icon-btn:hover{ background: var(--hover-bg); }
-
-/* ===== Page Layout (Unified) ===== */
-.page-wrap{
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  margin: 10px 0 14px;
-}
-.page-title{
-  font-weight: 900;
-  margin:0;
-  font-size: 22px;
-}
-.page-sub{
-  margin-top: 4px;
-  color: var(--muted);
-  font-weight: 800;
-  font-size: 13px;
-}
-.page-actions{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
-
-/* ===== Cards ===== */
-.cardx{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow2);
-}
-.cardx-body{ padding: 14px; }
-.cardx-title{
-  font-weight: 900;
-  margin:0 0 10px 0;
-  font-size: 14px;
-  color: var(--text);
-}
-.cardx-muted{ color: var(--muted); font-weight: 800; font-size: 12px; }
-
-/* ===== Buttons / Inputs ===== */
-.btn-soft{
-  border-radius: 14px !important;
-  height: 44px;
-  font-weight: 900 !important;
-}
-.input-soft, .select-soft{
-  border-radius: 14px !important;
-  border: 1px solid var(--border) !important;
-  background: transparent !important;
-  color: var(--text) !important;
-  font-weight: 800 !important;
-  height: 44px;
-}
-.input-soft::placeholder{ color: rgba(78,87,106,.75); font-weight: 700; }
-body.theme-dark .input-soft::placeholder{ color: rgba(224,228,235,.55); }
-
-/* =========================
-   UI Pills + Funnels Bar (مثل الصور)
-   ========================= */
-
-:root{
-  --pill-active-bg: var(--black-100);
-  --pill-active-tx: var(--white-100);
-}
-body.theme-dark{
-  --pill-active-bg: var(--white-100);
-  --pill-active-tx: var(--black-100);
-}
-
-/* Bar مثل Funnels */
-.filterbarx{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: var(--shadow2);
-  padding: 10px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.filterbarx .sep{
-  width:1px;
-  height:30px;
-  background: rgba(209,214,224,.65);
-}
-body.theme-dark .filterbarx .sep{
-  background: rgba(224,228,235,.16);
-}
-
-/* segmented / pills */
-.pills{
-  display:inline-flex;
-  gap:8px;
-  padding: 6px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(240,241,245,.65);
-}
-body.theme-dark .pills{
-  background: rgba(255,255,255,.06);
-}
-
-.pill{
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font-weight: 900;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 999px;
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  cursor:pointer;
-  transition: transform .08s ease, background .15s ease, box-shadow .15s ease;
-}
-.pill:hover{ background: var(--hover-bg); }
-.pill:active{ transform: translateY(1px); }
-
-.pill.active{
-  background: var(--pill-active-bg);
-  color: var(--pill-active-tx);
-  box-shadow: var(--shadow2);
-}
-
-/* icon square buttons (list/grid مثل الصورة) */
-.icon-toggle{
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  box-shadow: var(--shadow2);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color: var(--text);
-}
-.icon-toggle.active{
-  background: var(--pill-active-bg);
-  color: var(--pill-active-tx);
-  border-color: transparent;
-}
-
+'); ?>
+<?php /* CSS End */ ?>
   </style>
 </head>
 
@@ -755,7 +562,7 @@ body.theme-dark .pills{
         <i class="bi bi-pc-display"></i>
       </button>
 
-      <button class="rail-btn<?= activeClass('spareparts') ?>" title="قطع الغيار" onclick="location.href='index.php?page=spareparts/index'">
+      <button class="rail-btn<?= activeClass('spareparts') ?>" title="قطع الغيار" onclick="location.href='index.php?page=spareParts/index'">
         <i class="bi bi-tools"></i>
       </button>
 
@@ -763,7 +570,7 @@ body.theme-dark .pills{
         <i class="bi bi-ticket-perforated"></i>
       </button>
 
-      <?php if ($canLocations): ?>
+      <?php if ($logged && $canLocations): ?>
         <button class="rail-btn<?= activeClass('locations') ?>" title="المواقع" onclick="location.href='index.php?page=locations/index'">
           <i class="bi bi-geo-alt"></i>
         </button>
@@ -777,13 +584,12 @@ body.theme-dark .pills{
 
       <div class="rail-spacer"></div>
 
-      <button class="rail-btn" id="railThemeBtn" title="الوضع الليلي">
-        <i class="bi bi-moon-stars"></i>
-      </button>
-
       <?php if ($logged): ?>
-        <button class="rail-btn" title="ملفي الشخصي" onclick="location.href='index.php?page=users/profile'">
-          <i class="bi bi-person-circle"></i>
+        <button class="rail-btn" id="railThemeToggle" title="الوضع الليلي">
+          <i class="bi bi-moon-stars"></i>
+        </button>
+        <button class="rail-btn" title="تسجيل خروج" onclick="location.href='index.php?page=users/logout'">
+          <i class="bi bi-box-arrow-right"></i>
         </button>
       <?php else: ?>
         <button class="rail-btn" title="دخول" onclick="location.href='index.php?page=login'">
@@ -803,7 +609,7 @@ body.theme-dark .pills{
           </div>
         </div>
 
-        <button class="btn btn-sm btn-light border" id="panelCloseBtn" title="إغلاق" style="border-radius:12px;">
+        <button class="panel-close" id="panelCloseBtn" type="button" title="إغلاق" style="border-radius:12px;">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
@@ -819,20 +625,20 @@ body.theme-dark .pills{
           <div class="l"><i class="bi bi-grid"></i><span>لوحة التحكم</span></div>
         </a>
 
-        <a class="<?= activeClass('assets') ?>" href="index.php?page=assets/index" data-label="الأصول الأجهزة العهد">
+        <a class="<?= activeClass('assets') ?>" href="index.php?page=assets/index" data-label="الأصول الأجهزة">
           <div class="l"><i class="bi bi-pc-display"></i><span>الأصول / الأجهزة</span></div>
         </a>
 
-        <a class="<?= activeClass('spareparts') ?>" href="index.php?page=spareparts/index" data-label="قطع الغيار مخزون">
+        <a class="<?= activeClass('spareparts') ?>" href="index.php?page=spareParts/index" data-label="قطع الغيار">
           <div class="l"><i class="bi bi-tools"></i><span>قطع الغيار</span></div>
         </a>
 
-        <a class="<?= activeClass('tickets') ?>" href="index.php?page=tickets/index" data-label="التذاكر الدعم">
+        <a class="<?= activeClass('tickets') ?>" href="index.php?page=tickets/index" data-label="التذاكر">
           <div class="l"><i class="bi bi-ticket-perforated"></i><span>التذاكر</span></div>
         </a>
 
-        <?php if ($canLocations): ?>
-          <a class="<?= activeClass('locations') ?>" href="index.php?page=locations/index" data-label="المواقع المعامل القاعات">
+        <?php if ($logged && $canLocations): ?>
+          <a class="<?= activeClass('locations') ?>" href="index.php?page=locations/index" data-label="المواقع">
             <div class="l"><i class="bi bi-geo-alt"></i><span>المواقع</span></div>
           </a>
         <?php endif; ?>
@@ -847,6 +653,9 @@ body.theme-dark .pills{
       <div class="panel-sec-title">التفضيلات</div>
       <div class="menu">
         <a href="index.php?page=users/profile" data-label="الملف الشخصي">
+          <div class="l"><i class="bi bi-person"></i><span>ملفي الشخصي</span></div>
+        </a>
+        <a href="index.php?page=settings/index" data-label="الإعدادات">
           <div class="l"><i class="bi bi-gear"></i><span>الإعدادات</span></div>
         </a>
         <a href="#" id="themeToggle" data-label="الوضع الليلي">
@@ -858,41 +667,34 @@ body.theme-dark .pills{
       </div>
 
       <div class="panel-footer">
-        <?php if ($logged): ?>
-          <div class="user-card">
-            <div class="u">
-              <div class="avatar"><i class="bi bi-person"></i></div>
-              <div class="meta">
-                <div class="n"><?php echo htmlspecialchars($userName); ?></div>
-                <div class="e"><?php echo htmlspecialchars($userEmail); ?></div>
-              </div>
+        <div class="user-card">
+          <div class="user-mini">
+            <div class="user-avatar"><?php echo mb_substr(trim((string)$userName), 0, 1); ?></div>
+            <div class="user-info">
+              <div class="n"><?php echo htmlspecialchars((string)$userName); ?></div>
+              <div class="e"><?php echo htmlspecialchars((string)$userEmail); ?></div>
             </div>
+          </div>
 
-            <div class="dropdown">
-              <button class="btn btn-sm btn-light border" style="border-radius:12px;" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-chevron-down"></i>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-start">
-                <li>
-                  <a class="dropdown-item" href="index.php?page=users/profile">
-                    <i class="bi bi-person me-2"></i> ملفي الشخصي
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item text-danger" href="index.php?page=logout">
-                    <i class="bi bi-box-arrow-right me-2"></i> تسجيل خروج
-                  </a>
-                </li>
-              </ul>
-            </div>
+          <div class="dropdown">
+            <button class="btn btn-sm btn-light border" style="border-radius:12px;" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-start">
+              <li>
+                <a class="dropdown-item" href="index.php?page=users/profile">
+                  <i class="bi bi-person me-2"></i> ملفي الشخصي
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-danger" href="index.php?page=users/logout">
+                  <i class="bi bi-box-arrow-right me-2"></i> تسجيل خروج
+                </a>
+              </li>
+            </ul>
           </div>
-        <?php else: ?>
-          <div class="d-flex gap-2">
-            <a class="btn btn-outline-dark w-50" href="index.php?page=login">دخول</a>
-            <a class="btn btn-dark w-50" href="index.php?page=register">تسجيل</a>
-          </div>
-        <?php endif; ?>
+        </div>
       </div>
     </aside>
 
@@ -902,14 +704,12 @@ body.theme-dark .pills{
         <div class="topbar-inner">
           <div class="topbar-left">
             <button class="toggle-panel" id="panelToggleBtn" type="button" title="القائمة">
-              <i class="bi bi-layout-sidebar-inset"></i>
+              <i class="bi bi-list"></i>
             </button>
 
-            <div class="d-none d-md-block">
-              <div style="font-weight:900; line-height:1.1;">
-                <?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?>
-              </div>
-              <div style="font-size:12px; color: var(--muted);">واجهة موحّدة + Sidebar جديد</div>
+            <div class="topbar-title">
+              <div class="h"><?php echo defined('SITENAME') ? SITENAME : 'نظام إدارة العهد'; ?></div>
+              <div class="s">واجهة موحّدة + Sidebar جديد</div>
             </div>
           </div>
 
