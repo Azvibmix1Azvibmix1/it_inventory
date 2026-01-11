@@ -1,22 +1,109 @@
 <?php require APPROOT . '/views/layouts/header.php'; ?>
 
 <style>
+  :root{
+    --bg:#f6f7fb;
+    --surface:#fff;
+    --text:#0f172a;
+    --muted:#64748b;
+    --border:rgba(15,23,42,.10);
+    --shadow-sm:0 6px 18px rgba(15,23,42,.06);
+    --shadow:0 12px 32px rgba(15,23,42,.08);
+    --radius:16px;
+  }
+
   .wrap{ direction: rtl; text-align: right; }
-  .form-row-rtl{ flex-direction: row-reverse; }
-  .card{ border-radius: 12px; }
-  .card-header{ border-top-left-radius:12px; border-top-right-radius:12px; }
-  .hint{ color:#6c757d; font-size:.9rem; }
-  .pill{ border-radius:999px; padding:.15rem .6rem; font-weight:700; font-size:.85rem; }
-  .pill-primary{ background:rgba(13,110,253,.1); border:1px solid rgba(13,110,253,.2); color:#0d6efd; }
-  .pill-dark{ background:rgba(33,37,41,.08); border:1px solid rgba(33,37,41,.15); color:#212529; }
+  .hint{ color: var(--muted); font-size:.9rem; }
+
+  /* Page header */
+  .page-head{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
+    padding:16px 18px;
+  }
+  .page-title{ font-weight:900; font-size:1.2rem; margin:0; color:var(--text); }
+  .page-sub{ color:var(--muted); font-size:.9rem; margin-top:4px; }
+
+  /* Cards */
+  .card{
+    border:1px solid var(--border)!important;
+    border-radius:var(--radius)!important;
+    box-shadow:var(--shadow-sm);
+    overflow:hidden;
+  }
+  .card.shadow-sm{ box-shadow:var(--shadow-sm)!important; }
+  .card-header{
+    background:transparent;
+    border-bottom:1px solid var(--border);
+    font-weight:800;
+  }
+  .card-header.bg-light{
+    background:rgba(2,6,23,.03)!important;
+    border-bottom:1px solid var(--border)!important;
+  }
+  .card-header.bg-dark{
+    background:linear-gradient(180deg,#111827,#0b1220)!important;
+    border-bottom:none!important;
+  }
+
+  /* Pills / badges */
+  .pill{
+    border-radius:999px; padding:.25rem .7rem;
+    font-weight:800; font-size:.85rem;
+    border:1px solid var(--border);
+    background:rgba(2,6,23,.03);
+    color:var(--text);
+  }
+  .pill-primary{
+    background:rgba(37,99,235,.10);
+    border-color:rgba(37,99,235,.18);
+    color:#2563eb;
+  }
+
+  .badge{ border-radius:999px; padding:.35rem .7rem; }
+
+  /* Soft panels / stats */
+  .soft-panel{
+    background:rgba(2,6,23,.03);
+    border:1px solid var(--border);
+    border-radius:14px;
+  }
+  .stat-tile{
+    background:rgba(2,6,23,.03);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:12px;
+  }
+
+  /* Tables */
+  .table thead th{
+    background:rgba(2,6,23,.03)!important;
+    border-bottom:1px solid var(--border)!important;
+    color:var(--text);
+  }
+  .table td, .table th{ vertical-align: middle; }
+
+  /* Icon buttons */
   .btn-icon{
     width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;
-    padding:0!important;border-radius:10px!important;
+    padding:0!important;border-radius:12px!important;
   }
-  .btn-soft-danger{ background:rgba(220,53,69,.10)!important; border:1px solid rgba(220,53,69,.18)!important; color:#dc3545!important; }
-  .btn-soft-danger:hover{ background:rgba(220,53,69,.16)!important; }
-  .btn-save{ border-radius:10px!important; font-weight:800; padding:.55rem 1.2rem!important; }
+  .btn-soft-primary{ background:rgba(37,99,235,.12)!important; border:1px solid rgba(37,99,235,.18)!important; color:#2563eb!important; }
+  .btn-soft-success{ background:rgba(22,163,74,.12)!important; border:1px solid rgba(22,163,74,.18)!important; color:#16a34a!important; }
+  .btn-soft-warning{ background:rgba(245,158,11,.14)!important; border:1px solid rgba(245,158,11,.22)!important; color:#b45309!important; }
+  .btn-soft-danger { background:rgba(220,53,69,.12)!important; border:1px solid rgba(220,53,69,.18)!important; color:#dc3545!important; }
+
+  /* List group nicer */
+  .list-group{ gap:10px; }
+  .list-group-item{
+    border:1px solid var(--border)!important;
+    border-radius:14px!important;
+    margin-bottom:10px;
+  }
 </style>
+
 
 <?php
   if (function_exists('flash')) {
@@ -57,15 +144,20 @@
 
 <div class="container-fluid wrap py-4">
 
-  <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap gap-2">
-    <div>
+  <div class="page-head mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <h1 class="page-title mb-0">تعديل الموقع</h1>
+    <div class="page-sub">
       أنت تعدّل: <strong><?= htmlspecialchars($data['name_ar'] ?? '') ?></strong>
-      <span class="pill pill-primary ms-2"><?= htmlspecialchars($typeLabels[$data['type']] ?? ($data['type'] ?? '')) ?></span>
+      <span class="pill pill-primary ms-2"><?= htmlspecialchars($typeLabels[$data['type'] ?? 'Other'] ?? ($data['type'] ?? '')) ?></span>
     </div>
-    <a class="btn btn-outline-secondary" href="index.php?page=locations/index">
-      <i class="bi bi-arrow-right"></i> رجوع
-    </a>
   </div>
+
+  <a href="index.php?page=locations/index" class="btn btn-light btn-sm">
+    <i class="bi bi-arrow-right"></i> رجوع
+  </a>
+</div>
+
 
   <div class="row g-3">
 
@@ -319,25 +411,25 @@
           <!-- Summary -->
           <div class="row g-2 mb-3">
             <div class="col-6 col-lg-3">
-              <div class="border rounded-3 p-2">
+              <div class="stat-tile">
                 <div class="text-muted small">إجمالي الأصناف</div>
                 <div class="fw-bold" dir="ltr"><?= $sp_items ?></div>
               </div>
             </div>
             <div class="col-6 col-lg-3">
-              <div class="border rounded-3 p-2">
+              <div class="stat-tile">
                 <div class="text-muted small">إجمالي الكمية</div>
                 <div class="fw-bold" dir="ltr"><?= $sp_total ?></div>
               </div>
             </div>
             <div class="col-6 col-lg-3">
-              <div class="border rounded-3 p-2">
+              <div class="stat-tile">
                 <div class="text-muted small">تحت الحد</div>
                 <div class="fw-bold" dir="ltr"><?= $sp_low ?></div>
               </div>
             </div>
             <div class="col-6 col-lg-3">
-              <div class="border rounded-3 p-2">
+              <div class="stat-tile">
                 <div class="text-muted small">نفد (0)</div>
                 <div class="fw-bold" dir="ltr"><?= $sp_zero ?></div>
               </div>
@@ -407,9 +499,10 @@
       <input type="hidden" name="delta" value="1">
       <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
       <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-      <button type="submit" class="btn btn-sm btn-success" title="توريد +1">
-        <i class="bi bi-plus-circle"></i> +1
-      </button>
+      <button type="submit" class="btn btn-icon btn-soft-success" title="توريد +1">
+  <i class="bi bi-plus-lg"></i>
+</button>
+
     </form>
 
     <!-- صرف -1 -->
@@ -418,25 +511,26 @@
       <input type="hidden" name="delta" value="-1">
       <input type="hidden" name="location_id" value="<?= (int)$data['id'] ?>">
       <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-      <button type="submit" class="btn btn-sm btn-warning" title="صرف -1">
-        <i class="bi bi-dash-circle"></i> -1
-      </button>
-    </form>
+      <button type="submit" class="btn btn-icon btn-soft-warning" title="صرف -1">
+  <i class="bi bi-dash-lg"></i>
+</button>
+
 
     <!-- تعديل -->
-    <a class="btn btn-sm btn-outline-primary"
-       href="index.php?page=spareparts/edit&id=<?= $pid ?>">
-      <i class="bi bi-pencil"></i> تعديل
-    </a>
+    <a class="btn btn-icon btn-soft-primary" href="index.php?page=spareparts/edit&id=<?= $pid ?>" title="تعديل">
+  <i class="bi bi-pencil"></i>
+</a>
+
 
     <!-- حذف -->
     <form method="post" action="index.php?page=spareparts/delete" class="d-inline"
           onsubmit="return confirm('متأكد تبغى تحذف القطعة؟');">
       <input type="hidden" name="id" value="<?= $pid ?>">
       <input type="hidden" name="return_to" value="<?= htmlspecialchars($returnTo) ?>">
-      <button type="submit" class="btn btn-sm btn-outline-danger">
-        <i class="bi bi-trash"></i> حذف
-      </button>
+      <button type="submit" class="btn btn-icon btn-soft-danger" title="حذف">
+  <i class="bi bi-trash"></i>
+</button>
+
     </form>
 
     <!-- (زر النقل + المودال يكون هنا إذا عندك) -->
@@ -454,9 +548,6 @@
 </div>
 
 <?php $movements = $data['movements'] ?? []; ?>
-
-            
-<div class="p-2 small text-muted">Movements count: <?= is_array($movements) ? count($movements) : 0 ?></div>
 
 <div class="card mt-3">
   <div class="card-header d-flex justify-content-between align-items-center">
