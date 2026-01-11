@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jan 07, 2026 at 10:32 PM
+-- Generation Time: Jan 11, 2026 at 12:50 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -449,9 +449,9 @@ CREATE TABLE `tickets` (
 --
 
 INSERT INTO `tickets` (`id`, `ticket_no`, `created_by`, `asset_id`, `location_id`, `subject`, `description`, `status`, `priority`, `category_id`, `contact_info`, `assigned_to`, `created_at`, `updated_at`, `closed_at`, `team`, `requested_for_user_id`) VALUES
-(3, 'TCK-000003', 8, NULL, NULL, 'تت', 'تت', 'Closed', 'Medium', NULL, '05807654', 9, '2025-12-30 18:36:18', '2026-01-07 22:23:34', '2026-01-07 22:23:34', 'field_it', NULL),
-(4, 'TCK-000004', 9, NULL, NULL, 'تت', 'k', 'Resolved', 'Medium', NULL, '0580203498', 8, '2026-01-02 14:14:05', '2026-01-07 22:23:51', '2026-01-07 22:23:51', 'field_it', 9),
-(5, 'TCK-000005', 7, 29, NULL, 'تحديث الاجهزة في معمل 4', 'تحديث جميع الاجهزة في معمل 4 وتنزيل ويندوز 11 مع برامج الجامعة', 'Closed', 'Medium', NULL, '0520235448', NULL, '2026-01-07 14:26:29', '2026-01-07 20:48:48', '2026-01-07 20:48:48', 'field_it', 7);
+(6, 'TCK-000006', 7, 29, NULL, 'مبنى الحاسبات', 'مبنى الحاسبات', 'In Progress', 'Medium', NULL, '0580203498', 7, '2026-01-09 16:35:29', '2026-01-09 16:36:22', NULL, 'electricity', 7),
+(7, 'TCK-000007', 7, 30, NULL, 'مبنى الحاسبات', 'مبنى الحاسبات', 'In Progress', 'Medium', NULL, '0580203498', 7, '2026-01-09 16:38:28', '2026-01-09 17:34:19', NULL, 'IT', 7),
+(8, 'TCK-000008', 7, NULL, NULL, 'مبنى الحاسبات', 'مبنى الحاسبات', 'Resolved', 'Medium', NULL, '05807654', 8, '2026-01-09 16:40:13', '2026-01-09 17:53:46', '2026-01-09 17:44:28', 'network', 7);
 
 -- --------------------------------------------------------
 
@@ -467,6 +467,13 @@ CREATE TABLE `ticket_attachments` (
   `uploaded_by` int(11) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+--
+-- Dumping data for table `ticket_attachments`
+--
+
+INSERT INTO `ticket_attachments` (`id`, `ticket_id`, `file_path`, `original_name`, `uploaded_by`, `created_at`) VALUES
+(1, 8, 'uploads/tickets/ticket_8/file_1767970426_0.png', 'Screenshot 2025-12-24 232106.png', 7, '2026-01-09 14:53:46');
 
 -- --------------------------------------------------------
 
@@ -486,6 +493,14 @@ CREATE TABLE `ticket_updates` (
   `new_assignee_id` int(11) DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+--
+-- Dumping data for table `ticket_updates`
+--
+
+INSERT INTO `ticket_updates` (`id`, `ticket_id`, `user_id`, `action`, `comment`, `old_status`, `new_status`, `old_assignee_id`, `new_assignee_id`, `created_at`) VALUES
+(1, 8, 7, 'status_change', NULL, 'Closed', 'Resolved', 8, 8, '2026-01-09 17:44:28'),
+(2, 8, 7, 'comment', 'تم تصعيد التذكرة إلى: network', NULL, 'Escalated', NULL, NULL, '2026-01-09 17:44:39');
 
 -- --------------------------------------------------------
 
@@ -507,17 +522,20 @@ CREATE TABLE `users` (
   `lang` varchar(5) DEFAULT 'ar',
   `dark_mode` tinyint(1) DEFAULT 0,
   `name` varchar(100) DEFAULT 'User',
-  `manager_id` int(11) DEFAULT NULL
+  `manager_id` int(11) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `created_at`, `job_title`, `department`, `phone`, `avatar`, `lang`, `dark_mode`, `name`, `manager_id`) VALUES
-(7, 's', 's@s.com', '$2y$10$BrR1FzJMvMV.8N6.ag9SeeT8tTjiFWu4WY0WxOcK.icuEbI8nAIC.', 'super_admin', '2025-12-27 18:27:49', NULL, NULL, '', 'user_7_1767808240.jpg', 'ar', 1, 'aziz', NULL),
-(8, 'a', 'u@u.com', '$2y$10$aateE9OTp.9fL8FrbWRIUeewa7T9ZV7QX9FEuFXcGgm611Y0Sor.6', 'user', '2025-12-27 18:36:40', NULL, NULL, '0580203498', 'user_8_1767537628.jpeg', 'en', 0, 'سامي', NULL),
-(9, 'M', 'm@m.com', '$2y$10$dl8t5rOV7NF30Pu5tZYEs.s246vbwvf2Y.iNNDadfT3Z.MrkLyGSa', 'manager', '2025-12-27 19:13:14', NULL, NULL, NULL, 'default_avatar.png', 'ar', 0, 'حمزة', NULL);
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `role`, `created_at`, `job_title`, `department`, `phone`, `avatar`, `lang`, `dark_mode`, `name`, `manager_id`, `is_active`) VALUES
+(7, 's', 's@s.com', '$2y$10$BrR1FzJMvMV.8N6.ag9SeeT8tTjiFWu4WY0WxOcK.icuEbI8nAIC.', 'super_admin', '2025-12-27 18:27:49', NULL, NULL, '', 'user_7_1767808240.jpg', 'ar', 1, 'عبد العزيز فلاته', NULL, 1),
+(8, 'User', 'u@u.com', '$2y$10$aateE9OTp.9fL8FrbWRIUeewa7T9ZV7QX9FEuFXcGgm611Y0Sor.6', 'user', '2025-12-27 18:36:40', NULL, NULL, '0580203498', 'user_8_1767537628.jpeg', 'en', 0, 'سامي', NULL, 1),
+(9, 'MANGER', 'm@m.com', '$2y$10$dl8t5rOV7NF30Pu5tZYEs.s246vbwvf2Y.iNNDadfT3Z.MrkLyGSa', 'manager', '2025-12-27 19:13:14', NULL, NULL, NULL, 'default_avatar.png', 'ar', 0, 'حمزة', NULL, 1),
+(10, '', '1@1com', '$2y$10$MnHMsb6ZHOcAupMRMdDWieBSiGwAeabjtdC4DIbP3OjLSGR/FWaw6', 'manager', '2026-01-10 02:28:15', NULL, NULL, NULL, 'default_avatar.png', 'ar', 0, 'زياد', NULL, 0),
+(11, 'r', 'r@r.com', '$2y$10$UjGMCKBfTabHOZ7ANKLdf.J/e.J0EPqrHkhWyM4C2SelHmrfHzs/u', 'user', '2026-01-10 13:25:20', NULL, NULL, NULL, 'default_avatar.png', 'ar', 0, 'ريان', NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -735,25 +753,25 @@ ALTER TABLE `spare_part_stocks`
 -- AUTO_INCREMENT for table `tickets`
 --
 ALTER TABLE `tickets`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `ticket_attachments`
 --
 ALTER TABLE `ticket_attachments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `ticket_updates`
 --
 ALTER TABLE `ticket_updates`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- Constraints for dumped tables
