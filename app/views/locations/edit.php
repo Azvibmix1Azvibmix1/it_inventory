@@ -1,57 +1,34 @@
-<?php require APPROOT . '/views/layouts/header.php'; ?>
+<?php require APPROOT . '/views/inc/header.php'; ?>
 
 <style>
   :root{
     --bg:#f6f7fb;
-    --surface:#fff;
+    --surface:#ffffff;
     --text:#0f172a;
     --muted:#64748b;
     --border:rgba(15,23,42,.10);
     --shadow-sm:0 6px 18px rgba(15,23,42,.06);
-    --shadow:0 12px 32px rgba(15,23,42,.08);
+    --shadow:0 14px 42px rgba(15,23,42,.10);
     --radius:16px;
   }
 
   .wrap{ direction: rtl; text-align: right; }
-  .hint{ color: var(--muted); font-size:.9rem; }
-
-  /* Page header */
+  .page-wrap{ padding:18px 18px 28px; }
   .page-head{
     background:var(--surface);
     border:1px solid var(--border);
     border-radius:var(--radius);
     box-shadow:var(--shadow-sm);
-    padding:16px 18px;
+    padding:14px 16px;
+    margin-bottom:14px;
   }
-  .page-title{ font-weight:900; font-size:1.2rem; margin:0; color:var(--text); }
-  .page-sub{ color:var(--muted); font-size:.9rem; margin-top:4px; }
-
-  /* Cards */
-  .card{
-    border:1px solid var(--border)!important;
-    border-radius:var(--radius)!important;
-    box-shadow:var(--shadow-sm);
-    overflow:hidden;
-  }
-  .card.shadow-sm{ box-shadow:var(--shadow-sm)!important; }
-  .card-header{
-    background:transparent;
-    border-bottom:1px solid var(--border);
-    font-weight:800;
-  }
-  .card-header.bg-light{
-    background:rgba(2,6,23,.03)!important;
-    border-bottom:1px solid var(--border)!important;
-  }
-  .card-header.bg-dark{
-    background:linear-gradient(180deg,#111827,#0b1220)!important;
-    border-bottom:none!important;
-  }
-
-  /* Pills / badges */
+  .page-title{ margin:0; font-weight:900; font-size:1.15rem; color:var(--text); }
+  .page-sub{ margin-top:4px; color:var(--muted); font-weight:700; font-size:.9rem; }
   .pill{
-    border-radius:999px; padding:.25rem .7rem;
-    font-weight:800; font-size:.85rem;
+    display:inline-flex; align-items:center; gap:6px;
+    border-radius:999px;
+    padding:.25rem .7rem;
+    font-weight:900; font-size:.82rem;
     border:1px solid var(--border);
     background:rgba(2,6,23,.03);
     color:var(--text);
@@ -62,14 +39,30 @@
     color:#2563eb;
   }
 
-  .badge{ border-radius:999px; padding:.35rem .7rem; }
-
-  /* Soft panels / stats */
-  .soft-panel{
-    background:rgba(2,6,23,.03);
-    border:1px solid var(--border);
-    border-radius:14px;
+  /* Cards */
+  .card{
+    border:1px solid var(--border)!important;
+    border-radius:var(--radius)!important;
+    box-shadow:var(--shadow-sm)!important;
+    overflow:hidden;
   }
+  .card-header{
+    background:rgba(2,6,23,.03)!important;
+    border-bottom:1px solid var(--border)!important;
+    font-weight:900;
+  }
+  .card-header.bg-dark{
+    background:linear-gradient(180deg,#111827,#0b1220)!important;
+    border-bottom:none!important;
+  }
+
+  /* Inputs */
+  .form-control,.form-select{
+    border-radius:12px!important;
+    border-color:rgba(15,23,42,.14)!important;
+  }
+
+  /* Soft stat tiles */
   .stat-tile{
     background:rgba(2,6,23,.03);
     border:1px solid var(--border);
@@ -82,13 +75,16 @@
     background:rgba(2,6,23,.03)!important;
     border-bottom:1px solid var(--border)!important;
     color:var(--text);
+    font-weight:900;
   }
-  .table td, .table th{ vertical-align: middle; }
+  .table td,.table th{ vertical-align:middle; }
 
   /* Icon buttons */
   .btn-icon{
-    width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;
-    padding:0!important;border-radius:12px!important;
+    width:36px;height:36px;
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:0!important;
+    border-radius:12px!important;
   }
   .btn-soft-primary{ background:rgba(37,99,235,.12)!important; border:1px solid rgba(37,99,235,.18)!important; color:#2563eb!important; }
   .btn-soft-success{ background:rgba(22,163,74,.12)!important; border:1px solid rgba(22,163,74,.18)!important; color:#16a34a!important; }
@@ -96,13 +92,16 @@
   .btn-soft-danger { background:rgba(220,53,69,.12)!important; border:1px solid rgba(220,53,69,.18)!important; color:#dc3545!important; }
 
   /* List group nicer */
-  .list-group{ gap:10px; }
   .list-group-item{
     border:1px solid var(--border)!important;
     border-radius:14px!important;
     margin-bottom:10px;
   }
+
+  /* Switch spacing */
+  .form-switch .form-check-input{ cursor:pointer; }
 </style>
+
 
 
 <?php
@@ -143,6 +142,22 @@
 ?>
 
 <div class="container-fluid wrap py-4">
+  <div class="page-wrap">
+
+  <div class="page-head d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <h1 class="page-title">تعديل الموقع</h1>
+      <div class="page-sub">
+        <?= htmlspecialchars($data['name_ar'] ?? '') ?>
+        <span class="pill pill-primary ms-2"><?= htmlspecialchars($data['type'] ?? '') ?></span>
+      </div>
+    </div>
+
+    <a class="btn btn-light btn-sm" href="index.php?page=locations/index">
+      <i class="bi bi-arrow-right"></i> رجوع
+    </a>
+  </div>
+
 
   <div class="page-head mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
   <div>
