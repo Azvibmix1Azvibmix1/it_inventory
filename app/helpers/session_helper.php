@@ -174,7 +174,8 @@ function canManageLocation($locationId, $action = 'manage')
   $role = currentRole();
 
   // سوبر أدمن دائمًا
-  if ($role === 'superadmin') return true;
+  if (in_array($role, ['super_admin', 'superadmin'], true)) return true;
+
 
   $locationId = (int)$locationId;
   if ($locationId <= 0) return false;
@@ -246,7 +247,7 @@ function canAccessLocationsModule()
   if (!isLoggedIn()) return false;
   $role = currentRole();
 
-  if (in_array($role, ['superadmin', 'manager'], true)) return true;
+  if (in_array($role, ['super_admin', 'superadmin', 'manager'], true)) return true;
   if (!class_exists('Database')) return false;
 
   try {
@@ -344,5 +345,3 @@ function isManager(): bool {
 function isSuperAdmin(): bool {
   return currentRole() === 'super_admin';
 }
-
-
