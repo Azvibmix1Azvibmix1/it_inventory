@@ -1,4 +1,5 @@
 <?php
+
 $canLocations = function_exists('canAccessLocationsModule') ? canAccessLocationsModule() : false;
 $logged       = function_exists('isLoggedIn') ? isLoggedIn() : false;
 

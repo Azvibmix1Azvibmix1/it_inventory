@@ -1,2 +1,1 @@
-<?php
-require APPROOT . '/views/layouts/footer.php';
+<?php require APPROOT . '/views/layouts/footer.php'; ?>
