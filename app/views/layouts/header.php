@@ -1,5 +1,6 @@
 <?php
 
+
 $canLocations = function_exists('canAccessLocationsModule') ? canAccessLocationsModule() : false;
 $logged       = function_exists('isLoggedIn') ? isLoggedIn() : false;
 
@@ -557,6 +558,147 @@ body.sb-collapsed .backdrop{
       box-shadow: 0 14px 30px rgba(0,0,0,.35);
     }
 
+    /* ===== Soft UI / Gray System (RTL friendly) ===== */
+:root{
+  --bg: #f3f4f6;
+  --surface: #f6f7f9;
+  --surface-2: #eef0f3;
+  --text: #111827;
+  --muted: #6b7280;
+  --stroke: rgba(17,24,39,.10);
+
+  --dark: #0b0f14;
+  --dark-2:#111827;
+
+  --radius-xl: 18px;
+  --radius-lg: 14px;
+  --radius-md: 12px;
+
+  --shadow-out: 10px 10px 22px rgba(17,24,39,.12), -10px -10px 22px rgba(255,255,255,.85);
+  --shadow-in: inset 6px 6px 14px rgba(17,24,39,.10), inset -6px -6px 14px rgba(255,255,255,.90);
+  --shadow-soft: 0 10px 25px rgba(17,24,39,.10);
+
+  --focus: 0 0 0 3px rgba(17,24,39,.12);
+}
+
+/* اختياري: وضع داكن للنفس المكونات */
+[data-theme="dark"]{
+  --bg:#0f141a;
+  --surface:#131a22;
+  --surface-2:#0f141a;
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+  --stroke: rgba(255,255,255,.10);
+
+  --shadow-out: 10px 10px 22px rgba(0,0,0,.55), -10px -10px 22px rgba(255,255,255,.04);
+  --shadow-in: inset 6px 6px 14px rgba(0,0,0,.45), inset -6px -6px 14px rgba(255,255,255,.03);
+  --shadow-soft: 0 12px 28px rgba(0,0,0,.45);
+}
+
+body{
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Surface */
+.soft-card{
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-out);
+  border: 1px solid var(--stroke);
+}
+
+/* “غاطس” */
+.soft-inset{
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-in);
+  border: 1px solid var(--stroke);
+}
+
+/* Toolbar */
+.soft-toolbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-out);
+  border: 1px solid var(--stroke);
+}
+
+/* Controls */
+.soft-input, .soft-select{
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  box-shadow: var(--shadow-in);
+  padding: 0 12px;
+  color: var(--text);
+  outline: none;
+}
+.soft-input:focus, .soft-select:focus{
+  box-shadow: var(--shadow-in), var(--focus);
+}
+
+/* Buttons */
+.soft-btn{
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  box-shadow: var(--shadow-out);
+  padding: 0 14px;
+  color: var(--text);
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+}
+.soft-btn:hover{ filter: brightness(.98); }
+.soft-btn:active{ box-shadow: var(--shadow-in); }
+
+.soft-btn-primary{
+  background: var(--dark);
+  color: #fff;
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+}
+
+/* Icon buttons (list/grid) */
+.soft-icon-btn{
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  background: var(--surface);
+  box-shadow: var(--shadow-out);
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+.soft-icon-btn.is-active{
+  background: var(--dark);
+  color:#fff;
+  border-color: rgba(255,255,255,.08);
+  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+}
+
+/* Utility */
+.soft-title{
+  font-weight: 800;
+  margin: 0 0 8px 0;
+}
+.text-muted{ color: var(--muted); }
+.flex-1{ flex:1; }
+.wrap{ flex-wrap: wrap; }
+
+/* RTL safety */
+[dir="rtl"] .soft-toolbar{ direction: rtl; }
+
+
 '); ?>
 <?php /* CSS End */ ?>
   </style>
@@ -740,6 +882,8 @@ body.sb-collapsed .backdrop{
           </div>
         </div>
       </div>
+
+
 
       <!-- المحتوى الرئيسي -->
       <main class="site-content container-fluid py-3">

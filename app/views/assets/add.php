@@ -210,13 +210,16 @@ if ($currentLoc && isset($locById[$currentLoc])) {
       <div class="page-title">إضافة جهاز</div>
       <div class="subtitle">املأ البيانات الأساسية للجهاز ثم اختر الموقع بسهولة عبر البحث.</div>
     </div>
-    <a href="<?= URLROOT; ?>/assets/index" class="btn-soft">رجوع</a>
+    <a href="<?= URLROOT; ?>/index.php?page=assets/index" class="btn-soft">رجوع</a>
   </div>
 
   <div class="cardish">
     <div class="card-pad">
 
-      <form id="assetAddForm" action="<?= URLROOT; ?>/assets/add" method="post" autocomplete="off">
+      <form id="assetAddForm" action="<?= URLROOT; ?>/index.php?page=assets/add" method="post" autocomplete="off">
+
+
+
         <div class="grid-2">
           <div class="form-group">
   <label class="form-label">Serial (اختياري)</label>
@@ -234,19 +237,20 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 
             <div class="help">ينسّق تلقائيًا بصيغة MAC عند الكتابة.</div>
           
-        <div class="alert alert-light border mt-3" style="border-radius:14px;">
-  <strong>Tag (رقم الجهاز):</strong> يتولد تلقائيًا بعد الحفظ (مثال: AST-000001).
-</div>
+       
 </div>
 
 <div class="form-group">
   <label class="form-label">Host Name (اختياري)</label>
-  <input type="text" name="host_name" class="form-control"
+  <input type="text" name="host_name" class="form-control ltr"
          placeholder="PC-IT-001"
          value="<?= htmlspecialchars($data['host_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
   <div class="help">اسم الجهاز على الشبكة (Computer Name).</div>
 </div>
 
+ <div class="alert alert-light border mt-3" style="border-radius:14px;">
+  <strong>Tag (رقم الجهاز):</strong> يتولد تلقائيًا بعد الحفظ (مثال: AST-000001).
+</div>
 
  </div>
 
@@ -321,9 +325,11 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 
           <div class="form-group">
             <label class="form-label">انتهاء الضمان (اختياري)</label>
-            <input type="text" name="warranty_end" class="form-control js-date"
-                   placeholder="YYYY-MM-DD"
-                   value="<?= htmlspecialchars($data['warranty_end'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+            <<input type="text" name="warranty_expiry" class="form-control js-date"
+       placeholder="YYYY-MM-DD"
+       value="<?= htmlspecialchars($data['warranty_expiry'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+
+
           </div>
         </div>
 
@@ -371,7 +377,7 @@ if ($currentLoc && isset($locById[$currentLoc])) {
         </div>
 
         <div class="actions-row">
-          <a href="<?= URLROOT; ?>/assets/index" class="btn-soft">إلغاء</a>
+          <a href="<?= URLROOT; ?>/index.php?page=assets/index" class="btn-soft">إلغاء</a>
           <button type="submit" class="btn-primary-soft">حفظ الجهاز</button>
         </div>
       </form>

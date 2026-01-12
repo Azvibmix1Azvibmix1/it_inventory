@@ -204,33 +204,43 @@ if (!empty($locationIds)) {
 
   public function add($data)
 {
-  if (empty($data['asset_tag']) && !empty($data['name'])) {
-    $data['asset_tag'] = $data['name'];
-  }
-  if (empty($data['serial_no']) && !empty($data['serial_number'])) {
-    $data['serial_no'] = $data['serial_number'];
+  // جهّز TAG مؤقت لو ما انرسل
+  $assetTag = trim($data['asset_tag'] ?? '');
+  if ($assetTag === '') {
+    $assetTag = 'TMP-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));
   }
 
+  // Normalize MAC
   $mac = trim($data['mac_address'] ?? ($data['mac'] ?? ''));
-$mac = strtoupper(str_replace([' ', ':'], ['', '-'], $mac));
-if ($mac !== '' && !preg_match('/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/', $mac)) { $mac = ''; }
-
-
-  $tmpTag = 'TMP-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));
+  $mac = strtoupper(str_replace([' ', ':'], ['', '-'], $mac));
+  if ($mac !== '' && !preg_match('/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/', $mac)) {
+    $mac = '';
+  }
 
   try {
     $this->db->beginTransaction();
 
-    $sql = "INSERT INTO assets
-    INSERT INTO assets (asset_tag, serial_no, mac_address, host_name, model, brand, type, purchase_date, warranty_expiry, status, location_id, assigned_to, notes, created_by)
-    VALUES (:asset_tag, :serial_no, :mac_address, :host_name, :model, :brand, :type, :purchase_date, :warranty_expiry, :status, :location_id, :assigned_to, :notes, :created_by)";
+    $sql = "INSERT INTO assets (
+      asset_tag, serial_no, mac_address, host_name,
+      model, brand, type,
+      purchase_date, warranty_expiry,
+      status, location_id, assigned_to,
+      notes, created_by
+    ) VALUES (
+      :asset_tag, :serial_no, :mac_address, :host_name,
+      :model, :brand, :type,
+      :purchase_date, :warranty_expiry,
+      :status, :location_id, :assigned_to,
+      :notes, :created_by
+    )";
 
     $this->db->query($sql);
 
-    $this->db->bind(':mac_address', $mac !== '' ? $mac : null);
+    $this->db->bind(':asset_tag', $assetTag);
     $this->db->bind(':serial_no', trim($data['serial_no'] ?? ''));
     $this->db->bind(':mac_address', $mac !== '' ? $mac : null);
     $this->db->bind(':host_name', !empty($data['host_name']) ? trim($data['host_name']) : null);
+
     $this->db->bind(':model', trim($data['model'] ?? ''));
     $this->db->bind(':brand', trim($data['brand'] ?? ''));
     $this->db->bind(':type', trim($data['type'] ?? ''));
@@ -250,8 +260,9 @@ if ($mac !== '' && !preg_match('/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/', $mac)) { $mac
     }
 
     $newId = (int)$this->db->lastInsertId();
-    $finalTag = 'AST-' . str_pad((string)$newId, 6, '0', STR_PAD_LEFT);
 
+    // Tag نهائي
+    $finalTag = 'AST-' . str_pad((string)$newId, 6, '0', STR_PAD_LEFT);
     $this->db->query("UPDATE assets SET asset_tag = :tag WHERE id = :id");
     $this->db->bind(':tag', $finalTag);
     $this->db->bind(':id', $newId);
@@ -265,11 +276,13 @@ if ($mac !== '' && !preg_match('/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/', $mac)) { $mac
     return $newId;
 
   } catch (Throwable $e) {
-    // لو صار أي استثناء
-    $this->db->rollBack();
+    // لا تخلي الخطأ يختفي
+    error_log('[Asset::add] ' . $e->getMessage());
+    try { $this->db->rollBack(); } catch (Throwable $t) {}
     return false;
   }
 }
+
 
 
 public function update($data){
@@ -288,29 +301,30 @@ public function update($data){
   }
 
   // لاحظ: ما نحدّث asset_tag نهائيًا (مقفّل)
-  $sql = "
-    UPDATE assets SET
-      serial_no = :serial_no,
-      mac_address = :mac_address,
-      host_name = :host_name,
-      model = :model,
-      brand = :brand,
-      type = :type,
-      purchase_date = :purchase_date,
-      warranty_expiry = :warranty_expiry,
-      status = :status,
-      location_id = :location_id,
-      assigned_to = :assigned_to,
-      notes = :notes
-    WHERE id = :id
-  ";
+  $sql = " UPDATE assets SET
+  asset_tag = :asset_tag,
+  serial_no = :serial_no,
+  mac_address = :mac_address,
+  host_name = :host_name,
+  model = :model,
+  brand = :brand,
+  type = :type,
+  purchase_date = :purchase_date,
+  warranty_expiry = :warranty_expiry,
+  status = :status,
+  location_id = :location_id,
+  assigned_to = :assigned_to,
+  notes = :notes
+WHERE id = :id ";
+
 
   $this->db->query($sql);
 
   $this->db->bind(':id', (int)$data['id']);
   $this->db->bind(':serial_no', trim($data['serial_no'] ?? ''));
-  $this->db->bind(':mac_address', $mac !== '' ? $mac : null);
-  $this->db->bind(':host_name', !empty($data['host_name']) ? trim($data['host_name']) : null);
+  $this->db->bind(':mac_address', trim($data['mac_address'] ?? ''));
+$this->db->bind(':host_name', trim($data['host_name'] ?? ''));
+
   $this->db->bind(':model', trim($data['model'] ?? ''));
   $this->db->bind(':brand', trim($data['brand'] ?? ''));
   $this->db->bind(':type', trim($data['type'] ?? ''));
