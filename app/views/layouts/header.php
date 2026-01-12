@@ -467,6 +467,24 @@ $userEmail = $_SESSION['user_email'] ?? '';
       opacity:1;
       pointer-events:auto;
     }
+    
+    /* ===== Desktop collapse support ===== */
+.app-panel{
+  transition: transform .18s ease;
+}
+
+/* لما نقفل الـ Panel على الديسكتوب */
+body.sb-collapsed{
+  --sb-offset: var(--rail-w);
+}
+body.sb-collapsed .app-panel{
+  transform: translateX(110%);
+}
+body.sb-collapsed .backdrop{
+  opacity: 0;
+  pointer-events: none;
+}
+
 
     /* Mobile / small screens */
     @media (max-width: 991px){

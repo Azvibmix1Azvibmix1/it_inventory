@@ -1,155 +1,198 @@
-      </main>
+<?php
+// footer.php (Layouts)
+?>
 
-      <footer class="app-foot py-3 mt-auto" style="border-top:1px solid rgba(209,214,224,.65); background: var(--card);">
-        <div class="container-fluid">
-          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div class="text-muted small">Version 1.0</div>
-            <div class="text-muted small">© جامعة جدة - نظام إدارة العهد. جميع الحقوق محفوظة.</div>
-          </div>
-        </div>
-      </footer>
-    </div><!-- /app-content -->
+<footer class="text-center text-muted py-3" style="font-weight:800;">
+  <small>Version 1.0</small>
+  <div>© جامعة جدة - نظام إدارة العهد. جميع الحقوق محفوظة.</div>
+</footer>
 
-  </div><!-- /app-shell -->
+<style>
+  /* ===== FORCE Sidebar close/open (works even if header.php missing rules) ===== */
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  /* panel selectors (حسب اختلاف هيكل مشروعك) */
+  :root{
+    --uj-rail-w: 72px;     /* عرض الشريط الصغير */
+  }
 
-  <script>
-    // ===== Sidebar open/close (mobile) + collapse (desktop) =====
-    (function(){
-      const body = document.body;
-      const panelToggleBtn = document.getElementById('panelToggleBtn');
-      const panelCloseBtn  = document.getElementById('panelCloseBtn');
-      const backdrop       = document.getElementById('sbBackdrop');
+  /* عند الإغلاق على الديسكتوب: اخفِ اللوحة بالكامل */
+  body.sb-collapsed #ujSidePanel,
+  body.sb-collapsed .app-panel,
+  body.sb-collapsed .uj-panel,
+  body.sb-collapsed .sidebar-panel{
+    transform: translateX(120%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 
-      function isMobile(){
-        return window.matchMedia('(max-width: 991px)').matches;
-      }
+  /* عند الفتح (خصوصًا للجوال): رجّع اللوحة */
+  body.sb-open #ujSidePanel,
+  body.sb-open .app-panel,
+  body.sb-open .uj-panel,
+  body.sb-open .sidebar-panel{
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
 
-      function openPanel(){
-        body.classList.add('sb-open');
-      }
-      function closePanel(){
-        body.classList.remove('sb-open');
-      }
+  /* backdrop */
+  body.sb-collapsed #sbBackdrop,
+  body.sb-collapsed .backdrop{
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 
-      if(panelToggleBtn){
-        panelToggleBtn.addEventListener('click', function(e){
-          e.preventDefault();
-          if(isMobile()){
-            openPanel();
-          }else{
-            body.classList.toggle('sb-collapsed');
-            localStorage.setItem('uj_sb_collapsed', body.classList.contains('sb-collapsed') ? '1' : '0');
-          }
-        });
-      }
+  /* على الجوال: افتراضيًا مقفل إلا إذا sb-open */
+  @media (max-width: 991px){
+    body:not(.sb-open) #ujSidePanel,
+    body:not(.sb-open) .app-panel,
+    body:not(.sb-open) .uj-panel,
+    body:not(.sb-open) .sidebar-panel{
+      transform: translateX(120%) !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+  }
 
-      if(panelCloseBtn){
-        panelCloseBtn.addEventListener('click', function(e){
-          e.preventDefault();
-          closePanel();
-        });
-      }
+  /* انتقالات ناعمة */
+  #ujSidePanel, .app-panel, .uj-panel, .sidebar-panel{
+    transition: transform .18s ease, opacity .18s ease;
+  }
+  #sbBackdrop, .backdrop{
+    transition: opacity .18s ease;
+  }
+</style>
 
-      if(backdrop){
-        backdrop.addEventListener('click', function(){
-          closePanel();
-        });
-      }
+<script>
+(function () {
+  const body = document.body;
 
-      // restore collapsed state (desktop)
-      try{
+  // عناصر محتملة بأكثر من اسم
+  const panel =
+    document.getElementById('ujSidePanel') ||
+    document.querySelector('.app-panel') ||
+    document.querySelector('.uj-panel') ||
+    document.querySelector('.sidebar-panel') ||
+    null;
+
+  const backdrop =
+    document.getElementById('sbBackdrop') ||
+    document.querySelector('.backdrop') ||
+    null;
+
+  // زر القائمة (☰)
+  const panelToggleBtn =
+    document.getElementById('panelToggleBtn') ||
+    document.getElementById('panelToggle') ||
+    document.querySelector('[data-panel-toggle]') ||
+    document.querySelector('.js-panel-toggle') ||
+    null;
+
+  // زر الإغلاق (X)
+  const panelCloseBtn =
+    document.getElementById('panelCloseBtn') ||
+    document.getElementById('panelClose') ||
+    document.querySelector('[data-panel-close]') ||
+    document.querySelector('.js-panel-close') ||
+    null;
+
+  function isMobile() {
+    return window.matchMedia('(max-width: 991px)').matches;
+  }
+
+  function openPanel() {
+    // افتح للجوال (overlay) + على الديسكتوب فك الكولابس
+    body.classList.add('sb-open');
+    body.classList.remove('sb-collapsed');
+    try { localStorage.setItem('uj_sb_collapsed', '0'); } catch(e) {}
+  }
+
+  function closePanel() {
+    // ✅ دايمًا شيل sb-open (حتى لو ديسكتوب)
+    body.classList.remove('sb-open');
+
+    if (isMobile()) {
+      // الجوال خلاص قفلناه
+      return;
+    }
+
+    // الديسكتوب: كولابس كامل
+    body.classList.add('sb-collapsed');
+    try { localStorage.setItem('uj_sb_collapsed', '1'); } catch(e) {}
+  }
+
+  function toggleCollapsedDesktop() {
+    body.classList.remove('sb-open');
+    body.classList.toggle('sb-collapsed');
+    try {
+      localStorage.setItem('uj_sb_collapsed', body.classList.contains('sb-collapsed') ? '1' : '0');
+    } catch (e) {}
+  }
+
+  function syncStateOnResize() {
+    if (isMobile()) {
+      // على الجوال لا نستخدم collapsed
+      body.classList.remove('sb-collapsed');
+      // اترك sb-open حسب المستخدم
+    } else {
+      // على الديسكتوب لا نستخدم overlay
+      body.classList.remove('sb-open');
+      // استرجاع collapsed من التخزين
+      try {
         const saved = localStorage.getItem('uj_sb_collapsed');
-        if(saved === '1' && !isMobile()){
-          body.classList.add('sb-collapsed');
-        }
-      }catch(e){}
+        if (saved === '1') body.classList.add('sb-collapsed');
+      } catch (e) {}
+    }
+  }
 
-      // responsive reset
-      window.addEventListener('resize', function(){
-        if(isMobile()){
-          body.classList.remove('sb-collapsed');
-        }else{
-          body.classList.remove('sb-open');
-          const saved = localStorage.getItem('uj_sb_collapsed');
-          if(saved === '1') body.classList.add('sb-collapsed');
-        }
-      });
-    })();
+  // init
+  syncStateOnResize();
+  window.addEventListener('resize', syncStateOnResize);
 
-    // ===== Quick menu search =====
-    (function(){
-      const input = document.getElementById('menuSearch');
-      const list  = document.getElementById('menuList');
-      if(!input || !list) return;
-
-      input.addEventListener('input', function(){
-        const q = (input.value || '').trim().toLowerCase();
-        const items = list.querySelectorAll('a[data-label]');
-        items.forEach(a=>{
-          const label = (a.getAttribute('data-label') || '').toLowerCase();
-          a.style.display = (!q || label.includes(q)) ? '' : 'none';
-        });
-      });
-    })();
-
-    // ===== Theme toggle (localStorage) =====
-    (function(){
-      const body = document.body;
-      const key = 'uj_theme';
-
-      function setTheme(mode){
-        if(mode === 'dark'){
-          body.classList.add('theme-dark');
-        }else{
-          body.classList.remove('theme-dark');
-        }
-        try{ localStorage.setItem(key, mode); }catch(e){}
+  // ☰ toggle
+  if (panelToggleBtn) {
+    panelToggleBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (isMobile()) {
+        body.classList.toggle('sb-open'); // فتح/إغلاق للجوال
+      } else {
+        toggleCollapsedDesktop();         // collapse للديسكتوب
       }
-
-      function getTheme(){
-        try{ return localStorage.getItem(key); }catch(e){}
-        return null;
-      }
-
-      const saved = getTheme();
-      if(saved){
-        setTheme(saved);
-      }
-
-      const btn  = document.getElementById('themeToggle');
-      const rail = document.getElementById('railThemeToggle');
-
-      function toggle(e){
-        if(e) e.preventDefault();
-        const isDark = body.classList.contains('theme-dark');
-        setTheme(isDark ? 'light' : 'dark');
-      }
-
-      if(btn)  btn.addEventListener('click', toggle);
-      if(rail) rail.addEventListener('click', toggle);
-    })();
-
-    // ===== Global UX: loading state on submit =====
-    document.addEventListener('submit', function(e){
-      const form = e.target;
-      if(!form) return;
-
-      const btn = form.querySelector('.js-loading-on-submit');
-      if(!btn) return;
-
-      if(btn.dataset.loading === "1") return;
-      btn.dataset.loading = "1";
-
-      btn.disabled = true;
-      btn.innerHTML = `
-        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-        جاري الحفظ...
-      `;
     });
-  </script>
+  }
+
+  // X close
+  if (panelCloseBtn) {
+    panelCloseBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      closePanel();
+    });
+  }
+
+  // backdrop click
+  if (backdrop) {
+    backdrop.addEventListener('click', function () {
+      closePanel();
+    });
+  }
+
+  // ESC يغلق
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      closePanel();
+    }
+  });
+
+  // إذا ضغط رابط داخل الـ panel على الجوال → يقفل
+  if (panel) {
+    panel.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        if (isMobile()) closePanel();
+      });
+    });
+  }
+})();
+</script>
 
 </body>
 </html>

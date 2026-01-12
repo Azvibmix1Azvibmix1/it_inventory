@@ -187,6 +187,12 @@ $routes = [
   // SpareParts Movements (JSON)
   'spareparts/movements' => ['SparePartsController', 'movements'],
   'spare_parts/movements' => ['SparePartsController', 'movements'],
+  // API (JSON)
+'api/locations'      => ['ApiController', 'locations'],
+'api/location_path'  => ['ApiController', 'location_path'],
+
+  
+
 ];
 
 // -------------------------
