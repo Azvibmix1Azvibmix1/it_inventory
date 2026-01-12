@@ -1,142 +1,113 @@
 <?php
-  $selectedLocationId = !empty($data['location_id']) ? (int)$data['location_id'] : 0;
-  $selectedPath = '';
-  if (!empty($selectedLocationId) && isset($locById[$selectedLocationId])) {
-    $selectedPath = buildLocPath($selectedLocationId, $locById);
-  }
-?>
 
-<div class="form-group mb-3">
-  <label class="form-label">الموقع <span class="text-danger">*</span></label>
+class ApiController extends Controller
+{
+  private $locationModel;
 
-  <input type="hidden" name="location_id" id="location_id" value="<?= (int)$selectedLocationId ?>">
-
-  <div class="position-relative">
-    <input
-      type="text"
-      id="loc_search"
-      class="form-control"
-      placeholder="ابحث عن الموقع (مثال: مبنى 2، معمل 8...)"
-      autocomplete="off"
-      value="<?= htmlspecialchars($selectedPath) ?>"
-    >
-
-    <div id="loc_dropdown" class="loc-dd d-none"></div>
-  </div>
-
-  <small class="text-muted d-block mt-1" id="loc_help">
-    اكتب حرفين أو أكثر، ثم اختر الموقع من القائمة.
-  </small>
-
-  <div class="mt-2 d-flex gap-2">
-    <button type="button" class="btn btn-sm btn-outline-secondary" id="loc_clear">
-      مسح الاختيار
-    </button>
-    <span class="badge bg-light text-dark" id="loc_badge" style="<?= $selectedLocationId ? '' : 'display:none;' ?>">
-      تم اختيار موقع ✓
-    </span>
-  </div>
-</div>
-
-<style>
-  .loc-dd{
-    position:absolute;
-    top:100%;
-    left:0;
-    right:0;
-    background:#fff;
-    border:1px solid #e5e7eb;
-    border-radius:12px;
-    box-shadow:0 12px 30px rgba(0,0,0,.08);
-    margin-top:8px;
-    overflow:hidden;
-    z-index:9999;
-    max-height:320px;
-    overflow-y:auto;
-  }
-  .loc-dd .item{
-    padding:10px 12px;
-    cursor:pointer;
-    border-bottom:1px solid #f1f5f9;
-  }
-  .loc-dd .item:last-child{ border-bottom:0; }
-  .loc-dd .item:hover{ background:#f8fafc; }
-  .loc-dd .path{ font-weight:600; }
-  .loc-dd .meta{ font-size:12px; color:#64748b; margin-top:2px; }
-</style>
-
-<script>
-(function(){
-  const input = document.getElementById('loc_search');
-  const hidden = document.getElementById('location_id');
-  const dd = document.getElementById('loc_dropdown');
-  const clearBtn = document.getElementById('loc_clear');
-  const badge = document.getElementById('loc_badge');
-
-  let t = null;
-  let lastQ = '';
-
-  function showDropdown(){ dd.classList.remove('d-none'); }
-  function hideDropdown(){ dd.classList.add('d-none'); dd.innerHTML = ''; }
-
-  function setSelected(id, path){
-    hidden.value = id;
-    input.value = path || '';
-    badge.style.display = id ? '' : 'none';
-    hideDropdown();
+  public function __construct()
+  {
+    // إذا عندك requireLogin وتبغاه للـ API:
+    if (function_exists('requireLogin')) {
+      requireLogin();
+    }
+    $this->locationModel = $this->model('Location');
   }
 
-  clearBtn.addEventListener('click', () => setSelected('', ''));
-
-  document.addEventListener('click', (e) => {
-    if (!dd.contains(e.target) && e.target !== input) hideDropdown();
-  });
-
-  input.addEventListener('input', () => {
-    const q = (input.value || '').trim();
-    if (q.length < 2) { hideDropdown(); return; }
-
-    if (t) clearTimeout(t);
-    t = setTimeout(async () => {
-      if (q === lastQ) return;
-      lastQ = q;
-
-      try{
-        const url = `index.php?page=api/locations&q=${encodeURIComponent(q)}&limit=20`;
-        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-        const data = await res.json();
-
-        const items = (data && data.items) ? data.items : [];
-        if (!items.length){ hideDropdown(); return; }
-
-        dd.innerHTML = items.map(it => `
-          <div class="item" data-id="${it.id}" data-path="${(it.path||'').replace(/"/g,'&quot;')}">
-            <div class="path">${it.path || it.name_ar}</div>
-            <div class="meta">ID: ${it.id}${it.type ? ' • ' + it.type : ''}</div>
-          </div>
-        `).join('');
-
-        dd.querySelectorAll('.item').forEach(el => {
-          el.addEventListener('click', () => {
-            const id = el.getAttribute('data-id');
-            const path = el.getAttribute('data-path');
-            setSelected(id, path);
-          });
-        });
-
-        showDropdown();
-      }catch(e){
-        hideDropdown();
-      }
-    }, 200);
-  });
-
-  // إذا عندنا ID محفوظ بدون مسار واضح
-  if (hidden.value && !input.value){
-    fetch(`index.php?page=api/location_path&id=${encodeURIComponent(hidden.value)}`)
-      .then(r => r.json())
-      .then(d => { if (d && d.ok && d.path) { input.value = d.path; badge.style.display=''; } })
-      .catch(()=>{});
+  private function json($data, int $code = 200): void
+  {
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
   }
-})();
-</script>
+
+  private function buildMaps(array $locations): array
+  {
+    $byId = [];
+    foreach ($locations as $l) {
+      $id = (int)($l->id ?? 0);
+      if ($id > 0) $byId[$id] = $l;
+    }
+    return $byId;
+  }
+
+  private function buildPath(int $id, array $byId): string
+  {
+    if ($id <= 0 || !isset($byId[$id])) return '';
+    $parts = [];
+    $cur = $byId[$id];
+    $guard = 0;
+
+    $parts[] = (string)($cur->name_ar ?? $cur->name_en ?? ('موقع#'.$id));
+
+    while ($guard < 30) {
+      $guard++;
+      $pid = (int)($cur->parent_id ?? 0);
+      if ($pid <= 0 || !isset($byId[$pid])) break;
+      $cur = $byId[$pid];
+      array_unshift($parts, (string)($cur->name_ar ?? $cur->name_en ?? ('موقع#'.$pid)));
+    }
+
+    return implode(' › ', $parts);
+  }
+
+  // GET: index.php?page=api/locations&q=...&limit=20
+  public function locations(): void
+  {
+    $q = trim((string)($_GET['q'] ?? ''));
+    $limit = (int)($_GET['limit'] ?? 20);
+    if ($limit <= 0) $limit = 20;
+    if ($limit > 50) $limit = 50;
+
+    if (mb_strlen($q, 'UTF-8') < 2) {
+      $this->json(['ok' => true, 'items' => []]);
+    }
+
+    $all = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
+    if (!is_array($all)) $all = [];
+
+    $byId = $this->buildMaps($all);
+    $qLower = mb_strtolower($q, 'UTF-8');
+
+    $items = [];
+    foreach ($all as $loc) {
+      $id = (int)($loc->id ?? 0);
+      if ($id <= 0) continue;
+
+      $nameAr = (string)($loc->name_ar ?? '');
+      $nameEn = (string)($loc->name_en ?? '');
+      $type   = (string)($loc->type ?? '');
+
+      $hay = mb_strtolower($nameAr.' '.$nameEn.' '.$type.' '.$id, 'UTF-8');
+      if (mb_strpos($hay, $qLower) === false) continue;
+
+      $items[] = [
+        'id'   => $id,
+        'name' => $nameAr ?: ($nameEn ?: ('موقع#'.$id)),
+        'path' => $this->buildPath($id, $byId),
+        'type' => $type,
+      ];
+
+      if (count($items) >= $limit) break;
+    }
+
+    $this->json(['ok' => true, 'items' => $items]);
+  }
+
+  // GET: index.php?page=api/location_path&id=123
+  public function location_path(): void
+  {
+    $id = (int)($_GET['id'] ?? 0);
+    if ($id <= 0) $this->json(['ok' => false, 'message' => 'ID غير صالح'], 400);
+
+    $all = method_exists($this->locationModel, 'getAll') ? $this->locationModel->getAll() : [];
+    if (!is_array($all)) $all = [];
+
+    $byId = $this->buildMaps($all);
+    $path = $this->buildPath($id, $byId);
+
+    if ($path === '') $this->json(['ok' => false, 'message' => 'الموقع غير موجود'], 404);
+
+    $this->json(['ok' => true, 'id' => $id, 'path' => $path]);
+  }
+}

@@ -1,78 +1,56 @@
-<?php require APPROOT . '/views/inc/header.php'; ?>
-
-
 <?php
-$locations = $data['locations'] ?? [];
+require APPROOT . '/views/inc/header.php';
 
-// خريطة سريعة: id => location
+$locations  = $data['locations'] ?? [];
+$users_list = $data['users_list'] ?? [];
+$asset_err  = $data['asset_err'] ?? '';
+
+if (!is_array($locations) && !is_object($locations)) $locations = [];
+
 $locById = [];
-foreach ($locations as $l) {
-  $id = (int)($l->id ?? 0);
-  if ($id > 0) $locById[$id] = $l;
+foreach ($locations as $loc) {
+  $id = (int)($loc->id ?? 0);
+  if ($id > 0) $locById[$id] = $loc;
 }
-
-/**
- * يبني المسار الكامل للموقع: كلية › مبنى › معمل
- */
-function buildLocPath(int $id, array $locById): string
-{
-  if ($id <= 0 || !isset($locById[$id])) return '';
-
-  $parts = [];
-  $cur = $locById[$id];
-
-  $parts[] = (string)($cur->name_ar ?? $cur->name ?? ('موقع#'.$id));
-
-  $guard = 0;
-  while (true) {
-    $guard++;
-    if ($guard > 30) break; // حماية من loop
-
-    // أحياناً يكون الحقل parent_id أو parentId
-    $pid = (int)($cur->parent_id ?? $cur->parentId ?? 0);
-    if ($pid <= 0 || !isset($locById[$pid])) break;
-
-    $cur = $locById[$pid];
-    array_unshift($parts, (string)($cur->name_ar ?? $cur->name ?? ('موقع#'.$pid)));
-  }
-
-  return implode(' › ', $parts);
-}
-?>
-
-
-
-<?php
-$locations   = $data['locations']   ?? [];
-$users_list  = $data['users_list']  ?? [];
-$asset_err   = $data['asset_err']   ?? '';
 
 if (!function_exists('buildLocationPath')) {
-  function buildLocationPath($loc, $locById) {
-    $parts = [ $loc->name_ar ?? ('موقع#'.$loc->id) ];
-    $current = $loc;
-    while (!empty($current->parent_id) && isset($locById[$current->parent_id])) {
-      $current = $locById[$current->parent_id];
-      array_unshift($parts, $current->name_ar ?? ('موقع#'.$current->id));
+  function buildLocationPath($loc, $locById): string {
+    if (!$loc || empty($loc->id)) return '';
+    $parts = [ (string)($loc->name_ar ?? $loc->name ?? ('موقع#'.$loc->id)) ];
+    $cur = $loc;
+    $guard = 0;
+
+    while ($guard < 30) {
+      $guard++;
+      $pid = (int)($cur->parent_id ?? $cur->parentId ?? 0);
+      if ($pid <= 0 || !isset($locById[$pid])) break;
+      $cur = $locById[$pid];
+      array_unshift($parts, (string)($cur->name_ar ?? $cur->name ?? ('موقع#'.$cur->id)));
     }
+
     return implode(' › ', $parts);
   }
 }
+
+$allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Other'];
+
+$currentType = (string)($data['type'] ?? '');
+$currentLoc  = (int)($data['location_id'] ?? 0);
+
+$currentLocLabel = '';
+if ($currentLoc && isset($locById[$currentLoc])) {
+  $currentLocLabel = buildLocationPath($locById[$currentLoc], $locById);
+}
+
+
+
 
 $locById = [];
 foreach ($locations as $loc) { $locById[$loc->id] = $loc; }
 
 $allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Other'];
 
-// تجهيز بيانات المواقع للـ JS (id + path)
-$locItems = [];
-foreach ($locations as $loc) {
-  $locItems[] = [
-    'id'   => (int)$loc->id,
-    'name' => (string)($loc->name_ar ?? ('موقع#'.$loc->id)),
-    'path' => (string)buildLocationPath($loc, $locById),
-  ];
-}
+// البحث عن المواقع صار عبر API داخل المودال (بدون تحميل كل المواقع إلى الـ JS)
 
 $currentType = (string)($data['type'] ?? '');
 $currentLoc  = (int)($data['location_id'] ?? 0);
@@ -88,348 +66,356 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 <style>
   .flatpickr-calendar { direction: rtl; }
 
-  /* ===== Type cards ===== */
-  .type-grid{
-    display:grid;
-    grid-template-columns:repeat(7, minmax(0,1fr));
-    gap:10px;
-  }
-  @media (max-width: 1200px){ .type-grid{ grid-template-columns:repeat(4, minmax(0,1fr)); } }
-  @media (max-width: 768px){ .type-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .page-shell{ max-width: 1180px; margin: 0 auto; padding: 18px; }
+  .page-title{ font-weight:800; font-size:28px; margin: 10px 0 18px; display:flex; align-items:center; gap:10px; }
+  .subtitle{ color:#6b7280; font-size:13px; margin-top:-10px; margin-bottom:14px; }
+
+  .cardish{ background:#fff; border:1px solid #e5e7eb; border-radius:16px; box-shadow: 0 6px 20px rgba(0,0,0,.04); }
+  .card-pad{ padding: 18px; }
+
+  .grid-2{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+  @media(max-width: 900px){ .grid-2{ grid-template-columns: 1fr; } }
+
+  .form-label{ font-weight:700; margin-bottom:6px; }
+  .help{ font-size:12px; color:#6b7280; margin-top:6px; }
+
+  /* Type Cards */
+  .type-wrap{ margin-top:8px; }
+  .type-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:10px; }
+  @media(max-width: 1100px){ .type-grid{ grid-template-columns: repeat(4, 1fr);} }
+  @media(max-width: 600px){ .type-grid{ grid-template-columns: repeat(2, 1fr);} }
 
   .type-card{
-    border:1px solid rgba(0,0,0,.08);
-    border-radius:16px;
-    background:#fff;
-    padding:12px 10px;
-    text-align:center;
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    padding:10px 12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
     cursor:pointer;
+    background: #fff;
+    transition: .15s ease;
     user-select:none;
-    transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
-    box-shadow:0 10px 24px rgba(0,0,0,.03);
-    font-weight:900;
   }
-  .type-card:hover{ transform: translateY(-1px); box-shadow:0 12px 26px rgba(0,0,0,.06); }
-  .type-card.active{
-    border-color:#0b0f14;
-    box-shadow:0 16px 30px rgba(0,0,0,.10);
-  }
-  .type-icon{
-    width:38px; height:38px; border-radius:14px;
-    display:inline-flex; align-items:center; justify-content:center;
-    background:rgba(0,0,0,.04);
-    margin-bottom:8px;
-    font-size:18px;
-  }
-  .type-key{ font-size:12px; color:#6b7280; font-weight:800; margin-top:4px; }
+  .type-card:hover{ transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.06); }
+  .type-card.active{ border-color:#111827; box-shadow: 0 10px 24px rgba(17,24,39,.12); }
 
-  /* ===== Location picker ===== */
-  .loc-input-wrap{
-    display:flex; gap:8px; align-items:stretch;
+  .type-ico{
+    width:40px; height:40px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    background:#f3f4f6; color:#111827; font-size:18px;
   }
-  .loc-input-wrap .form-control{ border-radius:12px; }
+  .type-name{ font-weight:800; }
+  .type-sub{ font-size:12px; color:#6b7280; margin-top:-2px; }
+
+  /* Location Picker */
+  .loc-field{
+    display:flex; gap:10px; align-items:center;
+  }
+  .loc-field input[readonly]{ background:#f9fafb; cursor:pointer; }
   .loc-btn{
-    border-radius:12px;
-    font-weight:900;
-    white-space:nowrap;
+    border-radius:12px; padding:10px 14px; border:1px solid #e5e7eb;
+    background:#111827; color:#fff; font-weight:700;
   }
-  .loc-hint{ color:#6b7280; font-weight:800; font-size:12px; margin-top:6px; }
+  .loc-btn:hover{ opacity:.95; }
 
-  /* ===== Custom modal ===== */
-  .ux-modal{
-    position:fixed; inset:0;
-    background:rgba(0,0,0,.35);
-    display:none;
-    align-items:center; justify-content:center;
-    z-index:9999;
-    padding:18px;
+  .req-badge{
+    display:none; margin-right:8px;
+    background:#fee2e2; color:#991b1b; border:1px solid #fecaca;
+    padding:4px 8px; border-radius:999px; font-size:12px; font-weight:800;
   }
-  .ux-modal.open{ display:flex; }
-  .ux-modal-card{
-    width:min(820px, 100%);
+
+  /* Modal */
+  .loc-modal{
+    position:fixed; inset:0; background:rgba(0,0,0,.25);
+    display:none; align-items:center; justify-content:center;
+    padding:18px;
+    z-index:9999;
+  }
+  .loc-modal.open{ display:flex; }
+  .loc-card{
+    width:min(920px, 100%);
     background:#fff;
     border-radius:18px;
-    box-shadow:0 24px 70px rgba(0,0,0,.25);
-    overflow:hidden;
-    border:1px solid rgba(0,0,0,.08);
-  }
-  .ux-modal-hd{
-    padding:12px 14px;
-    background:rgba(0,0,0,.02);
-    border-bottom:1px solid rgba(0,0,0,.06);
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-  }
-  .ux-modal-title{ margin:0; font-weight:1000; }
-  .ux-close{
-    border:1px solid rgba(0,0,0,.10);
-    background:#fff;
-    border-radius:12px;
-    width:40px; height:40px;
-    display:inline-flex; align-items:center; justify-content:center;
-    cursor:pointer; font-weight:900;
-  }
-  .ux-modal-bd{ padding:14px; }
-  .loc-search{
-    display:flex; gap:10px; align-items:center; margin-bottom:10px;
-  }
-  .loc-search input{ border-radius:14px; }
-  .loc-sections{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-  @media (max-width: 768px){ .loc-sections{ grid-template-columns: 1fr; } }
-
-  .loc-box{
-    border:1px solid rgba(0,0,0,.08);
-    border-radius:16px;
+    border:1px solid #e5e7eb;
+    box-shadow: 0 30px 80px rgba(0,0,0,.25);
     overflow:hidden;
   }
-  .loc-box-hd{
-    padding:10px 12px;
-    background:rgba(0,0,0,.02);
-    border-bottom:1px solid rgba(0,0,0,.06);
-    font-weight:1000;
+  .loc-head{
     display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px;
+    border-bottom:1px solid #e5e7eb;
+    background:#f9fafb;
   }
+  .loc-head h5{ margin:0; font-weight:900; }
+  .loc-close{
+    border:none; background:#fff; border:1px solid #e5e7eb;
+    width:36px; height:36px; border-radius:12px; cursor:pointer;
+  }
+
+  .loc-body{ display:grid; grid-template-columns: 1.1fr .9fr; gap:0; }
+  @media(max-width: 850px){ .loc-body{ grid-template-columns: 1fr; } }
+
+  .loc-panel{ padding:12px 14px; }
+  .loc-panel + .loc-panel{ border-right:1px solid #e5e7eb; }
+
+  .loc-searchbar{ display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .loc-searchbar input{ border-radius:12px; }
+  .mini-btn{
+    border-radius:12px; padding:10px 12px; border:1px solid #e5e7eb;
+    background:#fff; font-weight:800;
+  }
+  .mini-note{ font-size:12px; color:#6b7280; }
+
   .loc-list{
-    max-height:360px;
+    border:1px solid #e5e7eb;
+    border-radius:14px;
+    max-height: 360px;
     overflow:auto;
     background:#fff;
   }
   .loc-item{
+    display:flex; justify-content:space-between; gap:10px;
     padding:10px 12px;
-    display:flex; align-items:flex-start; gap:10px;
+    border-bottom:1px solid #f1f5f9;
     cursor:pointer;
-    border-bottom:1px solid rgba(0,0,0,.05);
   }
-  .loc-item:hover{ background:rgba(0,0,0,.02); }
-  .loc-main{ font-weight:1000; }
-  .loc-path{ color:#6b7280; font-weight:800; font-size:12px; margin-top:2px; }
-  .loc-actions{ margin-inline-start:auto; display:flex; gap:6px; align-items:center; }
+  .loc-item:last-child{ border-bottom:none; }
+  .loc-item:hover{ background:#f9fafb; }
+  .loc-main{ font-weight:900; }
+  .loc-path{ font-size:12px; color:#6b7280; margin-top:2px; }
+
+  .loc-actions{ display:flex; align-items:center; gap:8px; }
   .star-btn{
+    border:none; background:#fff;
     width:34px; height:34px; border-radius:12px;
-    border:1px solid rgba(0,0,0,.10);
+    border:1px solid #e5e7eb;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .star-btn.active{ background:#111827; color:#fff; border-color:#111827; }
+
+  .section-title{
+    font-weight:900; margin: 0 0 8px; display:flex; align-items:center; justify-content:space-between;
+  }
+
+  .actions-row{ display:flex; justify-content:flex-end; gap:10px; margin-top:14px; }
+  .btn-soft{
+    border-radius:12px;
+    padding:10px 14px;
+    border:1px solid #e5e7eb;
     background:#fff;
-    display:inline-flex; align-items:center; justify-content:center;
-    cursor:pointer; font-weight:1000;
+    font-weight:800;
   }
-  .star-btn.active{ background:#0b0f14; color:#fff; border-color:#0b0f14; }
-
-  .mini-note{
-    font-size:12px; color:#6b7280; font-weight:800;
-    margin-top:8px;
-  }
-
-  .req-badge{
-    display:inline-block;
-    background:#fee2e2;
-    color:#991b1b;
+  .btn-primary-soft{
+    border-radius:12px;
+    padding:10px 16px;
+    border:1px solid #111827;
+    background:#111827;
+    color:#fff;
     font-weight:900;
-    font-size:12px;
-    border-radius:999px;
-    padding:2px 8px;
-    margin-inline-start:6px;
   }
 </style>
 
-<div class="container-fluid py-3" dir="rtl">
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h4 class="mb-0">إضافة جهاز</h4>
-    <a class="btn btn-outline-secondary" href="index.php?page=assets/index">رجوع</a>
+<div class="page-shell">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <div class="page-title">إضافة جهاز</div>
+      <div class="subtitle">املأ البيانات الأساسية للجهاز ثم اختر الموقع بسهولة عبر البحث.</div>
+    </div>
+    <a href="<?= URLROOT; ?>/assets/index" class="btn-soft">رجوع</a>
   </div>
 
-  <?php if (!empty($asset_err)): ?>
-    <div class="alert alert-danger"><?= htmlspecialchars($asset_err) ?></div>
-  <?php endif; ?>
+  <div class="cardish">
+    <div class="card-pad">
 
-  <?php if (empty($locations)): ?>
-    <div class="alert alert-warning">
-      لا توجد لديك مواقع مسموح لك الإضافة عليها. اطلب من السوبر أدمن منحك صلاحية على موقع.
-    </div>
-  <?php else: ?>
-
-    <div class="card">
-      <div class="card-body">
-
-        <form id="assetAddForm" method="post" action="index.php?page=assets/add" autocomplete="off">
-
-          <!-- التاق يتولد تلقائيًا بعد الحفظ -->
-          <input type="hidden" name="asset_tag" value="">
-
-          <div class="mb-3">
+      <form id="assetAddForm" action="<?= URLROOT; ?>/assets/add" method="post" autocomplete="off">
+        <div class="grid-2">
+          <div class="form-group">
             <label class="form-label">Tag (رقم الجهاز) <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" value="يتولد تلقائيًا بعد الحفظ (AST-000001)" readonly>
-            <div class="form-text text-muted">يتم توليد التاق تلقائيًا لتفادي التكرار.</div>
+            <input type="text" name="tag" class="form-control <?= (!empty($data['tag_err'])) ? 'is-invalid' : ''; ?>"
+                   value="<?= htmlspecialchars($data['tag'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+            <span class="invalid-feedback"><?= $data['tag_err'] ?? ''; ?></span>
+            <div class="help">يتولد تلقائيًا بعد الحفظ (مثال: AST-000001). يتم توليد التالي تلقائيًا لتفادي التكرار.</div>
           </div>
 
-          <div class="mb-3">
+          <div class="form-group">
             <label class="form-label">Physical address (MAC)</label>
-            <!-- ملاحظة: عندك النظام يستخدم serial_no — بنخليه نفسه عشان ما نخرب الـ backend -->
-            <input id="macInput" type="text" name="serial_no" class="form-control"
+            <input id="macInput" type="text" name="mac" class="form-control"
                    placeholder="AA:BB:CC:DD:EE:FF"
-                   value="<?= htmlspecialchars($data['serial_no'] ?? '') ?>">
-            <div class="mini-note">ينسّق تلقائيًا بصيغة MAC عند الكتابة.</div>
+                   value="<?= htmlspecialchars($data['mac'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+            <div class="help">ينسّق تلقائيًا بصيغة MAC عند الكتابة.</div>
+          </div>
+        </div>
+
+        <!-- TYPE (cards) -->
+        <div class="form-group mt-3">
+          <div class="d-flex align-items-center gap-2">
+            <label class="form-label mb-0">النوع <span class="text-danger">*</span></label>
+            <span id="typeReqBadge" class="req-badge">اختر نوع</span>
           </div>
 
-          <!-- ===== TYPE (Cards) ===== -->
-          <div class="mb-3">
-            <label class="form-label">
-              النوع <span class="text-danger">*</span>
-              <span class="req-badge" id="typeReqBadge" style="display:none;">مطلوب</span>
-            </label>
+          <input type="hidden" name="type" id="typeHidden" value="<?= htmlspecialchars($currentType, ENT_QUOTES, 'UTF-8'); ?>">
 
-            <input type="hidden" name="type" id="typeHidden" value="<?= htmlspecialchars($currentType) ?>">
-
-            <div class="type-grid" id="typeGrid">
+          <div class="type-wrap">
+            <div id="typeGrid" class="type-grid">
               <?php
-                $typeMeta = [
-                  'Laptop'  => ['icon'=>'💻','label'=>'Laptop'],
-                  'Desktop' => ['icon'=>'🖥️','label'=>'Desktop'],
-                  'Printer' => ['icon'=>'🖨️','label'=>'Printer'],
-                  'Monitor' => ['icon'=>'📺','label'=>'Monitor'],
-                  'Server'  => ['icon'=>'🗄️','label'=>'Server'],
-                  'Network' => ['icon'=>'🌐','label'=>'Network'],
-                  'Other'   => ['icon'=>'📦','label'=>'Other'],
+                $typeIcons = [
+                  'Laptop'  => '💻',
+                  'Desktop' => '🖥️',
+                  'Printer' => '🖨️',
+                  'Monitor' => '🖵',
+                  'Server'  => '🗄️',
+                  'Network' => '🌐',
+                  'Other'   => '📦',
                 ];
+                $typeSubs = [
+                  'Laptop'  => 'Laptop',
+                  'Desktop' => 'Desktop',
+                  'Printer' => 'Printer',
+                  'Monitor' => 'Monitor',
+                  'Server'  => 'Server',
+                  'Network' => 'Network',
+                  'Other'   => 'Other',
+                ];
+                foreach ($allowedTypes as $t):
+                  $isActive = ($currentType === $t);
               ?>
-              <?php foreach ($allowedTypes as $t): ?>
-                <?php $active = ($currentType === $t) ? 'active' : ''; ?>
-                <div class="type-card <?= $active ?>" data-type="<?= htmlspecialchars($t) ?>">
-                  <div class="type-icon"><?= htmlspecialchars($typeMeta[$t]['icon'] ?? '🔧') ?></div>
-                  <div><?= htmlspecialchars($typeMeta[$t]['label'] ?? $t) ?></div>
-                  <div class="type-key"><?= htmlspecialchars($t) ?></div>
+              <div class="type-card <?= $isActive ? 'active' : '' ?>" data-type="<?= htmlspecialchars($t, ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="type-ico"><?= $typeIcons[$t] ?? '📦' ?></div>
+                <div>
+                  <div class="type-name"><?= htmlspecialchars($t, ENT_QUOTES, 'UTF-8'); ?></div>
+                  <div class="type-sub"><?= htmlspecialchars($typeSubs[$t] ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
                 </div>
+              </div>
               <?php endforeach; ?>
             </div>
           </div>
 
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">الماركة (اختياري)</label>
-              <input type="text" name="brand" class="form-control"
-                     value="<?= htmlspecialchars($data['brand'] ?? '') ?>">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">الموديل (اختياري)</label>
-              <input type="text" name="model" class="form-control"
-                     value="<?= htmlspecialchars($data['model'] ?? '') ?>">
-            </div>
+          <span class="invalid-feedback d-block"><?= $data['type_err'] ?? ''; ?></span>
+        </div>
+
+        <div class="grid-2 mt-3">
+          <div class="form-group">
+            <label class="form-label">الماركة (اختياري)</label>
+            <input type="text" name="brand" class="form-control"
+                   value="<?= htmlspecialchars($data['brand'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
           </div>
 
-          <!-- Dates -->
-          <div class="row g-3 mt-1">
-            <div class="col-md-6">
-              <label class="form-label">تاريخ الشراء (اختياري)</label>
-              <input type="text" name="purchase_date" class="form-control js-date"
-                     placeholder="YYYY-MM-DD"
-                     value="<?= htmlspecialchars($data['purchase_date'] ?? '') ?>">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">انتهاء الضمان (اختياري)</label>
-              <input type="text" name="warranty_expiry" class="form-control js-date"
-                     placeholder="YYYY-MM-DD"
-                     value="<?= htmlspecialchars($data['warranty_expiry'] ?? '') ?>">
-            </div>
+          <div class="form-group">
+            <label class="form-label">الموديل (اختياري)</label>
+            <input type="text" name="model" class="form-control"
+                   value="<?= htmlspecialchars($data['model'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+          </div>
+        </div>
+
+        <div class="grid-2 mt-3">
+          <div class="form-group">
+            <label class="form-label">تاريخ الشراء (اختياري)</label>
+            <input type="text" name="purchase_date" class="form-control js-date"
+                   placeholder="YYYY-MM-DD"
+                   value="<?= htmlspecialchars($data['purchase_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
           </div>
 
-          <!-- ===== LOCATION (Modal Search) ===== -->
-          <div class="row g-3 mt-1">
-            <div class="col-md-6">
-              <label class="form-label">
-                الموقع <span class="text-danger">*</span>
-                <span class="req-badge" id="locReqBadge" style="display:none;">مطلوب</span>
-              </label>
+          <div class="form-group">
+            <label class="form-label">انتهاء الضمان (اختياري)</label>
+            <input type="text" name="warranty_end" class="form-control js-date"
+                   placeholder="YYYY-MM-DD"
+                   value="<?= htmlspecialchars($data['warranty_end'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+          </div>
+        </div>
 
-              <input type="hidden" name="location_id" id="locationHidden" value="<?= (int)$currentLoc ?>">
-
-              <div class="loc-input-wrap">
-                <input id="locationDisplay" type="text" class="form-control"
-                       value="<?= htmlspecialchars($currentLocLabel ?: '') ?>"
-                       placeholder="اختر الموقع..."
-                       readonly>
-                <button type="button" class="btn btn-dark loc-btn" id="openLocPicker">اختيار</button>
-              </div>
-
-              <div class="loc-hint">بحث سريع + آخر استخدام + مفضلة ⭐ (بدون قوائم طويلة).</div>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">الحالة</label>
-              <?php $st = $data['status'] ?? 'Active'; ?>
-              <select name="status" class="form-select" style="border-radius:12px;">
-                <option value="Active"  <?= ($st === 'Active') ? 'selected' : '' ?>>Active</option>
-                <option value="Retired" <?= ($st === 'Retired') ? 'selected' : '' ?>>Retired</option>
-                <option value="Repair"  <?= ($st === 'Repair') ? 'selected' : '' ?>>Repair</option>
-              </select>
-            </div>
+        <div class="grid-2 mt-3">
+          <div class="form-group">
+            <label class="form-label">الحالة</label>
+            <select name="status" class="form-control">
+              <?php
+                $status = $data['status'] ?? 'Active';
+                $opts = ['Active'=>'Active', 'Inactive'=>'Inactive', 'Maintenance'=>'Maintenance'];
+                foreach($opts as $k=>$v):
+              ?>
+                <option value="<?= htmlspecialchars($k, ENT_QUOTES, 'UTF-8'); ?>" <?= ($status===$k?'selected':''); ?>>
+                  <?= htmlspecialchars($v, ENT_QUOTES, 'UTF-8'); ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
           </div>
 
-          <?php if (!empty($users_list)): ?>
-            <div class="mt-3">
-              <label class="form-label">الموظف المستلم (اختياري)</label>
-              <select name="assigned_to" class="form-select" style="border-radius:12px;">
-                <option value="">— بدون تعيين / في المخزن —</option>
-                <?php foreach ($users_list as $u): ?>
-                  <?php
-                    $name = $u->name ?? $u->username ?? $u->email ?? ('User#'.$u->id);
-                    $role = $u->role ?? '';
-                    $selected = (!empty($data['assigned_to']) && (int)$data['assigned_to'] === (int)$u->id) ? 'selected' : '';
-                  ?>
-                  <option value="<?= (int)$u->id ?>" <?= $selected ?>>
-                    <?= htmlspecialchars($name) ?><?= $role ? ' ('.$role.')' : '' ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-              <div class="form-text text-muted">للسوبر أدمن/المدير فقط.</div>
+          <!-- LOCATION (modal picker) -->
+          <div class="form-group">
+            <div class="d-flex align-items-center gap-2">
+              <label class="form-label mb-0">الموقع <span class="text-danger">*</span></label>
+              <span id="locReqBadge" class="req-badge">اختر موقع</span>
             </div>
-          <?php endif; ?>
 
-          <div class="mt-3">
-            <label class="form-label">ملاحظات (اختياري)</label>
-            <textarea name="notes" class="form-control" rows="3" style="border-radius:12px;"><?= htmlspecialchars($data['notes'] ?? '') ?></textarea>
+            <input type="hidden" name="location_id" id="locationHidden" value="<?= (int)$currentLoc; ?>">
+
+            <div class="loc-field mt-2">
+              <input id="locationDisplay" type="text" class="form-control" readonly
+                     placeholder="اختر موقع الجهاز..."
+                     value="<?= htmlspecialchars($currentLocLabel, ENT_QUOTES, 'UTF-8'); ?>">
+              <button id="openLocPicker" type="button" class="loc-btn">اختيار</button>
+            </div>
+
+            <div class="help">بحث سريع + آخر استخدام + مفضلة ⭐ (بدون قوائم طويلة).</div>
+            <span class="invalid-feedback d-block"><?= $data['location_err'] ?? ''; ?></span>
           </div>
+        </div>
 
-          <div class="mt-4 d-flex gap-2 flex-wrap">
-            <button type="submit" class="btn btn-primary" style="border-radius:12px; font-weight:900;">حفظ الجهاز</button>
-            <a class="btn btn-outline-secondary" style="border-radius:12px; font-weight:900;" href="index.php?page=assets/index">إلغاء</a>
-          </div>
+        <div class="form-group mt-3">
+          <label class="form-label">ملاحظات (اختياري)</label>
+          <textarea name="notes" class="form-control" rows="4"><?= htmlspecialchars($data['notes'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+        </div>
 
-        </form>
-      </div>
+        <div class="actions-row">
+          <a href="<?= URLROOT; ?>/assets/index" class="btn-soft">إلغاء</a>
+          <button type="submit" class="btn-primary-soft">حفظ الجهاز</button>
+        </div>
+      </form>
+
     </div>
-
-  <?php endif; ?>
+  </div>
 </div>
 
-<!-- ===== Location Picker Modal ===== -->
-<div class="ux-modal" id="locModal" aria-hidden="true">
-  <div class="ux-modal-card">
-    <div class="ux-modal-hd">
-      <h6 class="ux-modal-title mb-0">اختيار موقع الجهاز</h6>
-      <button class="ux-close" type="button" id="closeLocPicker">✕</button>
+<!-- Location Picker Modal -->
+<div id="locModal" class="loc-modal" aria-hidden="true">
+  <div class="loc-card">
+    <div class="loc-head">
+      <h5>اختيار موقع الجهاز</h5>
+      <button id="closeLocPicker" class="loc-close" type="button">×</button>
     </div>
-    <div class="ux-modal-bd">
-      <div class="loc-search">
-        <input id="locSearchInput" type="text" class="form-control" placeholder="ابحث عن موقع... (مثال: مبنى 8، معمل 1)">
-        <button type="button" class="btn btn-outline-secondary" style="border-radius:12px; font-weight:900;" id="clearLocSearch">مسح</button>
-      </div>
 
-      <div class="loc-sections">
-        <div class="loc-box">
-          <div class="loc-box-hd">
-            <span>المفضلة ⭐</span>
-            <span class="mini-note" style="margin:0;">تظهر أولاً</span>
-          </div>
-          <div class="loc-list" id="favLocList"></div>
+    <div class="loc-body">
+      <!-- Left: Search + Results/Recent -->
+      <div class="loc-panel">
+        <div class="loc-searchbar">
+          <button type="button" id="clearLocSearch" class="mini-btn">مسح</button>
+          <input id="locSearchInput" type="text" class="form-control"
+                 placeholder="ابحث عن موقع... (مثال: مبنى 8، معمل 1)" autocomplete="off">
         </div>
 
-        <div class="loc-box">
-          <div class="loc-box-hd">
-            <span>النتائج</span>
-            <span class="mini-note" style="margin:0;">+ آخر استخدام</span>
-          </div>
-          <div class="loc-list" id="allLocList"></div>
+        <div class="section-title">
+          <span>النتائج</span>
+          <span class="mini-note">تظهر أولاً</span>
+        </div>
+
+        <div id="allLocList" class="loc-list">
+          <div class="p-3 mini-note">اكتب حرفين أو أكثر للبحث، أو اختر من "آخر استخدام".</div>
         </div>
       </div>
 
-      <div class="mini-note">تلميح: اضغط ⭐ لإضافة الموقع للمفضلة. يتم حفظها على جهازك.</div>
+      <!-- Right: Favorites -->
+      <div class="loc-panel">
+        <div class="section-title">
+          <span>المفضلة ⭐</span>
+        </div>
+
+        <div id="favLocList" class="loc-list">
+          <div class="p-3 mini-note">لا يوجد مفضلة بعد. اضغط ★ على أي موقع.</div>
+        </div>
+
+        <div class="mini-note mt-2">تلميح: اضغط ⭐ لإضافة الموقع للمفضلة. يتم حفظها على جهازك.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -440,7 +426,8 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 
 <script>
 (function(){
-  const LOCATIONS = <?= json_encode($locItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  const API_LOC_SEARCH = 'index.php?page=api/locations';
+  const API_LIMIT = 50;
 
   // ===== Flatpickr =====
   document.addEventListener('DOMContentLoaded', function () {
@@ -455,9 +442,7 @@ if ($currentLoc && isset($locById[$currentLoc])) {
   if (macInput) {
     macInput.addEventListener('input', () => {
       let v = (macInput.value || '').toUpperCase().replace(/[^0-9A-F]/g,'');
-      // حد أقصى 12
       v = v.slice(0, 12);
-      // AA:BB:CC...
       const parts = v.match(/.{1,2}/g) || [];
       macInput.value = parts.join(':');
     });
@@ -468,181 +453,320 @@ if ($currentLoc && isset($locById[$currentLoc])) {
   const typeGrid = document.getElementById('typeGrid');
   const typeReqBadge = document.getElementById('typeReqBadge');
 
-  function setType(t){
-    typeHidden.value = t || '';
-    typeReqBadge.style.display = (typeHidden.value ? 'none' : 'inline-block');
-    [...typeGrid.querySelectorAll('.type-card')].forEach(el=>{
-      el.classList.toggle('active', el.dataset.type === t);
-    });
-  }
   if (typeGrid) {
     typeGrid.addEventListener('click', (e)=>{
       const card = e.target.closest('.type-card');
       if (!card) return;
-      setType(card.dataset.type || '');
+      const t = card.getAttribute('data-type') || '';
+      if (!t) return;
+
+      typeHidden.value = t;
+      typeReqBadge.style.display = 'none';
+
+      typeGrid.querySelectorAll('.type-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
     });
   }
 
-  // ===== Location picker =====
-  const locModal = document.getElementById('locModal');
-  const openLocPicker = document.getElementById('openLocPicker');
-  const closeLocPicker = document.getElementById('closeLocPicker');
-  const locationHidden = document.getElementById('locationHidden');
-  const locationDisplay = document.getElementById('locationDisplay');
-  const locSearchInput = document.getElementById('locSearchInput');
-  const clearLocSearch = document.getElementById('clearLocSearch');
-  const allLocList = document.getElementById('allLocList');
-  const favLocList = document.getElementById('favLocList');
-  const locReqBadge = document.getElementById('locReqBadge');
+  // ===== Location picker (API + Favorites/Recents) =====
+ // ===== Location picker (API + Favorites/Recents + keyboard) =====
+const locModal = document.getElementById('locModal');
+const openLocPicker = document.getElementById('openLocPicker');
+const closeLocPicker = document.getElementById('closeLocPicker');
+const locationHidden = document.getElementById('locationHidden');
+const locationDisplay = document.getElementById('locationDisplay');
+const locSearchInput = document.getElementById('locSearchInput');
+const clearLocSearch = document.getElementById('clearLocSearch');
+const allLocList = document.getElementById('allLocList');
+const favLocList = document.getElementById('favLocList');
+const locReqBadge = document.getElementById('locReqBadge');
 
-  const LS_RECENT = 'itinv_recent_locations';
-  const LS_FAV    = 'itinv_fav_locations';
+const LS_RECENT = 'itinv_recent_locations_v2';
+const LS_FAV    = 'itinv_fav_locations_v2';
 
-  function getLS(key){
-    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch(e){ return []; }
+function getLS(key){
+  try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e){ return []; }
+}
+function setLS(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
+
+function normalizeItem(x){
+  const id = Number(x?.id || 0);
+  const name = String(x?.name ?? x?.name_ar ?? ('موقع#'+id));
+  const path = String(x?.path ?? x?.full_path ?? x?.label ?? name);
+  const ts = Number(x?.ts || Date.now());
+  return { id, name, path, ts };
+}
+
+function escapeHtml(str){
+  return String(str||'')
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'","&#039;");
+}
+
+function uniqById(list){
+  const seen = new Set(); const out = [];
+  for (const it of list){
+    const id = Number(it?.id||0);
+    if (!id || seen.has(id)) continue;
+    seen.add(id); out.push(it);
   }
-  function setLS(key, val){
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){}
+  return out;
+}
+
+function getFavList(){
+  return uniqById(getLS(LS_FAV).map(normalizeItem)).slice(0, 50);
+}
+function getRecentList(){
+  const r = getLS(LS_RECENT).map(normalizeItem);
+  r.sort((a,b)=>(b.ts||0)-(a.ts||0));
+  return uniqById(r).slice(0, 15);
+}
+
+function toggleFav(item){
+  const id = Number(item?.id||0);
+  if (!id) return;
+  let fav = getFavList();
+  const i = fav.findIndex(x=>x.id===id);
+  if (i>=0) fav.splice(i,1);
+  else fav.unshift({id, name:item.name, path:item.path, ts:Date.now()});
+  setLS(LS_FAV, uniqById(fav).slice(0,50));
+  renderFav();
+  renderResults(lastQuery, lastResults);
+}
+
+function pushRecent(item){
+  const id = Number(item?.id||0);
+  if (!id) return;
+  let r = getRecentList().filter(x=>x.id!==id);
+  r.unshift({id, name:item.name, path:item.path, ts:Date.now()});
+  setLS(LS_RECENT, uniqById(r).slice(0,15));
+}
+
+function selectLocation(item){
+  locationHidden.value = String(item.id);
+  locationDisplay.value = item.path || item.name || '';
+  locReqBadge && (locReqBadge.style.display='none');
+  pushRecent(item);
+  closeModal();
+}
+
+function itemRow(item){
+  const favIds = new Set(getFavList().map(x=>x.id));
+  const isFavActive = favIds.has(item.id);
+
+  const row = document.createElement('div');
+  row.className = 'loc-item';
+  row.setAttribute('data-id', String(item.id));
+  row.innerHTML = `
+    <div>
+      <div class="loc-main">${escapeHtml(item.name)}</div>
+      <div class="loc-path">${escapeHtml(item.path)}</div>
+    </div>
+    <div class="loc-actions">
+      <button type="button" class="star-btn ${isFavActive?'active':''}" title="مفضلة">★</button>
+    </div>
+  `;
+
+  row.addEventListener('click', (e)=>{
+    const star = e.target.closest('.star-btn');
+    if (star){ e.stopPropagation(); toggleFav(item); return; }
+    selectLocation(item);
+  });
+
+  return row;
+}
+
+function renderFav(){
+  const fav = getFavList();
+  favLocList.innerHTML = '';
+  if (!fav.length){
+    favLocList.innerHTML = `<div class="p-3 mini-note">لا يوجد مفضلة بعد. اضغط ★ على أي موقع.</div>`;
+    return;
   }
+  fav.forEach(it=> favLocList.appendChild(itemRow(it)));
+}
 
-  function openModal(){
-    locModal.classList.add('open');
-    locModal.setAttribute('aria-hidden','false');
-    setTimeout(()=>{ locSearchInput && locSearchInput.focus(); }, 50);
-    renderLists();
-  }
-  function closeModal(){
-    locModal.classList.remove('open');
-    locModal.setAttribute('aria-hidden','true');
-  }
+// نتائج + كيبورد selection
+let lastQuery = '';
+let lastResults = [];
+let activeIndex = -1;
+let abortCtrl = null;
+let timer = null;
 
-  function toggleFav(id){
-    let fav = getLS(LS_FAV).map(Number).filter(Boolean);
-    const i = fav.indexOf(id);
-    if (i >= 0) fav.splice(i,1);
-    else fav.unshift(id);
-    fav = [...new Set(fav)].slice(0, 50);
-    setLS(LS_FAV, fav);
-    renderLists();
-  }
+function highlightActive(){
+  const rows = allLocList.querySelectorAll('.loc-item');
+  rows.forEach((r,i)=> {
+    r.style.background = (i===activeIndex) ? 'rgba(0,0,0,.04)' : '';
+  });
+}
 
-  function pushRecent(id){
-    let recent = getLS(LS_RECENT).map(Number).filter(Boolean);
-    recent = [id, ...recent.filter(x=>x!==id)].slice(0, 15);
-    setLS(LS_RECENT, recent);
-  }
+function renderResults(q, results){
+  allLocList.innerHTML = '';
 
-  function selectLocation(item){
-    locationHidden.value = String(item.id);
-    locationDisplay.value = item.path;
-    locReqBadge.style.display = 'none';
-    pushRecent(item.id);
-    closeModal();
-  }
-
-  function itemRow(item, isFavActive){
-    const row = document.createElement('div');
-    row.className = 'loc-item';
-    row.innerHTML = `
-      <div>
-        <div class="loc-main">${escapeHtml(item.name)}</div>
-        <div class="loc-path">${escapeHtml(item.path)}</div>
-      </div>
-      <div class="loc-actions">
-        <button type="button" class="star-btn ${isFavActive ? 'active':''}" title="مفضلة">★</button>
-      </div>
-    `;
-
-    row.addEventListener('click', (e)=>{
-      // لو ضغط على زر النجمة
-      const star = e.target.closest('.star-btn');
-      if (star) {
-        e.stopPropagation();
-        toggleFav(item.id);
-        return;
-      }
-      selectLocation(item);
-    });
-
-    return row;
-  }
-
-  function renderLists(){
-    const q = (locSearchInput?.value || '').trim().toLowerCase();
-    const fav = new Set(getLS(LS_FAV).map(Number));
-    const recentArr = getLS(LS_RECENT).map(Number);
-    const recentSet = new Set(recentArr);
-
-    // المفضلة
-    favLocList.innerHTML = '';
-    const favItems = LOCATIONS.filter(x => fav.has(x.id));
-    if (!favItems.length) {
-      favLocList.innerHTML = `<div class="p-3 mini-note">لا يوجد مفضلة بعد. اضغط ★ على أي موقع.</div>`;
-    } else {
-      favItems.slice(0, 200).forEach(item=>{
-        favLocList.appendChild(itemRow(item, true));
-      });
+  // بدون بحث: عرض recent
+  if (!q || q.length < 2){
+    const rec = getRecentList();
+    if (!rec.length){
+      allLocList.innerHTML = `<div class="p-3 mini-note">اكتب حرفين أو أكثر للبحث، أو اختر من آخر استخدام.</div>`;
+      return;
     }
+    rec.forEach(it=> allLocList.appendChild(itemRow(it)));
+    activeIndex = -1;
+    return;
+  }
 
-    // النتائج + آخر استخدام (في الأعلى)
+  if (!results.length){
+    allLocList.innerHTML = `<div class="p-3 mini-note">لا توجد نتائج مطابقة.</div>`;
+    return;
+  }
+
+  results.forEach(it=> allLocList.appendChild(itemRow(it)));
+  activeIndex = -1;
+}
+
+function openModal(){
+  locModal.classList.add('open');
+  locModal.setAttribute('aria-hidden','false');
+  renderFav();
+  renderResults('', []);
+  setTimeout(()=> locSearchInput && locSearchInput.focus(), 50);
+}
+
+function closeModal(){
+  locModal.classList.remove('open');
+  locModal.setAttribute('aria-hidden','true');
+}
+
+async function doSearch(q){
+  lastQuery = q;
+  if (abortCtrl) abortCtrl.abort();
+  abortCtrl = new AbortController();
+
+  // Loading UI
+  allLocList.innerHTML = `
+    <div class="p-3 mini-note d-flex align-items-center gap-2">
+      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      جاري البحث...
+    </div>
+  `;
+
+  const url = `index.php?page=api/locations&q=${encodeURIComponent(q)}&limit=30`;
+
+  try{
+    const res = await fetch(url, { signal: abortCtrl.signal, headers:{'Accept':'application/json'} });
+    const data = await res.json();
+
+    const items = (data?.items || []).map(normalizeItem).filter(x=>x.id);
+    lastResults = items;
+
+    // عرض النتائج مع meta
     allLocList.innerHTML = '';
-    let list = LOCATIONS;
-
-    if (q) {
-      list = list.filter(x =>
-        (x.name || '').toLowerCase().includes(q) ||
-        (x.path || '').toLowerCase().includes(q)
-      );
-    }
-
-    // رتب: recent أولاً ثم الباقي
-    list.sort((a,b)=>{
-      const ar = recentSet.has(a.id) ? 0 : 1;
-      const br = recentSet.has(b.id) ? 0 : 1;
-      if (ar !== br) return ar - br;
-      return (a.path || '').localeCompare((b.path || ''), 'ar');
-    });
-
-    if (!list.length) {
+    if (!items.length){
       allLocList.innerHTML = `<div class="p-3 mini-note">لا توجد نتائج مطابقة.</div>`;
+      activeIndex = -1;
       return;
     }
 
-    list.slice(0, 300).forEach(item=>{
-      allLocList.appendChild(itemRow(item, fav.has(item.id)));
+    items.forEach(it=>{
+      const row = document.createElement('div');
+      row.className = 'loc-item';
+      row.setAttribute('data-id', String(it.id));
+      row.innerHTML = `
+        <div>
+          <div class="loc-main">${escapeHtml(it.name)}</div>
+          <div class="loc-path">${escapeHtml(it.path)}</div>
+          <div class="mini-note" style="margin-top:4px;">ID: ${it.id}${it.type ? ' • ' + escapeHtml(it.type) : ''}</div>
+        </div>
+        <div class="loc-actions">
+          <button type="button" class="star-btn ${new Set(getFavList().map(x=>x.id)).has(it.id) ? 'active':''}" title="مفضلة">★</button>
+        </div>
+      `;
+
+      row.addEventListener('click', (e)=>{
+        const star = e.target.closest('.star-btn');
+        if (star){ e.stopPropagation(); toggleFav(it); return; }
+        selectLocation(it);
+      });
+
+      allLocList.appendChild(row);
     });
+
+    activeIndex = -1;
+
+  } catch(e){
+    if (e?.name === 'AbortError') return;
+    allLocList.innerHTML = `<div class="p-3 mini-note">تعذر جلب النتائج. تأكد من api/locations</div>`;
   }
+}
 
-  function escapeHtml(str){
-    return String(str || '')
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'","&#039;");
-  }
 
-  if (openLocPicker) openLocPicker.addEventListener('click', openModal);
-  if (closeLocPicker) closeLocPicker.addEventListener('click', closeModal);
+function scheduleSearch(q){
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(()=> doSearch(q), 220);
+}
 
-  // اغلاق عند الضغط خارج الكارد
-  if (locModal) {
-    locModal.addEventListener('click', (e)=>{
-      if (e.target === locModal) closeModal();
-    });
-  }
+if (openLocPicker) openLocPicker.addEventListener('click', openModal);
+if (closeLocPicker) closeLocPicker.addEventListener('click', closeModal);
 
-  if (locSearchInput) locSearchInput.addEventListener('input', renderLists);
-  if (clearLocSearch) clearLocSearch.addEventListener('click', ()=>{
+if (locModal){
+  locModal.addEventListener('click', (e)=>{ if (e.target === locModal) closeModal(); });
+}
+
+if (clearLocSearch){
+  clearLocSearch.addEventListener('click', ()=>{
     locSearchInput.value = '';
-    renderLists();
+    lastQuery = ''; lastResults = []; activeIndex = -1;
+    renderFav();
+    renderResults('', []);
     locSearchInput.focus();
   });
+}
 
-  // ESC closes
-  document.addEventListener('keydown', (e)=>{
-    if (e.key === 'Escape' && locModal.classList.contains('open')) closeModal();
+if (locSearchInput){
+  locSearchInput.addEventListener('input', ()=>{
+    const q = (locSearchInput.value || '').trim();
+    renderFav();
+    if (q.length < 2){
+      lastQuery = ''; lastResults = []; activeIndex = -1;
+      renderResults('', []);
+      return;
+    }
+    scheduleSearch(q);
   });
+
+  locSearchInput.addEventListener('keydown', (e)=>{
+  const rows = allLocList.querySelectorAll('.loc-item');
+  if (!rows.length) return;
+
+  if (e.key === 'ArrowDown'){
+    e.preventDefault();
+    activeIndex = Math.min(activeIndex + 1, rows.length - 1);
+    highlightActive();
+    rows[activeIndex].scrollIntoView({block:'nearest'});
+  }
+  if (e.key === 'ArrowUp'){
+    e.preventDefault();
+    activeIndex = Math.max(activeIndex - 1, 0);
+    highlightActive();
+    rows[activeIndex].scrollIntoView({block:'nearest'});
+  }
+  if (e.key === 'Enter'){
+    e.preventDefault();
+    const pickIndex = (activeIndex >= 0) ? activeIndex : 0;
+    const id = Number(rows[pickIndex].getAttribute('data-id')||0);
+    const chosen = lastResults.find(x=>x.id===id) || getRecentList().find(x=>x.id===id);
+    if (chosen) selectLocation(chosen);
+  }
+});
+
+}
+
+// ESC
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape' && locModal?.classList.contains('open')) closeModal();
+});
+
 
   // ===== Form validation (required type + location) =====
   const form = document.getElementById('assetAddForm');

@@ -119,6 +119,10 @@ function safe_call(object $controller, string $method, string $fallbackRoute, st
 // -------------------------
 // Define routes
 // -------------------------
+if (file_exists(APPROOT . '/controllers/ApiController.php')) {
+  require_once APPROOT . '/controllers/ApiController.php';
+}
+
 $routes = [
   // Auth
   'login'          => [AuthController::class, 'login'],
