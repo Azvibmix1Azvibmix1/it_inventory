@@ -219,21 +219,36 @@ if ($currentLoc && isset($locById[$currentLoc])) {
       <form id="assetAddForm" action="<?= URLROOT; ?>/assets/add" method="post" autocomplete="off">
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">Tag (رقم الجهاز) <span class="text-danger">*</span></label>
-            <input type="text" name="tag" class="form-control <?= (!empty($data['tag_err'])) ? 'is-invalid' : ''; ?>"
-                   value="<?= htmlspecialchars($data['tag'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
-            <span class="invalid-feedback"><?= $data['tag_err'] ?? ''; ?></span>
-            <div class="help">يتولد تلقائيًا بعد الحفظ (مثال: AST-000001). يتم توليد التالي تلقائيًا لتفادي التكرار.</div>
-          </div>
+  <label class="form-label">Serial (اختياري)</label>
+  <input type="text" name="serial_no" class="form-control"
+         value="<?= htmlspecialchars($data['serial_no'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+  <div class="help">رقم السيريال للجهاز (إن وجد).</div>
+</div>
+
 
           <div class="form-group">
             <label class="form-label">Physical address (MAC)</label>
-            <input id="macInput" type="text" name="mac" class="form-control"
-                   placeholder="AA:BB:CC:DD:EE:FF"
-                   value="<?= htmlspecialchars($data['mac'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+            <input id="macInput" type="text" name="mac_address" class="form-control"
+       placeholder="AA-BB-CC-DD-EE-FF"
+       value="<?= htmlspecialchars($data['mac_address'] ?? ($data['mac'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+
             <div class="help">ينسّق تلقائيًا بصيغة MAC عند الكتابة.</div>
-          </div>
-        </div>
+          
+        <div class="alert alert-light border mt-3" style="border-radius:14px;">
+  <strong>Tag (رقم الجهاز):</strong> يتولد تلقائيًا بعد الحفظ (مثال: AST-000001).
+</div>
+</div>
+
+<div class="form-group">
+  <label class="form-label">Host Name (اختياري)</label>
+  <input type="text" name="host_name" class="form-control"
+         placeholder="PC-IT-001"
+         value="<?= htmlspecialchars($data['host_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+  <div class="help">اسم الجهاز على الشبكة (Computer Name).</div>
+</div>
+
+
+ </div>
 
         <!-- TYPE (cards) -->
         <div class="form-group mt-3">
@@ -431,7 +446,8 @@ if ($currentLoc && isset($locById[$currentLoc])) {
       let v = (macInput.value || '').toUpperCase().replace(/[^0-9A-F]/g,'');
       v = v.slice(0, 12);
       const parts = v.match(/.{1,2}/g) || [];
-      macInput.value = parts.join(':');
+     macInput.value = parts.join('-');
+
     });
   }
 

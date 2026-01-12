@@ -109,8 +109,9 @@ try{
   if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $_POST = filter_input_array(INPUT_POST, [
-      'asset_tag' => FILTER_UNSAFE_RAW,
       'serial_no' => FILTER_UNSAFE_RAW,
+      'mac_address' => FILTER_UNSAFE_RAW,
+      'host_name' => FILTER_UNSAFE_RAW,
       'brand' => FILTER_UNSAFE_RAW,
       'model' => FILTER_UNSAFE_RAW,
       'type' => FILTER_UNSAFE_RAW,
@@ -136,7 +137,8 @@ try{
     }
 
     $data = [
-      'asset_tag'       => trim($_POST['asset_tag'] ?? ''),
+      'mac_address' => trim($_POST['mac_address'] ?? ''),
+      'host_name' => trim($_POST['host_name'] ?? ''),
       'serial_no'       => trim($_POST['serial_no'] ?? ($_POST['serial'] ?? '')),
       'brand'           => trim($_POST['brand'] ?? ''),
       'model'           => trim($_POST['model'] ?? ''),
@@ -158,10 +160,7 @@ try{
       'asset_err'       => ''
     ];
 
-    // ✅ لو التاق فاضي: ولّده تلقائيًا
-    if (empty($data['asset_tag'])) {
-      $data['asset_tag'] = $this->generateUniqueAssetTag();
-    }
+    
 
     if (empty($data['type']) || empty($locationId)) {
       $data['asset_err'] = 'الرجاء تعبئة الحقول الأساسية (النوع/الموقع)';
@@ -365,8 +364,9 @@ $data = [
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $_POST = filter_input_array(INPUT_POST, [
-  'asset_tag' => FILTER_UNSAFE_RAW,
+  'asset_tag' => (string)($asset->asset_tag ?? ''),
   'serial_no' => FILTER_UNSAFE_RAW,
+  'mac_address' => trim($_POST['mac_address'] ?? ''),
   'brand' => FILTER_UNSAFE_RAW,
   'model' => FILTER_UNSAFE_RAW,
   'type' => FILTER_UNSAFE_RAW,
@@ -905,6 +905,8 @@ private function buildAssetUpdateDetails($oldAsset, array $newData, array $locat
     'brand'          => 'الماركة',
     'model'          => 'الموديل',
     'serial_no'      => 'Serial',
+    'mac_address' => 'MAC',
+    'host_name' => 'Host Name',
     'status'         => 'الحالة',
     'purchase_date'  => 'تاريخ الشراء',
     'warranty_expiry'=> 'انتهاء الضمان',

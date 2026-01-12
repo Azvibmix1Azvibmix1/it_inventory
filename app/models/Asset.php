@@ -115,6 +115,7 @@ if (!empty($locationIds)) {
       $where[] = "(
         assets.asset_tag LIKE :q
         OR assets.serial_no LIKE :q
+        OR assets.mac_address LIKE :q
         OR assets.brand LIKE :q
         OR assets.model LIKE :q
         OR assets.type LIKE :q
@@ -210,20 +211,26 @@ if (!empty($locationIds)) {
     $data['serial_no'] = $data['serial_number'];
   }
 
+  $mac = trim($data['mac_address'] ?? ($data['mac'] ?? ''));
+$mac = strtoupper(str_replace([' ', ':'], ['', '-'], $mac));
+if ($mac !== '' && !preg_match('/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/', $mac)) { $mac = ''; }
+
+
   $tmpTag = 'TMP-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));
 
   try {
     $this->db->beginTransaction();
 
     $sql = "INSERT INTO assets
-    (asset_tag, serial_no, model, brand, type, purchase_date, warranty_expiry, status, location_id, assigned_to, notes, created_by)
-    VALUES
-    (:asset_tag, :serial_no, :model, :brand, :type, :purchase_date, :warranty_expiry, :status, :location_id, :assigned_to, :notes, :created_by)";
+    INSERT INTO assets (asset_tag, serial_no, mac_address, host_name, model, brand, type, purchase_date, warranty_expiry, status, location_id, assigned_to, notes, created_by)
+    VALUES (:asset_tag, :serial_no, :mac_address, :host_name, :model, :brand, :type, :purchase_date, :warranty_expiry, :status, :location_id, :assigned_to, :notes, :created_by)";
 
     $this->db->query($sql);
 
-    $this->db->bind(':asset_tag', $tmpTag);
+    $this->db->bind(':mac_address', $mac !== '' ? $mac : null);
     $this->db->bind(':serial_no', trim($data['serial_no'] ?? ''));
+    $this->db->bind(':mac_address', $mac !== '' ? $mac : null);
+    $this->db->bind(':host_name', !empty($data['host_name']) ? trim($data['host_name']) : null);
     $this->db->bind(':model', trim($data['model'] ?? ''));
     $this->db->bind(':brand', trim($data['brand'] ?? ''));
     $this->db->bind(':type', trim($data['type'] ?? ''));
@@ -265,51 +272,58 @@ if (!empty($locationIds)) {
 }
 
 
-  public function update($data)
-  {
-    // ✅ Backward compatibility
-    if (empty($data['asset_tag']) && !empty($data['name'])) {
-      $data['asset_tag'] = $data['name'];
-    }
-    if (empty($data['serial_no']) && !empty($data['serial_number'])) {
-      $data['serial_no'] = $data['serial_number'];
-    }
-
-    $sql = "
-      UPDATE assets SET
-        asset_tag = :asset_tag,
-        serial_no = :serial_no,
-        model = :model,
-        brand = :brand,
-        type = :type,
-        purchase_date = :purchase_date,
-        warranty_expiry = :warranty_expiry,
-        status = :status,
-        location_id = :location_id,
-        assigned_to = :assigned_to,
-        notes = :notes
-      WHERE id = :id
-    ";
-
-    $this->db->query($sql);
-
-    $this->db->bind(':id', (int)$data['id']);
-    $this->db->bind(':asset_tag', trim($data['asset_tag'] ?? ''));
-    $this->db->bind(':serial_no', trim($data['serial_no'] ?? ''));
-    $this->db->bind(':model', trim($data['model'] ?? ''));
-    $this->db->bind(':brand', trim($data['brand'] ?? ''));
-    $this->db->bind(':type', trim($data['type'] ?? ''));
-
-    $this->db->bind(':purchase_date', !empty($data['purchase_date']) ? $data['purchase_date'] : null);
-    $this->db->bind(':warranty_expiry', !empty($data['warranty_expiry']) ? $data['warranty_expiry'] : null);
-
-    $this->db->bind(':status', $data['status'] ?? 'Active');
-    $this->db->bind(':location_id', !empty($data['location_id']) ? (int)$data['location_id'] : null);
-    $this->db->bind(':assigned_to', !empty($data['assigned_to']) ? (int)$data['assigned_to'] : null);
-    $this->db->bind(':notes', $data['notes'] ?? null);
-
-    return $this->db->execute();
+public function update($data){
+  // Backward compatibility
+  if (empty($data['serial_no']) && !empty($data['serial_number'])) {
+    $data['serial_no'] = $data['serial_number'];
   }
+
+  // MAC normalize
+  $mac = trim($data['mac_address'] ?? '');
+  if ($mac === '' && !empty($data['mac'])) $mac = trim($data['mac']);
+
+  $mac = strtoupper(str_replace([' ', ':'], ['', '-'], $mac));
+  if ($mac !== '' && !preg_match('/^([0-9A-F]{2}-){5}[0-9A-F]{2}$/', $mac)) {
+    $mac = '';
+  }
+
+  // لاحظ: ما نحدّث asset_tag نهائيًا (مقفّل)
+  $sql = "
+    UPDATE assets SET
+      serial_no = :serial_no,
+      mac_address = :mac_address,
+      host_name = :host_name,
+      model = :model,
+      brand = :brand,
+      type = :type,
+      purchase_date = :purchase_date,
+      warranty_expiry = :warranty_expiry,
+      status = :status,
+      location_id = :location_id,
+      assigned_to = :assigned_to,
+      notes = :notes
+    WHERE id = :id
+  ";
+
+  $this->db->query($sql);
+
+  $this->db->bind(':id', (int)$data['id']);
+  $this->db->bind(':serial_no', trim($data['serial_no'] ?? ''));
+  $this->db->bind(':mac_address', $mac !== '' ? $mac : null);
+  $this->db->bind(':host_name', !empty($data['host_name']) ? trim($data['host_name']) : null);
+  $this->db->bind(':model', trim($data['model'] ?? ''));
+  $this->db->bind(':brand', trim($data['brand'] ?? ''));
+  $this->db->bind(':type', trim($data['type'] ?? ''));
+  $this->db->bind(':purchase_date', !empty($data['purchase_date']) ? $data['purchase_date'] : null);
+  $this->db->bind(':warranty_expiry', !empty($data['warranty_expiry']) ? $data['warranty_expiry'] : null);
+  $this->db->bind(':status', $data['status'] ?? 'Active');
+  $this->db->bind(':location_id', !empty($data['location_id']) ? (int)$data['location_id'] : null);
+  $this->db->bind(':assigned_to', !empty($data['assigned_to']) ? (int)$data['assigned_to'] : null);
+  $this->db->bind(':notes', $data['notes'] ?? null);
+
+  return $this->db->execute();
+}
+
 
   public function delete($id)
   {
