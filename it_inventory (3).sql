@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jan 11, 2026 at 11:49 AM
+-- Generation Time: Jan 12, 2026 at 12:37 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -44,13 +44,6 @@ CREATE TABLE `assets` (
   `notes` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `assets`
---
-
-INSERT INTO `assets` (`id`, `asset_tag`, `serial_no`, `brand`, `model`, `type`, `status`, `location_id`, `assigned_to`, `created_by`, `created_at`, `purchase_date`, `warranty_expiry`, `notes`) VALUES
-(32, 'AST-000032', '', 'HP', 'Z1', 'Desktop', 'Active', 51, 7, 7, '2026-01-11 12:09:27', NULL, NULL, 'شاشة HP \"24\"');
-
 -- --------------------------------------------------------
 
 --
@@ -85,7 +78,8 @@ INSERT INTO `asset_logs` (`id`, `asset_id`, `user_id`, `action`, `details`, `cre
 (12, 29, 7, 'delete', 'حذف جهاز | Tag=AST-000029 | Type=Desktop | AssetID=29', '2026-01-11 08:20:57'),
 (13, 30, 7, 'update', 'تاريخ الشراء: 2026-01-05 →  | انتهاء الضمان: 2026-04-07 → ', '2026-01-11 10:55:19'),
 (14, 30, 7, 'delete', 'حذف جهاز | Tag=AST-000030 | Type=Desktop | AssetID=30', '2026-01-11 11:58:41'),
-(15, 32, 7, 'create', 'إضافة جهاز | Tag=AST-20260111-100927-97CA | Type=Desktop | LocationID=51', '2026-01-11 12:09:27');
+(15, 32, 7, 'create', 'إضافة جهاز | Tag=AST-20260111-100927-97CA | Type=Desktop | LocationID=51', '2026-01-11 12:09:27'),
+(16, 32, 7, 'delete', 'حذف جهاز | Tag=AST-000032 | Type=Desktop | AssetID=32', '2026-01-12 07:47:08');
 
 -- --------------------------------------------------------
 
@@ -721,7 +715,7 @@ ALTER TABLE `assets`
 -- AUTO_INCREMENT for table `asset_logs`
 --
 ALTER TABLE `asset_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `locations`
