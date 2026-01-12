@@ -1,6 +1,9 @@
 <?php
 require APPROOT . '/views/inc/header.php';
 
+
+
+
 $locations  = $data['locations'] ?? [];
 $users_list = $data['users_list'] ?? [];
 $asset_err  = $data['asset_err'] ?? '';
@@ -49,6 +52,17 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 ?>
 <!-- Flatpickr CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+
+<style>
+  .ltr-input{
+    direction: ltr;
+    unicode-bidi: plaintext;
+    text-align: left;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    letter-spacing: .5px;
+  }
+</style>
 
 <style>
   .flatpickr-calendar { direction: rtl; }
@@ -231,9 +245,15 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 
           <div class="form-group">
             <label class="form-label">Physical address (MAC)</label>
-            <input id="macInput" type="text" name="mac_address" class="form-control"
-       placeholder="AA-BB-CC-DD-EE-FF"
-       value="<?= htmlspecialchars($data['mac_address'] ?? ($data['mac'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+            <input
+  type="text"
+  name="mac_address"
+  dir="ltr"
+  class="form-control js-mac ltr-input"
+  placeholder="AA-BB-CC-DD-EE-FF"
+  value="<?= htmlspecialchars($data['mac_address'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+>
+
 
             <div class="help">ينسّق تلقائيًا بصيغة MAC عند الكتابة.</div>
           
@@ -242,9 +262,15 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 
 <div class="form-group">
   <label class="form-label">Host Name (اختياري)</label>
-  <input type="text" name="host_name" class="form-control ltr"
-         placeholder="PC-IT-001"
-         value="<?= htmlspecialchars($data['host_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+  <input
+  type="text"
+  name="host_name"
+  dir="ltr"
+  class="form-control ltr-input"
+  placeholder="PC-IT-001"
+  value="<?= htmlspecialchars($data['host_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+>
+
   <div class="help">اسم الجهاز على الشبكة (Computer Name).</div>
 </div>
 
