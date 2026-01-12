@@ -5,7 +5,9 @@ $locations  = $data['locations'] ?? [];
 $users_list = $data['users_list'] ?? [];
 $asset_err  = $data['asset_err'] ?? '';
 
-if (!is_array($locations) && !is_object($locations)) $locations = [];
+if (!is_array($locations) && !is_object($locations)) {
+  $locations = [];
+}
 
 $locById = [];
 foreach ($locations as $loc) {
@@ -14,8 +16,10 @@ foreach ($locations as $loc) {
 }
 
 if (!function_exists('buildLocationPath')) {
-  function buildLocationPath($loc, $locById): string {
+  function buildLocationPath($loc, array $locById): string
+  {
     if (!$loc || empty($loc->id)) return '';
+
     $parts = [ (string)($loc->name_ar ?? $loc->name ?? ('موقع#'.$loc->id)) ];
     $cur = $loc;
     $guard = 0;
@@ -24,6 +28,7 @@ if (!function_exists('buildLocationPath')) {
       $guard++;
       $pid = (int)($cur->parent_id ?? $cur->parentId ?? 0);
       if ($pid <= 0 || !isset($locById[$pid])) break;
+
       $cur = $locById[$pid];
       array_unshift($parts, (string)($cur->name_ar ?? $cur->name ?? ('موقع#'.$cur->id)));
     }
@@ -41,25 +46,7 @@ $currentLocLabel = '';
 if ($currentLoc && isset($locById[$currentLoc])) {
   $currentLocLabel = buildLocationPath($locById[$currentLoc], $locById);
 }
-
-
-
-
-$locById = [];
-foreach ($locations as $loc) { $locById[$loc->id] = $loc; }
-
-$allowedTypes = ['Laptop','Desktop','Printer','Monitor','Server','Network','Other'];
-
-// البحث عن المواقع صار عبر API داخل المودال (بدون تحميل كل المواقع إلى الـ JS)
-
-$currentType = (string)($data['type'] ?? '');
-$currentLoc  = (int)($data['location_id'] ?? 0);
-$currentLocLabel = '';
-if ($currentLoc && isset($locById[$currentLoc])) {
-  $currentLocLabel = buildLocationPath($locById[$currentLoc], $locById);
-}
 ?>
-
 <!-- Flatpickr CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
@@ -352,8 +339,8 @@ if ($currentLoc && isset($locById[$currentLoc])) {
 
             <div class="loc-field mt-2">
               <input id="locationDisplay" type="text" class="form-control" readonly
-                     placeholder="اختر موقع الجهاز..."
-                     value="<?= htmlspecialchars($currentLocLabel, ENT_QUOTES, 'UTF-8'); ?>">
+       placeholder="اختر موقع الجهاز..."
+       value="<?= htmlspecialchars($currentLocLabel, ENT_QUOTES, 'UTF-8'); ?>">
               <button id="openLocPicker" type="button" class="loc-btn">اختيار</button>
             </div>
 
@@ -791,6 +778,81 @@ document.addEventListener('keydown', (e)=>{
   });
 
 })();
+
+function extractAndNormalizeMac(raw) {
+  if (!raw) return '';
+
+  const text = String(raw).toUpperCase();
+
+  // 1) التقط MAC جاهز مثل: 24-FB-E3-46-68-08 أو 24:FB:...
+  const m = text.match(/([0-9A-F]{2}(?:[:-][0-9A-F]{2}){5})/);
+  if (m && m[1]) {
+    return m[1].replace(/:/g, '-'); // نخليه Dash
+  }
+
+  // 2) fallback: خذ آخر 12 HEX (مو أول 12) عشان ما يلقط من 101-P33...
+  let hex = text.replace(/[^0-9A-F]/g, '');
+  if (hex.length < 12) return raw.trim();
+  hex = hex.slice(-12); // ✅ الأهم
+  return hex.match(/.{2}/g).join('-');
+}
+
+
+// اربطها بحقل الـ MAC (عدّل السلكتور حسب اسم الحقل عندك)
+const macInput =
+  document.querySelector('input[name="mac"]')
+  || document.querySelector('input[name="mac_address"]')
+  || document.querySelector('#mac')
+  || null;
+
+if (macInput) {
+  const apply = () => { macInput.value = extractAndNormalizeMac(macInput.value); };
+  macInput.addEventListener('blur', apply);
+  macInput.addEventListener('change', apply);
+  macInput.addEventListener('paste', () => setTimeout(apply, 0));
+}
+
+function normalizeMacSafe(raw) {
+  if (!raw) return '';
+
+  const text = String(raw).toUpperCase();
+
+  // 1) التقط MAC جاهز بأي مكان داخل النص (dash أو colon)
+  const m = text.match(/([0-9A-F]{2}(?:[:-][0-9A-F]{2}){5})/);
+  if (m && m[1]) {
+    return m[1].replace(/:/g, '-'); // نخليه Dash
+  }
+
+  // 2) fallback: خذ آخر 12 hex فقط (عشان ما يلقط من 101-P33...)
+  let hex = text.replace(/[^0-9A-F]/g, '');
+  if (hex.length < 12) return String(raw).trim();
+  hex = hex.slice(-12);
+  return hex.match(/.{2}/g).join('-');
+}
+
+(function bindMacFix(){
+  const macInput =
+    document.querySelector('input[name="mac"]')
+    || document.querySelector('input[name="mac_address"]')
+    || document.querySelector('#mac')
+    || null;
+
+  if (!macInput) return;
+
+  // ✅ أهم جزء: منع اللصق الافتراضي وقراءة النص من الكليببورد مباشرة
+  macInput.addEventListener('paste', (e) => {
+    const clip = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+    if (!clip) return;
+    e.preventDefault();
+    macInput.value = normalizeMacSafe(clip);
+  });
+
+  const apply = () => { macInput.value = normalizeMacSafe(macInput.value); };
+  macInput.addEventListener('blur', apply);
+  macInput.addEventListener('change', apply);
+})();
+
+
 </script>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>
