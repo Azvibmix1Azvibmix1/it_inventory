@@ -350,7 +350,8 @@ if ($currentLoc && isset($locById[$currentLoc])) {
               <span id="locReqBadge" class="req-badge">اختر موقع</span>
             </div>
 
-            <input type="hidden" name="location_id" id="locationHidden" value="<?= (int)$currentLoc; ?>">
+            <input type="hidden" name="location_id" id="locationHidden" value="<?= $currentLoc > 0 ? (int)$currentLoc : '' ?>">
+
 
             <div class="loc-field mt-2">
               <input id="locationDisplay" type="text" class="form-control" readonly
@@ -782,7 +783,8 @@ document.addEventListener('keydown', (e)=>{
       typeGrid.scrollIntoView({behavior:'smooth', block:'center'});
     }
 
-    if (!locationHidden.value) {
+    if (!locationHidden.value || locationHidden.value === '0') {
+
       ok = false;
       locReqBadge.style.display = 'inline-block';
       locationDisplay.scrollIntoView({behavior:'smooth', block:'center'});
