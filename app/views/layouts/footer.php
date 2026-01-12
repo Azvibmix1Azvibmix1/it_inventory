@@ -63,6 +63,7 @@
   }
 </style>
 
+
 <script>
 (function () {
   const body = document.body;
@@ -192,6 +193,18 @@
     });
   }
 })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // إزالة أي backdrop عالق (يسبب عدم تفاعل الصفحة)
+  document.querySelectorAll('.modal-backdrop, .offcanvas-backdrop').forEach(el => el.remove());
+
+  // إعادة السماح بالنقر/التمرير لو انعلقت
+  document.body.classList.remove('modal-open');
+  document.body.style.removeProperty('overflow');
+  document.body.style.removeProperty('padding-right');
+});
 </script>
 
 </body>
