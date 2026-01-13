@@ -1071,7 +1071,23 @@ private function exportCsvFallback(): void
   // BOM عشان Excel بالعربي
   fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
 
-  fputcsv($out, ['ID','Tag','Type','Brand','Model','Serial','Warranty Expiry','Status','Location','Notes'], ';');
+  foreach ($assets as $a) {
+  fputcsv($out, [
+    $a->id ?? '',
+    $a->asset_tag ?? '',
+    $a->host_name ?? '',
+    $a->mac_address ?? '',
+    $a->type ?? '',
+    $a->brand ?? '',
+    $a->model ?? '',
+    $a->serial_no ?? '',
+    $a->warranty_expiry ?? '',
+    $a->status ?? '',
+    $a->location_name ?? '',
+    $a->notes ?? '',
+  ], ';');
+}
+
 
 
   foreach ($assets as $a) {

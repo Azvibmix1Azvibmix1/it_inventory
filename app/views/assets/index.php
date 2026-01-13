@@ -59,9 +59,10 @@ function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
   <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
     <div class="d-flex gap-2">
       <a class="btn btn-outline-success"
-   href="<?= URLROOT; ?>/index.php?page=assets/export">
+   href="<?= URLROOT; ?>/index.php?page=assets/exportcsv">
   تصدير Excel
 </a>
+
 
 
       <a class="btn btn-outline-secondary"
