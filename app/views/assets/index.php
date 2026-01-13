@@ -1,331 +1,287 @@
-<?php require APPROOT . '/views/inc/header.php'; ?>
-
 <?php
-// ==============================
-// Assets Index (UI clean / gray)
-// ==============================
+require APPROOT . '/views/inc/header.php';
 
-// data
-$assets     = $data['assets'] ?? [];
-$locations  = $data['locations'] ?? [];
-$filters    = $data['filters'] ?? [];
-$canAddBtn  = !empty($data['can_add_asset'] ?? false) || !empty($locations);
+/**
+ * توقعات الداتا القادمة من الكنترولر:
+ * $data['assets']          => array of objects
+ * $data['locations']       => array of locations (للـ dropdown)
+ * $data['q']               => نص البحث
+ * $data['location_id']     => رقم الموقع المختار
+ * $data['include_children']=> 0/1
+ * $data['counts']          => ['total'=>..,'expiring'=>..,'expired'=>..] (اختياري)
+ */
 
-// current query
-$q                = trim($_GET['q'] ?? ($filters['q'] ?? ''));
-$selectedLoc      = (int)($_GET['location_id'] ?? ($filters['location_id'] ?? 0));
-$includeChildren  = !empty($_GET['include_children'] ?? ($filters['include_children'] ?? 0));
-$wFilter          = trim($_GET['warranty'] ?? ''); // all | soon | expired
+$assets           = $data['assets'] ?? [];
+$locations        = $data['locations'] ?? [];
+$q                = (string)($data['q'] ?? '');
+$location_id      = (int)($data['location_id'] ?? 0);
+$include_children = !empty($data['include_children']);
 
-// helper: build url keeping current query params
-function buildUrl(array $merge = []): string {
-  $q = $_GET ?? [];
-  unset($q['page']);
-  foreach ($merge as $k => $v) {
-    if ($v === null || $v === '' || $v === false) unset($q[$k]);
-    else $q[$k] = $v;
-  }
-  $q['page'] = 'assets/index';
-  return 'index.php?' . http_build_query($q);
-}
+$counts = $data['counts'] ?? [];
+$totalCount   = (int)($counts['total'] ?? count($assets));
+$expiringCnt  = (int)($counts['expiring'] ?? 0);
+$expiredCnt   = (int)($counts['expired'] ?? 0);
 
-function buildExportUrl(string $page): string {
-  $q = $_GET ?? [];
-  unset($q['page']);
-  $url = 'index.php?page=' . $page;
-  if (!empty($q)) $url .= '&' . http_build_query($q);
-  return $url;
-}
+function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
-// baseUrl for QR links
-$scheme   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$basePath = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php'), '/\\');
-$baseUrl  = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $basePath;
-
-// location map (id -> name)
-$locNameById = [];
-foreach ($locations as $loc) {
-  $id = (int)($loc->id ?? 0);
-  $name = $loc->name_ar ?? ($loc->name ?? ('موقع #'.$id));
-  $locNameById[$id] = $name;
-}
-
-// warranty helpers
-function getWarrantyDate($a): string {
-  return (string)($a->warranty_expiry ?? ($a->warranty_expiry_date ?? ($a->warranty_end ?? '')));
-}
-function warrantyMeta($dateStr): ?array {
-  $dateStr = trim((string)$dateStr);
-  if ($dateStr === '' || $dateStr === '-') return null;
-  try {
-    $wDate = new DateTime($dateStr);
-    $today = new DateTime('today');
-    $days = (int)$today->diff($wDate)->format('%r%a'); // سالب = منتهي
-    return ['days' => $days, 'date' => $dateStr];
-  } catch (Exception $e) { return null; }
-}
-function warrantyBadge($dateStr): array {
-  $m = warrantyMeta($dateStr);
-  if (!$m) return ['text' => '-', 'cls' => 'badgex'];
-  $days = (int)$m['days'];
-  if ($days < 0) return ['text' => 'منتهي', 'cls' => 'badgex closed'];
-  if ($days <= 30) return ['text' => "قريب ($days يوم)", 'cls' => 'badgex pending'];
-  return ['text' => "سليم ($days يوم)", 'cls' => 'badgex open'];
-}
-
-// Apply warranty filter (UI-level)
-if ($wFilter === 'soon') {
-  $assets = array_values(array_filter($assets, function($a){
-    $m = warrantyMeta(getWarrantyDate($a));
-    return $m && $m['days'] >= 0 && $m['days'] <= 30;
-  }));
-} elseif ($wFilter === 'expired') {
-  $assets = array_values(array_filter($assets, function($a){
-    $m = warrantyMeta(getWarrantyDate($a));
-    return $m && $m['days'] < 0;
-  }));
-}
-
-// counts (based on current list)
-$totalCount = is_array($assets) ? count($assets) : 0;
-$soonCount = 0; $expiredCount = 0;
-foreach ($assets as $a) {
-  $m = warrantyMeta(getWarrantyDate($a));
-  if (!$m) continue;
-  if ($m['days'] < 0) $expiredCount++;
-  elseif ($m['days'] <= 30) $soonCount++;
-}
-
-// urls
-$exportHref = buildExportUrl('assets/exportcsv');
-$printHref  = buildExportUrl('assets/print'); // special route in router
 ?>
-
 <style>
-  .page-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
-  .page-title{ font-size:32px; font-weight:900; margin:0; }
-  .page-sub{ margin:4px 0 0; color:#6b7280; font-weight:700; }
-  .head-actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
-  .btn-pill{ border-radius:999px !important; font-weight:900; padding:.5rem .9rem; }
-  .tabs-pills{ display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 14px; }
-  .tab-pill{
-    display:inline-flex; align-items:center; gap:8px;
-    border:1px solid rgba(0,0,0,.08); background:#fff;
-    padding:.45rem .9rem; border-radius:999px; font-weight:900; text-decoration:none;
+  .ltr{
+    direction:ltr;
+    unicode-bidi: plaintext;
+    text-align:left;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   }
-  .tab-pill.active{ background:#0b0f14; color:#fff; border-color:#0b0f14; }
-  .stat-row{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
-  @media (max-width: 992px){ .stat-row{ grid-template-columns:1fr; } }
-  .stat-card{
-    background:linear-gradient(180deg, #0e1725 0%, #0b1220 100%);
-    color:#fff; border-radius:16px; padding:16px 18px;
-    box-shadow:0 10px 26px rgba(0,0,0,.08);
+  .kpi-card{
+    background: linear-gradient(135deg, #0b1220 0%, #111827 50%, #0b1220 100%);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 16px;
+    color:#fff;
+    min-height: 92px;
   }
-  .stat-num{ font-size:34px; font-weight:1000; line-height:1; }
-  .stat-lbl{ margin-top:8px; opacity:.85; font-weight:800; }
-  .card-soft{
-    border-radius:16px; border:1px solid rgba(0,0,0,.08);
-    box-shadow:0 10px 26px rgba(0,0,0,.05);
-    overflow:hidden;
+  .kpi-card .kpi-num{ font-size: 26px; font-weight: 800; line-height: 1; }
+  .kpi-card .kpi-label{ opacity:.9; font-weight:700; }
+  .table thead th{ white-space: nowrap; }
+  .tag-pill{
+    display:inline-block;
+    padding:.25rem .55rem;
+    border-radius: 999px;
+    background:#f3f4f6;
+    border:1px solid #e5e7eb;
+    font-weight:800;
   }
-  .card-soft .card-hd{
-    padding:12px 14px; background:rgba(0,0,0,.02); border-bottom:1px solid rgba(0,0,0,.06);
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-  }
-  .card-soft .card-hd .ttl{ font-weight:1000; margin:0; }
-  .card-soft .card-bd{ padding:14px; background:#fff; }
-  .filters-grid{ display:grid; grid-template-columns: 2fr 1fr; gap:12px; }
-  @media (max-width: 992px){ .filters-grid{ grid-template-columns:1fr; } }
-  .filters-actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-  .table thead th{ font-weight:1000; white-space:nowrap; }
-  .td-actions{ display:flex; gap:6px; justify-content:flex-start; flex-wrap:wrap; }
-  .icon-btn{
-    width:34px; height:34px; border-radius:10px;
-    display:inline-flex; align-items:center; justify-content:center;
-    border:1px solid rgba(0,0,0,.10); background:#fff; text-decoration:none;
-  }
-  .empty{ padding:22px; text-align:center; color:#6b7280; font-weight:800; }
-  .muted{ color:#6b7280; font-weight:800; }
+  .qr-cell img{ width:30px; height:30px; border-radius:6px; border:1px solid #e5e7eb; }
 </style>
 
-<div class="page-head">
-  <div>
-    <h1 class="page-title">الأصول / الأجهزة</h1>
-    <div class="page-sub">إدارة الأجهزة وتتبعها حسب الموقع والضمان.</div>
+<div class="container-fluid py-3">
+
+  <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between mb-3">
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-success"
+   href="<?= URLROOT; ?>/index.php?page=assets/export">
+  تصدير Excel
+</a>
+
+
+      <a class="btn btn-outline-secondary"
+         href="<?= URLROOT; ?>/index.php?page=assets/labels"
+         target="_blank">
+        طباعة
+      </a>
+
+      <a class="btn btn-dark"
+         href="<?= URLROOT; ?>/index.php?page=assets/add">
+        + إضافة جهاز
+      </a>
+    </div>
+
+    <div class="text-end">
+      <h3 class="mb-0 fw-bold">الأصول / الأجهزة</h3>
+      <div class="text-muted small">إدارة الأجهزة وتتبعها حسب الموقع والضمان.</div>
+    </div>
   </div>
 
-  <div class="head-actions">
-    <?php if ($canAddBtn): ?>
-      <a class="btn btn-dark btn-pill" href="index.php?page=assets/add">+ إضافة جهاز</a>
-    <?php endif; ?>
-    <a class="btn btn-outline-secondary btn-pill" href="<?= htmlspecialchars($printHref) ?>">طباعة</a>
-    <a class="btn btn-outline-success btn-pill" href="<?= htmlspecialchars($exportHref) ?>">تصدير Excel</a>
-  </div>
-</div>
-
-<div class="tabs-pills">
-  <a class="tab-pill <?= ($wFilter==='' ? 'active':'') ?>" href="<?= htmlspecialchars(buildUrl(['warranty'=>null])) ?>">عرض الكل</a>
-  <a class="tab-pill <?= ($wFilter==='soon' ? 'active':'') ?>" href="<?= htmlspecialchars(buildUrl(['warranty'=>'soon'])) ?>">قرب انتهاء الضمان</a>
-  <a class="tab-pill <?= ($wFilter==='expired' ? 'active':'') ?>" href="<?= htmlspecialchars(buildUrl(['warranty'=>'expired'])) ?>">منتهي الضمان</a>
-</div>
-
-<div class="stat-row">
-  <div class="stat-card">
-    <div class="stat-num"><?= (int)$totalCount ?></div>
-    <div class="stat-lbl">عدد الأجهزة (حسب التصفية )</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num"><?= (int)$soonCount ?></div>
-    <div class="stat-lbl">قريب انتهاء الضمان (اقل من 30 يوم)</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num"><?= (int)$expiredCount ?></div>
-    <div class="stat-lbl">منتهي الضمان</div>
-  </div>
-</div>
-
-<div class="card-soft mb-3">
-  <div class="card-hd">
-    <div class="ttl">بحث وفلترة</div>
-    <div class="muted">الفلتر يحفظ أيضًا تبويب الضمان</div>
-  </div>
-
-  <div class="card-bd">
-    <form method="get" action="index.php">
-      <input type="hidden" name="page" value="assets/index">
-      <?php if ($wFilter !== ''): ?>
-        <input type="hidden" name="warranty" value="<?= htmlspecialchars($wFilter) ?>">
-      <?php endif; ?>
-
-      <div class="filters-grid">
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-4">
+      <div class="kpi-card p-3 d-flex align-items-center justify-content-between">
         <div>
-          <label class="form-label fw-bold">بحث (Tag / Serial / Brand / Model)</label>
-          <input class="form-control" type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="مثال: Tag-001 أو Serial...">
+          <div class="kpi-num"><?= (int)$totalCount; ?></div>
+          <div class="kpi-label">عدد الأجهزة (حسب التصفية)</div>
         </div>
+        <div class="fs-4 fw-bold opacity-75">📦</div>
+      </div>
+    </div>
 
+    <div class="col-12 col-lg-4">
+      <div class="kpi-card p-3 d-flex align-items-center justify-content-between">
         <div>
+          <div class="kpi-num"><?= (int)$expiringCnt; ?></div>
+          <div class="kpi-label">قريب انتهاء الضمان (أقل من 30 يوم)</div>
+        </div>
+        <div class="fs-4 fw-bold opacity-75">⏳</div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="kpi-card p-3 d-flex align-items-center justify-content-between">
+        <div>
+          <div class="kpi-num"><?= (int)$expiredCnt; ?></div>
+          <div class="kpi-label">منتهي الضمان</div>
+        </div>
+        <div class="fs-4 fw-bold opacity-75">⚠️</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+      <div class="fw-bold">بحث وفلاتر</div>
+      <div class="text-muted small">الفلاتر تحفظ أيضاً بتوب الضمان.</div>
+    </div>
+    <div class="card-body">
+      <form method="get" action="<?= URLROOT; ?>/index.php" class="row g-2 align-items-end">
+        <input type="hidden" name="page" value="assets/index">
+
+        <div class="col-12 col-lg-3">
           <label class="form-label fw-bold">الموقع</label>
-          <select class="form-select" name="location_id">
+          <select name="location_id" class="form-select">
             <option value="0">— كل المواقع —</option>
             <?php foreach ($locations as $loc): ?>
               <?php
-                $id = (int)($loc->id ?? 0);
-                $label = $loc->name_ar ?? ($loc->name ?? ('موقع #'.$id));
-                $sel = ($selectedLoc === $id) ? 'selected' : '';
+                $lid = (int)($loc->id ?? 0);
+                $lname = $loc->name_ar ?? $loc->name ?? ('موقع#'.$lid);
               ?>
-              <option value="<?= (int)$id ?>" <?= $sel ?>><?= htmlspecialchars((string)$label) ?></option>
+              <option value="<?= $lid; ?>" <?= ($lid === $location_id ? 'selected' : ''); ?>>
+                <?= h($lname); ?>
+              </option>
             <?php endforeach; ?>
           </select>
 
           <div class="form-check mt-2">
-            <input class="form-check-input" type="checkbox" id="incChildren" name="include_children" value="1" <?= $includeChildren ? 'checked' : '' ?>>
-            <label class="form-check-label fw-bold" for="incChildren">يشمل التوابع</label>
+            <input class="form-check-input" type="checkbox" name="include_children" value="1" id="incChildren"
+                   <?= $include_children ? 'checked' : ''; ?>>
+            <label class="form-check-label" for="incChildren">يشمل التوابع</label>
           </div>
         </div>
-      </div>
 
-      <div class="filters-actions mt-3">
-        <button class="btn btn-primary btn-pill" type="submit">تطبيق</button>
-        <a class="btn btn-outline-secondary btn-pill" href="index.php?page=assets/index">مسح الفلاتر</a>
-      </div>
-    </form>
+        <div class="col-12 col-lg-9">
+          <label class="form-label fw-bold">بحث (Tag / Serial / Brand / Model)</label>
+          <input type="text"
+                 class="form-control"
+                 name="q"
+                 value="<?= h($q); ?>"
+                 placeholder="ابحث...">
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-primary">تطبيق</button>
+          <a class="btn btn-outline-secondary"
+             href="<?= URLROOT; ?>/index.php?page=assets/index">مسح الفلاتر</a>
+
+          <div class="ms-auto d-flex gap-2">
+            <a class="btn btn-outline-primary"
+               href="<?= URLROOT; ?>/index.php?page=assets/index&filter=expiring<?= $location_id ? '&location_id='.$location_id : '' ?><?= $include_children ? '&include_children=1' : '' ?>">
+              قريب انتهاء الضمان
+            </a>
+            <a class="btn btn-outline-primary"
+               href="<?= URLROOT; ?>/index.php?page=assets/index&filter=expired<?= $location_id ? '&location_id='.$location_id : '' ?><?= $include_children ? '&include_children=1' : '' ?>">
+              منتهي الضمان
+            </a>
+            <a class="btn btn-dark"
+               href="<?= URLROOT; ?>/index.php?page=assets/index">عرض الكل</a>
+          </div>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
 
-<div class="card-soft">
-  <div class="card-hd">
-    <div class="ttl">النتائج</div>
-    <div class="muted">عدد النتائج: <?= (int)$totalCount ?></div>
-  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 d-flex justify-content-between">
+      <div class="fw-bold">النتائج</div>
+      <div class="text-muted small">عدد النتائج: <?= (int)count($assets); ?></div>
+    </div>
 
-  <div class="card-bd p-0">
     <div class="table-responsive">
-      <table class="table table-hover mb-0 align-middle">
-        <thead>
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
           <tr>
-            <th style="width:60px;">QR</th>
-            <th>Tag</th>
-            <th>النوع</th>
-            <th>الماركة / الموديل</th>
-            <th>Serial</th>
-            <th>الضمان</th>
-            <th>الموقع</th>
+            <th class="text-center" style="width:120px;">إجراءات</th>
             <th>الحالة</th>
-            <th style="width:130px;">إجراءات</th>
+            <th>الموقع</th>
+
+            <th class="ltr">Host Name</th>
+            <th class="ltr">MAC</th>
+
+            <th>الضمان</th>
+            <th class="ltr">Serial</th>
+            <th>الماركة / الموديل</th>
+            <th>النوع</th>
+
+            <th class="ltr">Tag</th>
+            <th class="text-center" style="width:70px;">QR</th>
           </tr>
         </thead>
 
         <tbody>
-          <?php if (empty($assets)): ?>
+        <?php if (empty($assets)): ?>
+          <tr>
+            <td colspan="11" class="text-center text-muted py-5">لا توجد بيانات مطابقة.</td>
+          </tr>
+        <?php else: ?>
+          <?php foreach ($assets as $a): ?>
+            <?php
+              $id     = (int)($a->id ?? 0);
+              $tag    = $a->asset_tag ?? '-';
+              $serial = $a->serial_no ?? '-';
+              $mac    = $a->mac_address ?? '-';
+              $host   = $a->host_name ?? '-';
+
+              $brand  = $a->brand ?? '';
+              $model  = $a->model ?? '';
+              $type   = $a->type ?? '-';
+              $status = $a->status ?? 'Active';
+
+              // اسم الموقع (حسب ما يرجع من الاستعلام)
+              $locName = $a->location_path ?? ($a->location_name ?? ($a->location_ar ?? '—'));
+
+              // الضمان
+              $warranty = $a->warranty_expiry ?? '';
+              $wText = ($warranty ? h($warranty) : '—');
+
+              // روابط
+              $showUrl = URLROOT . '/index.php?page=assets/show&id=' . $id;
+              $editUrl = URLROOT . '/index.php?page=assets/edit&id=' . $id;
+
+              // QR (لو عندك مسار جاهز في الداتا، وإلا نخلي أيقونة)
+              $qrPath = $a->qr_path ?? '';
+            ?>
             <tr>
-              <td colspan="9" class="empty">لا توجد أجهزة مطابقة للفلاتر الحالية.</td>
+              <td class="text-center">
+                <a class="btn btn-sm btn-outline-primary" href="<?= h($editUrl); ?>" title="تعديل">
+                  ✏️
+                </a>
+                <a class="btn btn-sm btn-outline-secondary" href="<?= h($showUrl); ?>" title="عرض">
+                  🔍
+                </a>
+              </td>
+
+              <td><?= h($status); ?></td>
+              <td><?= h($locName); ?></td>
+
+              <td class="ltr"><?= h($host); ?></td>
+              <td class="ltr"><?= h($mac); ?></td>
+
+              <td><?= $wText; ?></td>
+              <td class="ltr"><?= h($serial); ?></td>
+
+              <td>
+                <?= h($brand); ?>
+                <?php if ($brand && $model): ?> / <?php endif; ?>
+                <?= h($model); ?>
+              </td>
+
+              <td><?= h($type); ?></td>
+
+              <td class="ltr">
+                <span class="tag-pill"><?= h($tag); ?></span>
+              </td>
+
+              <td class="text-center qr-cell">
+                <?php if (!empty($qrPath)): ?>
+                  <img src="<?= h($qrPath); ?>" alt="QR">
+                <?php else: ?>
+                  <span class="text-muted">—</span>
+                <?php endif; ?>
+              </td>
             </tr>
-          <?php else: ?>
-            <?php foreach ($assets as $a): ?>
-              <?php
-                $id = (int)($a->id ?? 0);
-                $locId = (int)($a->location_id ?? 0);
-
-                $tag   = trim((string)($a->asset_tag ?? ''));
-                $type  = trim((string)($a->type ?? ''));
-                $brand = trim((string)($a->brand ?? ''));
-                $model = trim((string)($a->model ?? ''));
-                $brandModel = trim(($brand . ' - ' . $model), " -");
-
-                $serial = trim((string)($a->serial_no ?? ($a->serial ?? '')));
-
-                $locationName = trim((string)($a->location_name ?? ''));
-                if ($locationName === '' || ctype_digit($locationName)) {
-                  $locationName = $locNameById[$locId] ?? ($locationName ?: ('موقع #'.$locId));
-                }
-
-                $status = trim((string)($a->status ?? 'Active'));
-                $statusLower = strtolower($status);
-                $statusCls = 'badgex open';
-                if (in_array($statusLower, ['inactive','retired','غير نشط','مستبعد'], true)) $statusCls = 'badgex closed';
-                if (in_array($statusLower, ['maintenance','repair','صيانة','تصليح'], true)) $statusCls = 'badgex pending';
-
-                $warrantyExpiry = getWarrantyDate($a);
-                $wb = warrantyBadge($warrantyExpiry);
-
-                $qrUrl = $baseUrl . '/index.php?page=assets/show&id=' . $id;
-                $qrImg = 'https://api.qrserver.com/v1/create-qr-code/?size=80x80&margin=0&data=' . urlencode($qrUrl);
-
-                $showHref = 'index.php?page=assets/show&id=' . $id;
-                $editHref = 'index.php?page=assets/edit&id=' . $id;
-              ?>
-              <tr>
-                <td>
-                  <a class="icon-btn" href="<?= htmlspecialchars($showHref) ?>" title="فتح الجهاز">
-                    <img src="<?= htmlspecialchars($qrImg) ?>" alt="QR" style="width:26px;height:26px;border-radius:6px;">
-                  </a>
-                </td>
-
-                <td class="fw-bold"><?= htmlspecialchars($tag !== '' ? $tag : ('#'.$id)) ?></td>
-                <td><?= htmlspecialchars($type) ?></td>
-                <td><?= htmlspecialchars($brandModel) ?></td>
-                <td><?= htmlspecialchars($serial) ?></td>
-                <td><span class="<?= htmlspecialchars($wb['cls']) ?>"><?= htmlspecialchars($wb['text']) ?></span></td>
-                <td><?= htmlspecialchars($locationName) ?></td>
-                <td><span class="<?= htmlspecialchars($statusCls) ?>"><?= htmlspecialchars($status) ?></span></td>
-
-                <td>
-                  <div class="td-actions">
-                    <a class="icon-btn" href="<?= htmlspecialchars($showHref) ?>" title="تفاصيل">🔎</a>
-                    <a class="icon-btn" href="<?= htmlspecialchars($editHref) ?>" title="تعديل">✏️</a>
-                  </div>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
+          <?php endforeach; ?>
+        <?php endif; ?>
         </tbody>
       </table>
     </div>
-
-    <div class="p-3 muted">
-      ملاحظة: “طباعة” تطبع النتائج الحالية حسب الفلاتر.
-    </div>
   </div>
+
 </div>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>

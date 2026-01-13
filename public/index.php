@@ -341,6 +341,18 @@ if (in_array($routeKey, ['spareparts/movements', 'spare_parts/movements'], true)
       exit;
     }
 
+    if ($routeKey === 'assets/export') {
+  $c = new AssetsController();
+  safe_call(
+    $c,
+    'exportCsv',          // اسم الدالة داخل الكنترولر
+    'assets/index',
+    'ميزة التصدير غير موجودة داخل AssetsController (exportCsv).'
+  );
+  exit;
+}
+
+
     $controller->$method();
   } else {
     // Default fallback

@@ -1071,9 +1071,12 @@ private function exportCsvFallback(): void
   // BOM عشان Excel بالعربي
   fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
 
-  fputcsv($out, ['Tag','Type','Brand','Model','Serial','Warranty Expiry','Status','Location']);
+  fputcsv($out, ['ID','Tag','Type','Brand','Model','Serial','Warranty Expiry','Status','Location','Notes'], ';');
+
 
   foreach ($assets as $a) {
+    $days = 30; // قرب انتهاء الضمان (30 يوم)
+
     fputcsv($out, [
   $a->id ?? '',
   $a->asset_tag ?? '',
@@ -1081,18 +1084,19 @@ private function exportCsvFallback(): void
   $a->brand ?? '',
   $a->model ?? '',
   $a->serial_no ?? '',
+  $a->warranty_expiry ?? '',
   $a->status ?? '',
   $a->location_name ?? '',
-  $a->warranty_expiry ?? '',
-  $days === null ? '' : $days,
   $a->notes ?? '',
 ], ';');
+
 
   }
 
   fclose($out);
   exit;
 }
+
 
 
 
