@@ -472,18 +472,6 @@ if ($currentLoc && isset($locById[$currentLoc])) {
     }
   });
 
-  // ===== MAC formatting =====
-  const macInput = document.getElementById('macInput');
-  if (macInput) {
-    macInput.addEventListener('input', () => {
-      let v = (macInput.value || '').toUpperCase().replace(/[^0-9A-F]/g,'');
-      v = v.slice(0, 12);
-      const parts = v.match(/.{1,2}/g) || [];
-     macInput.value = parts.join('-');
-
-    });
-  }
-
   // ===== Type cards =====
   const typeHidden = document.getElementById('typeHidden');
   const typeGrid = document.getElementById('typeGrid');
@@ -829,79 +817,34 @@ document.addEventListener('keydown', (e)=>{
 
 })();
 
-function extractAndNormalizeMac(raw) {
-  if (!raw) return '';
+(function initMacFormatter() {
+    const macInput = document.querySelector('input[name="mac_address"]');
+    if (!macInput) return;
 
-  const text = String(raw).toUpperCase();
+    const formatMac = (raw) => {
+        if (!raw) return '';
+        let text = String(raw).toUpperCase();
+        // البحث عن نمط MAC موجود مسبقاً
+        const match = text.match(/([0-9A-F]{2}(?:[:-][0-9A-F]{2}){5})/);
+        if (match) return match[1].replace(/:/g, '-');
 
-  // 1) التقط MAC جاهز مثل: 24-FB-E3-46-68-08 أو 24:FB:...
-  const m = text.match(/([0-9A-F]{2}(?:[:-][0-9A-F]{2}){5})/);
-  if (m && m[1]) {
-    return m[1].replace(/:/g, '-'); // نخليه Dash
-  }
+        // تنظيف النص واستخراج آخر 12 حرف هيكس
+        let hex = text.replace(/[^0-9A-F]/g, '');
+        if (hex.length < 12) return text.trim();
+        hex = hex.slice(-12);
+        return hex.match(/.{2}/g).join('-');
+    };
 
-  // 2) fallback: خذ آخر 12 HEX (مو أول 12) عشان ما يلقط من 101-P33...
-  let hex = text.replace(/[^0-9A-F]/g, '');
-  if (hex.length < 12) return raw.trim();
-  hex = hex.slice(-12); // ✅ الأهم
-  return hex.match(/.{2}/g).join('-');
-}
+    macInput.addEventListener('paste', (e) => {
+        const clip = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+        if (clip) {
+            e.preventDefault();
+            macInput.value = formatMac(clip);
+        }
+    });
 
-
-// اربطها بحقل الـ MAC (عدّل السلكتور حسب اسم الحقل عندك)
-const macInput =
-  document.querySelector('input[name="mac"]')
-  || document.querySelector('input[name="mac_address"]')
-  || document.querySelector('#mac')
-  || null;
-
-if (macInput) {
-  const apply = () => { macInput.value = extractAndNormalizeMac(macInput.value); };
-  macInput.addEventListener('blur', apply);
-  macInput.addEventListener('change', apply);
-  macInput.addEventListener('paste', () => setTimeout(apply, 0));
-}
-
-function normalizeMacSafe(raw) {
-  if (!raw) return '';
-
-  const text = String(raw).toUpperCase();
-
-  // 1) التقط MAC جاهز بأي مكان داخل النص (dash أو colon)
-  const m = text.match(/([0-9A-F]{2}(?:[:-][0-9A-F]{2}){5})/);
-  if (m && m[1]) {
-    return m[1].replace(/:/g, '-'); // نخليه Dash
-  }
-
-  // 2) fallback: خذ آخر 12 hex فقط (عشان ما يلقط من 101-P33...)
-  let hex = text.replace(/[^0-9A-F]/g, '');
-  if (hex.length < 12) return String(raw).trim();
-  hex = hex.slice(-12);
-  return hex.match(/.{2}/g).join('-');
-}
-
-(function bindMacFix(){
-  const macInput =
-    document.querySelector('input[name="mac"]')
-    || document.querySelector('input[name="mac_address"]')
-    || document.querySelector('#mac')
-    || null;
-
-  if (!macInput) return;
-
-  // ✅ أهم جزء: منع اللصق الافتراضي وقراءة النص من الكليببورد مباشرة
-  macInput.addEventListener('paste', (e) => {
-    const clip = (e.clipboardData || window.clipboardData)?.getData('text') || '';
-    if (!clip) return;
-    e.preventDefault();
-    macInput.value = normalizeMacSafe(clip);
-  });
-
-  const apply = () => { macInput.value = normalizeMacSafe(macInput.value); };
-  macInput.addEventListener('blur', apply);
-  macInput.addEventListener('change', apply);
+    macInput.addEventListener('blur', () => { macInput.value = formatMac(macInput.value); });
 })();
-
 
 </script>
 
