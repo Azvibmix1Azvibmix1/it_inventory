@@ -628,6 +628,99 @@ body{
   border: 1px solid var(--stroke);
 }
 
+/* ===== Neumorphism Pills / Segments (مثل الصور) ===== */
+.soft-segment{
+  display:inline-flex;
+  gap:8px;
+  padding:8px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-in);
+  border: 1px solid var(--stroke);
+}
+
+.soft-seg-btn{
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 900;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+  user-select:none;
+  transition: transform .08s ease, filter .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+}
+.soft-seg-btn:hover{ filter: brightness(.98); }
+.soft-seg-btn:active{ transform: translateY(1px); }
+
+.soft-seg-btn.is-active{
+  background: var(--dark);
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+  border-color: rgba(255,255,255,.08);
+}
+
+/* Checkbox pill like الصورة */
+.soft-check{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-out);
+  border: 1px solid var(--stroke);
+}
+.soft-check .box{
+  width:42px;
+  height:42px;
+  border-radius: 16px;
+  display:grid;
+  place-items:center;
+  background: var(--surface);
+  box-shadow: var(--shadow-in);
+  border: 1px solid var(--stroke);
+  color: var(--muted);
+}
+.soft-check.is-on .box{
+  background: var(--dark);
+  color:#fff;
+  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+  border-color: rgba(255,255,255,.08);
+}
+.soft-check .label{
+  font-weight: 900;
+}
+
+/* Titles داخل الكارد */
+.soft-kicker{
+  font-weight: 900;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+.soft-h1{
+  font-weight: 900;
+  font-size: 18px;
+  margin: 0;
+}
+.soft-divider{
+  height:1px;
+  background: var(--stroke);
+  margin: 10px 0;
+  border-radius: 99px;
+}
+
+/* Bootstrap alerts align with theme */
+.alert{
+  border-radius: 16px !important;
+}
+
+
 /* Controls */
 .soft-input, .soft-select{
   height: 42px;

@@ -18,24 +18,27 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
 
 <style>
   :root{
-    --bg: #e6ebf2;
-    --card: #edf2f7;
+    --bg: #eef0f3;
+    --surface: #f6f7f9;
+    --surface2:#f2f4f7;
 
     --text: #0b1220;
-    --muted: #3f4d66;
+    --muted:#6b7280;
 
-    --shadowDark: rgba(148,163,184,.78);
-    --shadowLight: rgba(255,255,255,.96);
+    --stroke: rgba(17,24,39,.10);
 
-    --fieldBg: #f7f9fc;
-    --fieldBorder: rgba(2,6,23,.18);
-    --focusRing: rgba(29,78,216,.20);
+    --shadowOut:
+      14px 14px 28px rgba(0,0,0,.10),
+      -14px -14px 28px rgba(255,255,255,.92);
 
-    --primary: #1d4ed8;
-    --primary2: #2563eb;
-    --danger: #dc2626;
+    --shadowIn:
+      inset 10px 10px 18px rgba(0,0,0,.10),
+      inset -10px -10px 18px rgba(255,255,255,.92);
 
-    --radius: 20px;
+    --dark: #0b0f17;
+    --danger:#dc2626;
+
+    --radius: 22px;
   }
 
   body{ background: var(--bg) !important; color: var(--text) !important; }
@@ -47,19 +50,13 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
     margin-bottom: 16px;
   }
 
-  .page-title{
-    font-weight: 900; letter-spacing: .2px; margin: 0;
-    color: var(--text) !important;
-  }
-
+  .page-title{ font-weight: 950; margin: 0; letter-spacing:.2px; }
   .page-sub{
-    margin-top: 6px;
-    color: var(--muted) !important;
-    font-size: .95rem;
-    font-weight: 650;
+    margin-top: 6px; color: var(--muted) !important;
+    font-size: .95rem; font-weight: 750;
   }
 
-  .req{ color: var(--danger); font-weight: 900; }
+  .req{ color: var(--danger); font-weight: 950; }
 
   .ltr{
     direction:ltr;
@@ -68,48 +65,30 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   }
 
-  /* Outer card (clearer, more contrast) */
   .neo-surface{
-    background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.12)), var(--card);
+    background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.18)), var(--surface);
     border-radius: var(--radius);
-    border: 1px solid rgba(2,6,23,.08);
-    box-shadow:
-      16px 16px 34px var(--shadowDark),
-      -16px -16px 34px var(--shadowLight);
+    border: 1px solid var(--stroke);
+    box-shadow: var(--shadowOut);
   }
-
   .neo-body{ padding: 20px 20px 18px; }
 
-  /* Inset field (same for all inputs) */
   .neo-inset{
-    background: linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,.25)), var(--fieldBg);
-    border-radius: 16px;
-    border: 1px solid var(--fieldBorder);
-    box-shadow:
-      inset 10px 10px 18px rgba(148,163,184,.72),
-      inset -10px -10px 18px rgba(255,255,255,.98);
+    background: linear-gradient(180deg, rgba(255,255,255,.78), rgba(255,255,255,.25)), var(--surface2);
+    border-radius: 18px;
+    border: 1px solid var(--stroke);
+    box-shadow: var(--shadowIn);
   }
 
   .neo-field{
-    min-height: 52px;
+    min-height: 54px;
     padding: 12px 14px;
     display:flex;
     align-items:center;
     gap: 10px;
   }
 
-  .neo-field:focus-within{
-    box-shadow:
-      inset 10px 10px 18px rgba(148,163,184,.72),
-      inset -10px -10px 18px rgba(255,255,255,.98),
-      0 0 0 4px var(--focusRing);
-  }
-
-  .form-label{
-    color: var(--text) !important;
-    font-weight: 900;
-    margin-bottom: .45rem;
-  }
+  .form-label{ color: var(--text) !important; font-weight: 950; margin-bottom: .45rem; }
 
   .form-control{
     border: 0 !important;
@@ -119,171 +98,155 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
     padding: 0 !important;
     height: auto !important;
     color: var(--text) !important;
-    font-weight: 750;
+    font-weight: 850;
     letter-spacing: .1px;
     width: 100%;
   }
+  .form-control::placeholder{ color: rgba(11,18,32,.45) !important; font-weight: 750; }
 
-  .form-control::placeholder{
-    color: rgba(11,18,32,.48) !important;
-    font-weight: 650;
-  }
-
-  .help{
-    color: var(--muted);
-    font-size: .9rem;
-    font-weight: 650;
-    margin-top: 8px;
-  }
+  .help{ color: var(--muted); font-size: .9rem; font-weight: 750; margin-top: 8px; }
 
   .is-invalid{
-    border-color: rgba(220,38,38,.40) !important;
-    box-shadow:
-      inset 10px 10px 18px rgba(148,163,184,.72),
-      inset -10px -10px 18px rgba(255,255,255,.98),
-      0 0 0 4px rgba(220,38,38,.16) !important;
+    border-color: rgba(220,38,38,.35) !important;
+    box-shadow: var(--shadowIn), 0 0 0 4px rgba(220,38,38,.14) !important;
   }
-  .invalid-feedback{ display:block; font-weight:700; }
+  .invalid-feedback{ display:block; font-weight:800; }
 
   .btn{
-    border-radius: 14px;
+    border-radius: 999px;
     border: 0;
-    font-weight: 900;
+    font-weight: 950;
     letter-spacing: .2px;
+    padding: 10px 16px;
   }
 
   .btn-neo{
-    background: var(--card);
+    background: var(--surface);
     color: var(--text);
     box-shadow:
-      10px 10px 18px rgba(148,163,184,.55),
-      -10px -10px 18px rgba(255,255,255,.96);
+      10px 10px 18px rgba(0,0,0,.10),
+      -10px -10px 18px rgba(255,255,255,.92);
+    border: 1px solid var(--stroke);
   }
-
-  .btn-neo:active{
-    box-shadow:
-      inset 8px 8px 16px rgba(148,163,184,.68),
-      inset -8px -8px 16px rgba(255,255,255,.98);
-  }
+  .btn-neo:active{ box-shadow: var(--shadowIn); }
 
   .btn-primary{
-    background: linear-gradient(180deg, var(--primary2), var(--primary));
+    background: var(--dark);
     color:#fff;
     box-shadow:
-      10px 10px 18px rgba(148,163,184,.55),
-      -10px -10px 18px rgba(255,255,255,.88);
+      12px 12px 26px rgba(0,0,0,.18),
+      -12px -12px 26px rgba(255,255,255,.70);
+    border: 1px solid rgba(255,255,255,.08);
   }
   .btn-primary:hover{ filter: brightness(.98); transform: translateY(-1px); }
 
+  /* Password pill buttons */
   .field-btn{
-    padding: 8px 11px;
-    border-radius: 13px;
-    background: var(--card);
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--stroke);
     box-shadow:
-      7px 7px 14px rgba(148,163,184,.55),
-      -7px -7px 14px rgba(255,255,255,.97);
-    font-weight: 900;
+      8px 8px 16px rgba(0,0,0,.10),
+      -8px -8px 16px rgba(255,255,255,.92);
+    font-weight: 950;
     color: var(--text);
-    border: 0;
     display:inline-flex;
     align-items:center;
-    gap: 6px;
+    gap: 8px;
     white-space: nowrap;
+    cursor:pointer;
+    user-select:none;
   }
-  .field-btn:active{
-    box-shadow:
-      inset 6px 6px 12px rgba(148,163,184,.70),
-      inset -6px -6px 12px rgba(255,255,255,.98);
-  }
+  .field-btn:active{ box-shadow: var(--shadowIn); }
+  .field-btn i{ opacity: .9; }
 
   .soft-hr{
     border: 0;
     height: 1px;
-    background: linear-gradient(to left, rgba(0,0,0,0), rgba(2,6,23,.16), rgba(0,0,0,0));
+    background: linear-gradient(to left, rgba(0,0,0,0), rgba(17,24,39,.16), rgba(0,0,0,0));
     margin: 18px 0;
   }
 
-  .grid-2{
-    display:grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-  @media (max-width: 900px){
-    .grid-2{ grid-template-columns: 1fr; }
+  .grid-2{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px){ .grid-2{ grid-template-columns: 1fr; } }
+
+  /* Segmented pills (مثل الصور) */
+  .seg{
+    display:flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--stroke);
+    box-shadow: var(--shadowIn);
+    flex-wrap: wrap;
   }
 
-  /* Role cards */
-  .roles{
-    display:grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-  @media (max-width: 900px){
-    .roles{ grid-template-columns: 1fr; }
-  }
-
-  .role-card{
-    background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.12)), var(--card);
-    border-radius: 16px;
-    padding: 14px 14px;
-    cursor: pointer;
-    border: 1px solid rgba(2,6,23,.08);
-    box-shadow:
-      12px 12px 22px rgba(148,163,184,.55),
-      -12px -12px 22px rgba(255,255,255,.97);
-    transition: .15s;
+  .seg-btn{
+    height: 42px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-weight: 950;
+    display:inline-flex;
+    align-items:center;
+    gap: 10px;
+    cursor:pointer;
     user-select:none;
-    position: relative;
-    min-height: 88px;
+    transition: transform .08s ease, filter .15s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+  }
+  .seg-btn:hover{ filter: brightness(.98); }
+  .seg-btn:active{ transform: translateY(1px); }
+
+  .seg-btn.active{
+    background: var(--dark);
+    color: #fff;
+    box-shadow: 0 12px 28px rgba(0,0,0,.22);
+    border-color: rgba(255,255,255,.08);
   }
 
-  .role-chip{
-    position:absolute;
-    top: 10px; left: 10px;
+  .seg-chip{
     font-size: .78rem;
     padding: 4px 10px;
     border-radius: 999px;
-    background: rgba(255,255,255,.7);
-    border: 1px solid rgba(2,6,23,.10);
-    font-weight: 900;
-  }
-
-  .role-title{
+    background: rgba(255,255,255,.70);
+    border: 1px solid var(--stroke);
     font-weight: 950;
-    font-size: 1.08rem;
-    margin: 0 0 6px;
+    color: var(--text);
   }
-  .role-desc{
-    margin: 0;
-    color: var(--muted);
-    font-weight: 700;
-    font-size: .92rem;
-    line-height: 1.4;
+  .seg-btn.active .seg-chip{
+    background: rgba(255,255,255,.14);
+    border-color: rgba(255,255,255,.14);
+    color: #fff;
   }
 
-  .role-card.active{
-    box-shadow:
-      inset 10px 10px 18px rgba(148,163,184,.70),
-      inset -10px -10px 18px rgba(255,255,255,.98),
-      0 0 0 4px var(--focusRing);
-    border-color: rgba(29,78,216,.22);
-  }
-
-  /* Password meter */
+  /* Password meter (neutral) */
   .pw-meter{
     height: 9px;
     border-radius: 999px;
-    background: rgba(11,18,32,.12);
+    background: rgba(11,18,32,.10);
     overflow: hidden;
     margin-top: 10px;
   }
-  .pw-meter > div{ height: 100%; width: 0%; transition: width .2s; background: #16a34a; }
+  .pw-meter > div{
+    height: 100%;
+    width: 0%;
+    transition: width .2s;
+    background: rgba(11,15,23,.82);
+  }
+  .pw-row{
+    display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-top: 8px;
+  }
+  .pw-note{ color: var(--muted); font-weight: 850; font-size: .9rem; }
+  .pw-badge{
+    font-weight: 950; font-size: .9rem; padding: 4px 12px; border-radius: 999px;
+    background: rgba(255,255,255,.65); border:1px solid var(--stroke); color: var(--text);
+  }
 
-  .pw-row{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-top: 8px; }
-  .pw-note{ color: var(--muted); font-weight: 750; font-size: .9rem; }
-  .pw-badge{ font-weight: 900; font-size: .9rem; padding: 2px 10px; border-radius: 999px; background: rgba(255,255,255,.6); border:1px solid rgba(2,6,23,.10); }
-
-  /* Footer actions */
   .actions{
     display:flex;
     align-items:center;
@@ -292,17 +255,17 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
     margin-top: 14px;
     flex-wrap: wrap;
   }
+  .actions .left{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
 
-  .actions .left{
-    display:flex; gap:10px; align-items:center; flex-wrap: wrap;
-  }
+  .note-bottom{ color: var(--muted); font-weight: 850; font-size: .92rem; }
 
-  .note-bottom{
+  .role-help{
+    margin-top: 10px;
+    padding: 14px 14px;
+    font-weight: 850;
     color: var(--muted);
-    font-weight: 750;
-    font-size: .92rem;
+    line-height: 1.45;
   }
-
 </style>
 
 <div class="page-wrap">
@@ -353,7 +316,7 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
                 name="name"
                 type="text"
                 class="form-control"
-                placeholder="مثال:  محمد"
+                placeholder="مثال: محمد"
                 value="<?php echo htmlspecialchars($name); ?>"
               />
             </div>
@@ -390,7 +353,7 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
 
             <div class="neo-inset neo-field <?php echo !empty($password_err) ? 'is-invalid' : ''; ?>">
               <button type="button" class="field-btn" id="btnGen">
-                 توليد
+                <i class="bi bi-shuffle"></i> توليد
               </button>
 
               <input
@@ -403,11 +366,11 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
               />
 
               <button type="button" class="field-btn" id="btnToggle">
-                 عرض
+                <i class="bi bi-eye"></i> عرض
               </button>
 
               <button type="button" class="field-btn" id="btnCopy">
-                 نسخ
+                <i class="bi bi-clipboard"></i> نسخ
               </button>
             </div>
 
@@ -426,39 +389,44 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
 
         <hr class="soft-hr" />
 
-        <!-- Role -->
+        <!-- Role (segmented pills like الصور) -->
         <div>
           <label class="form-label">نوع الحساب (الصلاحية) <span class="req">*</span></label>
 
           <input type="hidden" name="role" id="roleInput" value="<?php echo htmlspecialchars($role); ?>">
 
-          <div class="roles">
-            <div class="role-card <?php echo ($role === 'User') ? 'active' : ''; ?>" data-role="User" tabindex="0">
-              <span class="role-chip">User</span>
-              <div class="role-title">موظف</div>
-              <p class="role-desc">استخدام النظام فقط حسب الصلاحيات.</p>
-            </div>
+          <div class="seg" id="roleSeg" aria-label="Role selector">
+            <button type="button"
+                    class="seg-btn <?php echo ($role === 'User') ? 'active' : ''; ?>"
+                    data-role="User">
+              <span class="seg-chip">User</span>
+              موظف
+            </button>
 
-            <div class="role-card <?php echo ($role === 'Manager') ? 'active' : ''; ?>" data-role="Manager" tabindex="0">
-              <span class="role-chip">Manager</span>
-              <div class="role-title">مدير</div>
-              <p class="role-desc">متابعة المستخدمين/المهام التابعة حسب إعداداتك.</p>
-            </div>
+            <button type="button"
+                    class="seg-btn <?php echo ($role === 'Manager') ? 'active' : ''; ?>"
+                    data-role="Manager">
+              <span class="seg-chip">Manager</span>
+              مدير
+            </button>
 
-            <div class="role-card <?php echo ($role === 'SuperAdmin') ? 'active' : ''; ?>" data-role="SuperAdmin" tabindex="0">
-              <span class="role-chip">Super Admin</span>
-              <div class="role-title">سوبر أدمن</div>
-              <p class="role-desc">صلاحيات كاملة لإدارة المستخدمين.</p>
-            </div>
+            <button type="button"
+                    class="seg-btn <?php echo ($role === 'SuperAdmin') ? 'active' : ''; ?>"
+                    data-role="SuperAdmin">
+              <span class="seg-chip">Super Admin</span>
+              سوبر أدمن
+            </button>
           </div>
 
           <?php if (!empty($role_err)): ?>
             <div class="invalid-feedback" style="margin-top:8px;"><?php echo $role_err; ?></div>
           <?php else: ?>
-            <div class="help" style="margin-top:10px;">
-              سيتم التحقق من البريد واسم المستخدم قبل الحفظ.
-            </div>
+            <div class="neo-inset role-help" id="roleHelp"></div>
           <?php endif; ?>
+
+          <div class="help" style="margin-top:10px;">
+            سيتم التحقق من البريد واسم المستخدم قبل الحفظ.
+          </div>
         </div>
 
         <div class="actions">
@@ -466,9 +434,7 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
 
           <div class="left">
             <a class="btn btn-neo" href="<?php echo $backUrl; ?>">إلغاء</a>
-            <button type="submit" class="btn btn-primary" id="btnSubmit">
-               حفظ البيانات
-            </button>
+            <button type="submit" class="btn btn-primary" id="btnSubmit">حفظ البيانات</button>
           </div>
         </div>
 
@@ -493,7 +459,14 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
   const strengthLabel = document.getElementById('pwStrengthLabel');
 
   const roleInput = document.getElementById('roleInput');
-  const roleCards = document.querySelectorAll('.role-card');
+  const roleBtns  = document.querySelectorAll('#roleSeg .seg-btn');
+  const roleHelp  = document.getElementById('roleHelp');
+
+  const roleText = {
+    'User': 'استخدام النظام فقط حسب الصلاحيات.',
+    'Manager': 'متابعة المستخدمين/المهام التابعة حسب إعداداتك.',
+    'SuperAdmin': 'صلاحيات كاملة لإدارة المستخدمين.'
+  };
 
   // Helpers
   function trimAll(){
@@ -503,10 +476,8 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
 
   function sanitizeUsername(s){
     s = (s || '').trim().toLowerCase();
-    // remove spaces + arabic
     s = s.replace(/\s+/g, '');
     s = s.replace(/[\u0600-\u06FF]/g, '');
-    // keep a-z 0-9 . _ -
     s = s.replace(/[^a-z0-9._-]/g, '');
     return s;
   }
@@ -515,7 +486,6 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
     if (!emailEl || !userEl) return;
     const email = (emailEl.value || '').trim();
     if (!email) return;
-    // only auto-fill if username empty
     if ((userEl.value || '').trim() !== '') return;
     const local = email.split('@')[0] || '';
     userEl.value = sanitizeUsername(local);
@@ -534,8 +504,6 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
     let out = "";
     out += pick(a); out += pick(b); out += pick(c); out += pick(d);
     for(let i=out.length; i<len; i++) out += pick(all);
-
-    // shuffle
     out = out.split('').sort(()=>Math.random()-0.5).join('');
     return out;
   }
@@ -552,28 +520,25 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
     if (/[0-9]/.test(p)) score += 1;
     if (/[^A-Za-z0-9]/.test(p)) score += 1;
 
-    // 0..6 => percent
     const pct = Math.min(100, Math.round((score/6)*100));
     strengthBar.style.width = pct + '%';
 
     let label = 'ضعيفة';
     if (pct >= 34) label = 'متوسطة';
     if (pct >= 67) label = 'قوية';
-
     strengthLabel.textContent = label;
-    // change bar color softly without specifying brand palette
-    strengthBar.style.background = (pct >= 67) ? '#16a34a' : (pct >= 34 ? '#f59e0b' : '#dc2626');
   }
 
-  // Toggle show/hide password
   function togglePassword(){
     if (!passEl) return;
     const isPass = passEl.type === 'password';
     passEl.type = isPass ? 'text' : 'password';
-    btnToggle.textContent = isPass ? ' إخفاء' : ' عرض';
+
+    const icon = btnToggle.querySelector('i');
+    if (icon) icon.className = isPass ? 'bi bi-eye-slash' : 'bi bi-eye';
+    btnToggle.lastChild.textContent = isPass ? ' إخفاء' : ' عرض';
   }
 
-  // Copy password
   async function copyPassword(){
     if (!passEl) return;
     const val = passEl.value || '';
@@ -581,47 +546,42 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
 
     try{
       await navigator.clipboard.writeText(val);
-      btnCopy.textContent = '✅ تم';
-      setTimeout(()=> btnCopy.textContent = '📋 نسخ', 900);
+      btnCopy.innerHTML = '<i class="bi bi-check2"></i> تم';
+      setTimeout(()=> btnCopy.innerHTML = '<i class="bi bi-clipboard"></i> نسخ', 900);
     }catch(e){
-      // fallback
       passEl.select();
       document.execCommand('copy');
-      btnCopy.textContent = '✅ تم';
-      setTimeout(()=> btnCopy.textContent = '📋 نسخ', 900);
+      btnCopy.innerHTML = '<i class="bi bi-check2"></i> تم';
+      setTimeout(()=> btnCopy.innerHTML = '<i class="bi bi-clipboard"></i> نسخ', 900);
     }
   }
 
-  // Roles select
+  // Roles segmented
   function setRole(role){
     roleInput.value = role;
-    roleCards.forEach(c => c.classList.toggle('active', c.dataset.role === role));
+    roleBtns.forEach(b => b.classList.toggle('active', b.dataset.role === role));
+    if (roleHelp) roleHelp.textContent = roleText[role] || '';
   }
 
-  roleCards.forEach(card=>{
-    card.addEventListener('click', ()=> setRole(card.dataset.role));
-    card.addEventListener('keydown', (e)=>{
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        setRole(card.dataset.role);
-      }
+  roleBtns.forEach(btn=>{
+    btn.addEventListener('click', ()=> setRole(btn.dataset.role));
+    btn.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRole(btn.dataset.role); }
     });
   });
 
+  // Init role help
+  setRole(roleInput.value || 'User');
+
   // Events
   if (emailEl){
-    emailEl.addEventListener('input', ()=> {
-      // keep LTR & auto-suggest username if empty
-      suggestUsernameFromEmail();
-    });
-    emailEl.addEventListener('blur', ()=> trimAll());
+    emailEl.addEventListener('input', suggestUsernameFromEmail);
+    emailEl.addEventListener('blur', trimAll);
   }
 
   if (userEl){
-    userEl.addEventListener('input', ()=> {
-      userEl.value = sanitizeUsername(userEl.value);
-    });
-    userEl.addEventListener('blur', ()=> trimAll());
+    userEl.addEventListener('input', ()=> { userEl.value = sanitizeUsername(userEl.value); });
+    userEl.addEventListener('blur', trimAll);
   }
 
   if (passEl){
@@ -647,11 +607,10 @@ $backUrl   = defined('URLROOT') ? URLROOT . '/index.php?page=users/index' : 'ind
       const btn = document.getElementById('btnSubmit');
       if (btn){
         btn.disabled = true;
-        btn.textContent = '⏳ جاري الحفظ...';
+        btn.textContent = 'جاري الحفظ...';
       }
     });
   }
-
 })();
 </script>
 
