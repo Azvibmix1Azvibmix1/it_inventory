@@ -704,27 +704,8 @@ body{
 
 
   </style>
-  <style>
-  :root{
-    --bg:#f5f6f8; --card:#fff; --line:#e9ecef; --text:#111827; --muted:#6b7280;
-    --radius:16px; --shadow:0 10px 30px rgba(16,24,40,.08);
-  }
-  body{background:var(--bg)}
-  .app-shell{display:flex; min-height:100vh; direction:rtl}
-  .app-content{flex:1; padding:18px}
-  .topbar{
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    box-shadow:var(--shadow); padding:10px 12px; margin-bottom:14px;
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-  }
-  .topbar-left{display:flex; align-items:center; gap:10px}
-  .topbar-title{font-weight:800; color:var(--text)}
-  .main-area{max-width:1200px; margin:0 auto;}
-  /* Collapse hook */
-  .app-shell.is-collapsed .panel{width:0 !important; padding:14px 0 !important; overflow:hidden}
-</style>
+ 
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
 </head>
 
