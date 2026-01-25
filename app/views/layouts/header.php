@@ -1,23 +1,32 @@
 <?php
 
-
 $canLocations = function_exists('canAccessLocationsModule') ? canAccessLocationsModule() : false;
 $logged       = function_exists('isLoggedIn') ? isLoggedIn() : false;
 
-function pageKey(): string {
-  $p = strtolower(trim((string)($_GET['page'] ?? 'dashboard/index')));
-  return $p ?: 'dashboard/index';
+if (!function_exists('pageKey')) {
+  function pageKey(): string {
+    $p = strtolower(trim((string)($_GET['page'] ?? 'dashboard/index')));
+    return $p ?: 'dashboard/index';
+  }
 }
-function isActive(string $prefix): bool {
-  return strpos(pageKey(), strtolower($prefix)) === 0;
+
+if (!function_exists('isActive')) {
+  function isActive(string $prefix): bool {
+    return strpos(pageKey(), strtolower($prefix)) === 0;
+  }
 }
-function activeClass(string $prefix): string {
-  return isActive($prefix) ? ' active' : '';
+
+if (!function_exists('activeClass')) {
+  function activeClass(string $prefix): string {
+    return isActive($prefix) ? ' active' : '';
+  }
 }
 
 $userName  = $_SESSION['user_name']  ?? ($_SESSION['user_email'] ?? 'حسابي');
 $userEmail = $_SESSION['user_email'] ?? '';
+
 ?>
+
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
