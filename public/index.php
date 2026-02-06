@@ -1,5 +1,7 @@
-<?php
-declare(strict_types=1);
+<?php declare(strict_types=1);
+
+// لازم قبل أي شيء عشان APPROOT + helpers + autoload
+require_once dirname(__DIR__) . '/app/bootstrap.php';
 
 // Basic bootstrap
 if (!defined('PUBLICROOT')) {

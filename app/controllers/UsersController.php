@@ -13,70 +13,69 @@ class UsersController extends Controller
 
     // تسجيل الدخول
     public function login()
-    {
-        // لو مسجل دخول بالفعل
-        if (isLoggedIn()) {
-            redirect('index.php?page=dashboard');
-            exit;
-        }
+{
+    // إذا المستخدم مسجل دخول، ودّه للداشبورد
+    if (isLoggedIn()) {
+        redirect('index.php?page=dashboard/index');
+        return;
+    }
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $data = [
-                'email' => trim($_POST['email'] ?? ''),
-                'password' => trim($_POST['password'] ?? ''),
-                'email_err' => '',
-                'password_err' => '',
-            ];
-
-            if ($data['email'] === '') {
-                $data['email_err'] = 'الرجاء إدخال البريد الإلكتروني';
-            }
-            if ($data['password'] === '') {
-                $data['password_err'] = 'الرجاء إدخال كلمة المرور';
-            }
-
-            if ($data['email_err'] === '' && $data['password_err'] === '') {
-                $loggedInUser = $this->userModel->login($data['email'], $data['password']);
-
-                // حساب مُعطّل
-                if ($loggedInUser === 'inactive') {
-                    $data['password_err'] = 'تم تعطيل حسابك. تواصل مع مسؤول النظام.';
-                    $this->view('users/login', $data);
-                    exit;
-                }
-
-                // بيانات خاطئة
-                if ($loggedInUser === false) {
-                    $data['password_err'] = 'بيانات الدخول غير صحيحة';
-                    $this->view('users/login', $data);
-                    exit;
-                }
-
-                // نجاح: أنشئ جلسة
-                $_SESSION['user_id']    = (int)$loggedInUser->id;
-                $_SESSION['user_name']  = $loggedInUser->name ?? $loggedInUser->username ?? '';
-                $_SESSION['user_email'] = $loggedInUser->email ?? '';
-                $_SESSION['user_role']  = $loggedInUser->role ?? 'user';
-                $_SESSION['is_active']  = (int)($loggedInUser->is_active ?? 1);
-
-                redirect('index.php?page=dashboard');
-                exit;
-            }
-
-            $this->view('users/login', $data);
-            exit;
-        }
-
-        // GET
+    // GET request → عرض صفحة اللوقن
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         $data = [
             'email' => '',
             'password' => '',
             'email_err' => '',
-            'password_err' => '',
+            'password_err' => ''
         ];
+
         $this->view('users/login', $data);
-        exit;
+        return;
     }
+
+    // POST request → معالجة تسجيل الدخول
+    $_POST = filter_input_array(INPUT_POST, FILTER_SANITIZE_SPECIAL_CHARS);
+
+    $data = [
+        'email' => trim($_POST['email'] ?? ''),
+        'password' => trim($_POST['password'] ?? ''),
+        'email_err' => '',
+        'password_err' => ''
+    ];
+
+    // تحقق من المدخلات
+    if (empty($data['email'])) {
+        $data['email_err'] = 'الرجاء إدخال البريد الإلكتروني';
+    }
+
+    if (empty($data['password'])) {
+        $data['password_err'] = 'الرجاء إدخال كلمة المرور';
+    }
+
+    // إذا فيه أخطاء → رجّع صفحة اللوقن
+    if (!empty($data['email_err']) || !empty($data['password_err'])) {
+        $this->view('users/login', $data);
+        return;
+    }
+
+    // محاولة تسجيل الدخول
+    $loggedInUser = $this->userModel->login($data['email'], $data['password']);
+
+    if ($loggedInUser) {
+        $this->createUserSession($loggedInUser);
+        redirect('index.php?page=dashboard/index');
+    } else {
+        $data['password_err'] = 'بيانات الدخول غير صحيحة';
+        $this->view('users/login', $data);
+    }
+}
+private function createUserSession($user): void
+{
+    $_SESSION['user_id']    = $user->id;
+    $_SESSION['user_email'] = $user->email;
+    $_SESSION['user_name']  = $user->name ?? $user->email;
+    $_SESSION['user_role']  = $user->role ?? 'user';
+}
 
     // عرض المستخدمين
     public function index()

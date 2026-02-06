@@ -5,11 +5,12 @@ $canLocations = function_exists('canAccessLocationsModule') ? canAccessLocations
 $logged       = function_exists('isLoggedIn') ? isLoggedIn() : false;
 
 if (!function_exists('pageKey')) {
-  function pageKey() {
-    $page = $_GET['page'] ?? 'dashboard/index';
-    return explode('/', $page)[0];
+  function pageKey(): string {
+    $page = $_GET['page'] ?? '';
+    return trim(strtolower($page));
   }
 }
+
 
 
 if (!function_exists('isActive')) {

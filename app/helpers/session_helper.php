@@ -312,12 +312,21 @@ function requireRole(array $roles): void {
  * للحماية الخاصة بإدارة المستخدمين
  */
 
-function requireLogin() {
-  if (!isLoggedIn()) {
-    redirect('index.php?page=users/login');
+function requireLogin(): void
+{
+    $page = $_GET['page'] ?? '';
 
-  }
+    // اسمح بصفحة تسجيل الدخول
+    if (stripos($page, 'login') !== false) {
+        return;
+    }
+
+    if (!isLoggedIn()) {
+        header('Location: index.php?page=login');
+        exit;
+    }
 }
+
 
 function normalizeRole($role): string {
   $r = strtolower(trim((string)($role ?? 'user')));
