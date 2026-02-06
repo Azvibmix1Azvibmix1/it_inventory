@@ -34,11 +34,49 @@ function flash($name = '', $message = '', $class = 'alert alert-success')
 /**
  * Redirect helper
  */
-function redirect($location)
+function redirect($target)
 {
-  header('Location: ' . $location);
-  exit;
+  // target ممكن يكون:
+  // - "login"
+  // - "users/add"
+  // - "index.php?page=login"
+  // - "/it_inventory/public/index.php?page=login"
+  // - "http://..."
+
+  $target = (string)$target;
+
+  // 1) إذا رابط كامل
+  if (preg_match('#^https?://#i', $target)) {
+    if (!headers_sent()) { header('Location: ' . $target); exit; }
+    echo '<script>location.href=' . json_encode($target) . ';</script>'; exit;
+  }
+
+  // 2) إذا مرر "index.php?page=..." لا تضيف عليه page مرة ثانية
+  if (stripos($target, 'index.php') !== false) {
+    $url = (defined('URLROOT') ? rtrim(URLROOT, '/') . '/' : '') . ltrim($target, '/');
+    if (!headers_sent()) { header('Location: ' . $url); exit; }
+    echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
+  }
+
+  // 3) إذا مرر "?page=..." أو "page=..."
+  if (strpos($target, '?page=') === 0) {
+    $url = (defined('URLROOT') ? rtrim(URLROOT, '/') : '') . '/index.php' . $target;
+    if (!headers_sent()) { header('Location: ' . $url); exit; }
+    echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
+  }
+  if (stripos($target, 'page=') !== false && strpos($target, '?') === 0) {
+    $url = (defined('URLROOT') ? rtrim(URLROOT, '/') : '') . '/index.php' . $target;
+    if (!headers_sent()) { header('Location: ' . $url); exit; }
+    echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
+  }
+
+  // 4) الحالة الطبيعية: "login" أو "users/index"
+  $url = (defined('URLROOT') ? rtrim(URLROOT, '/') : '') . '/index.php?page=' . ltrim($target, '/');
+  if (!headers_sent()) { header('Location: ' . $url); exit; }
+  echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
 }
+
+
 
 /**
  * Auth helpers
@@ -312,6 +350,7 @@ function requireRole(array $roles): void {
  * للحماية الخاصة بإدارة المستخدمين
  */
 
+<<<<<<< HEAD
 function requireLogin(): void
 {
     $page = $_GET['page'] ?? '';
@@ -325,6 +364,17 @@ function requireLogin(): void
         header('Location: index.php?page=login');
         exit;
     }
+=======
+function requireLogin($redirectTo = 'login')
+{
+  $current = strtolower(trim((string)($_GET['page'] ?? '')));
+  if (!isLoggedIn()) {
+    if ($current !== 'login') {
+      redirect($redirectTo);
+    }
+    return;
+  }
+>>>>>>> 6e0ca0b6a9a64f7b51659118ef13d7bd8489e099
 }
 
 
