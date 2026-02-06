@@ -1,45 +1,14 @@
 <?php
-
-// public/index.php
-
 declare(strict_types=1);
 
-/**
- * Front Controller + Simple Router
- * - Reads config
- * - Loads helpers
- * - Autoloads Controllers/Models/Libraries
- * - Dispatches based on ?page=controller/method
- */
-
-// -------------------------
 // Basic bootstrap
-// -------------------------
 if (!defined('PUBLICROOT')) {
   define('PUBLICROOT', __DIR__);
 }
 
-// Try load config first (defines APPROOT/URLROOT/DB_*)
-$cfg = dirname(__DIR__) . '/app/config/config.php';
-if (file_exists($cfg)) {
-  require_once $cfg;
-}
-
-// Fallback APPROOT if not defined in config
 if (!defined('APPROOT')) {
   define('APPROOT', dirname(__DIR__) . '/app');
 }
-
-// Safe error reporting (you can toggle via config if you have ENV/DEBUG)
-if (defined('APP_ENV') && constant('APP_ENV') === 'production') {
-  ini_set('display_errors', '0');
-  error_reporting(E_ALL);
-} else {
-  ini_set('display_errors', '1');
-  error_reporting(E_ALL);
-}
-
-
 // -------------------------
 // Helpers (load only if exist)
 // -------------------------
