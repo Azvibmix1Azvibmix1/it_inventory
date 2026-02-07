@@ -39,10 +39,14 @@ class Controller {
      */
     protected function requireLogin()
     {
-        if (!function_exists('isLoggedIn')) {
-            // احتياط لو helper ما انشحن لأي سبب
-            die('Session helper is not loaded properly.');
-        }
+
+// وجّه المستخدم لصفحة تسجيل الدخول في كنترولر المستخدمين بدلاً من المسار العام
+$loginPath = 'index.php?page=users/login';
+if (function_exists('redirect')) {
+    redirect($loginPath);
+} else {
+    header('Location: ' . $loginPath);
+}
 
         if (!isLoggedIn()) {
             if (function_exists('flash')) {

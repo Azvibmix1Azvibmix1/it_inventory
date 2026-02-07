@@ -7,8 +7,9 @@ class DashboardController extends Controller {
 
     public function __construct(){
         if(!isLoggedIn()){
-            redirect('index.php?page=users/login');
-        }
+    redirect('index.php?page=users/login');
+}
+
 
         $this->assetModel = $this->model('Asset');
         $this->ticketModel = $this->model('Ticket');
