@@ -129,7 +129,7 @@ class AuthController extends Controller
     }
 
     session_destroy();
-    redirect('index.php?page=login');
+    redirect('index.php?page=users/login');
   }
 
   // ---------- Register (اختياري) ----------

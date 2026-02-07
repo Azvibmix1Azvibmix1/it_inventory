@@ -28,6 +28,7 @@ $userEmail = $_SESSION['user_email'] ?? '';
 
 ?>
 
+
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -883,7 +884,7 @@ body{
           <i class="bi bi-box-arrow-right"></i>
         </button>
       <?php else: ?>
-        <button class="rail-btn" title="دخول" onclick="location.href='index.php?page=login'">
+        <button class="rail-btn" title="دخول" onclick="location.href='index.php?page=users/login'">
           <i class="bi bi-box-arrow-in-left"></i>
         </button>
       <?php endif; ?>

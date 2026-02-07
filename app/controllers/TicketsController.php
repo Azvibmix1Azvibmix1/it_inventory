@@ -8,7 +8,7 @@ class TicketsController extends Controller {
 
     public function __construct() {
         if (!function_exists('isLoggedIn') || !isLoggedIn()) {
-            redirect('index.php?page=login');
+            redirect('index.php?page=users/login');
             exit;
         }
 

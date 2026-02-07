@@ -1,0 +1,84 @@
+*** Begin Patch
+*** Update File: app/libraries/Controller.php
+@@ protected function requireLogin()
+-            if (function_exists('redirect')) {
+-                redirect('index.php?page=login');
+-            } else {
+-                header('Location: index.php?page=login');
+-            }
++            // وجّه المستخدم لصفحة تسجيل الدخول في كنترولر المستخدمين بدلاً من المسار العام
++            $loginPath = 'index.php?page=users/login';
++            if (function_exists('redirect')) {
++                redirect($loginPath);
++            } else {
++                header('Location: ' . $loginPath);
++            }
+
+*** Update File: app/controllers/DashboardController.php
+@@ public function __construct(){
+-        if(!isLoggedIn()){
+-            redirect('index.php?page=login');
+-        }
++        if(!isLoggedIn()){
++            // تحويل للمسار الصحيح لصفحة تسجيل الدخول لتجنب الحلقة
++            redirect('index.php?page=users/login');
++        }
+
+*** Update File: app/controllers/PartsController.php
+@@ public function __construct(){
+-        if(!isLoggedIn()){ redirect('index.php?page=login'); }
++        if(!isLoggedIn()){ redirect('index.php?page=users/login'); }
+
+*** Update File: app/controllers/TicketsController.php
+@@ public function __construct() {
+-        if (!function_exists('isLoggedIn') || !isLoggedIn()) {
+-            redirect('index.php?page=login');
+-            exit;
+-        }
++        if (!function_exists('isLoggedIn') || !isLoggedIn()) {
++            // التحويل لصفحة تسجيل الدخول المناسبة
++            redirect('index.php?page=users/login');
++            exit;
++        }
+
+*** Update File: app/controllers/LocationsController.php
+@@ public function __construct(){
+-        if(!isLoggedIn()){ redirect('index.php?page=login'); }
++        if(!isLoggedIn()){ redirect('index.php?page=users/login'); }
+
+*** Update File: app/controllers/AuthController.php
+@@ public function logout()
+-    redirect('index.php?page=login');
++    // إعادة التوجيه لصفحة تسجيل الدخول الصحيحة بعد تسجيل الخروج
++    redirect('index.php?page=users/login');
+
+*** Update File: app/views/includes/navbar.php
+@@
+-           <a class="nav-link btn btn-outline-light px-3 ms-2" href="<?php echo URLROOT; ?>/index.php?page=login">
++           <a class="nav-link btn btn-outline-light px-3 ms-2" href="<?php echo URLROOT; ?>/index.php?page=users/login">
+
+*** Update File: app/views/auth/login.php
+@@
+-      <form action="index.php?page=login" method="post" autocomplete="on">
++      <form action="index.php?page=users/login" method="post" autocomplete="on">
+
+*** Update File: public/index.php
+@@
+-require_once dirname(__DIR__) . '/app/bootstrap.php';
+-
+-new Core();
+-
+-// حاول تشغل الراوتر بأي اسم موجود
+-if (class_exists('Core')) {
+-  new Core();
+-} elseif (class_exists('App')) {
+-  new App();
+-} elseif (class_exists('Router')) {
+-  new Router();
+-} else {
+-  die('Router class not found. Check app/libraries for Core/App/Router.');
+-}
++require_once dirname(__DIR__) . '/app/bootstrap.php';
++
++// لا نستدعي Core هنا لأننا نستخدم الراوتر المخصص أدناه
+*** End Patch

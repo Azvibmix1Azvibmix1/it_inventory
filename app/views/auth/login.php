@@ -13,7 +13,7 @@
 
       <?php if (function_exists('flash')) { flash('auth_error'); flash('access_denied'); } ?>
 
-      <form action="index.php?page=login" method="post" autocomplete="on">
+      <form action="index.php?page=users/login" method="post" autocomplete="on">
         <div class="mb-3">
           <label class="form-label">البريد الإلكتروني</label>
           <input type="email"

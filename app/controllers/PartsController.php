@@ -8,7 +8,7 @@ class PartsController {
     private $locationModel;
 
     public function __construct(){
-        if(!isLoggedIn()){ redirect('index.php?page=login'); }
+        if(!isLoggedIn()){ redirect('index.php?page=users/login'); }
         $this->partModel = new Part();
         $this->locationModel = new Location();
     }

@@ -2,9 +2,7 @@
 
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 
-new Core();
-
-// حاول تشغل الراوتر بأي اسم موجود
+// شغل الراوتر مرة واحدة اعتماداً على الكلاس الموجود
 if (class_exists('Core')) {
   new Core();
 } elseif (class_exists('App')) {
@@ -14,6 +12,7 @@ if (class_exists('Core')) {
 } else {
   die('Router class not found. Check app/libraries for Core/App/Router.');
 }
+
 
 // Basic bootstrap
 if (!defined('PUBLICROOT')) {

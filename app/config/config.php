@@ -7,8 +7,8 @@ define('APP_ENV', 'development');
 // مسار مجلد app
 if (!defined('APPROOT')) define('APPROOT', dirname(__DIR__));
 
-// رابط المشروع (مهم جدًا يكون ينتهي بـ /public)
-define('URLROOT', 'http://localhost/it_inventory');
+// يجب أن ينتهي رابط المشروع بـ /public لتجنب مشاكل إعادة التوجيه
+define('URLROOT', 'http://localhost/it_inventory/public');
 
 // اسم الموقع
 define('SITENAME', 'IT Inventory');

@@ -1,8 +1,16 @@
 <?php declare(strict_types=1);
 
 // Paths (safe defines)
-if (!defined('APPROOT'))    define('APPROOT', __DIR__);
-if (!defined('PUBLICROOT')) define('PUBLICROOT', dirname(__DIR__) . '/public');
+// تعريف ثابت APPROOT مرة واحدة فقط
+if (!defined('APPROOT')) {
+    define('APPROOT', __DIR__);
+}
+if (!defined('PUBLICROOT')) {
+    define('PUBLICROOT', dirname(__DIR__) . '/public');
+}
+
+// تحميل ملف config الصحيح
+require_once __DIR__ . '/config/config.php';
 
 // Load config
 $cfg = __DIR__ . '/config/config.php';

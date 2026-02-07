@@ -49,9 +49,9 @@ class Controller {
                 flash('auth_error', 'يجب تسجيل الدخول أولاً');
             }
             if (function_exists('redirect')) {
-                redirect('index.php?page=login');
+                redirect('index.php?page=users/login');
             } else {
-                header('Location: index.php?page=login');
+                header('Location: index.php?page=users/login');
             }
             exit;
         }

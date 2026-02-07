@@ -5,7 +5,7 @@ class LocationsController {
     private $locationModel;
 
     public function __construct(){
-        if(!isLoggedIn()){ redirect('index.php?page=login'); }
+        if(!isLoggedIn()){ redirect('index.php?page=users/login'); }
         $this->locationModel = new Location();
     }
 

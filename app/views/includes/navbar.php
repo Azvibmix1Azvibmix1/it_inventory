@@ -81,7 +81,7 @@
           </li>
         <?php else: ?>
           <li class="nav-item">
-            <a class="nav-link btn btn-outline-light px-3 ms-2" href="<?php echo URLROOT; ?>/index.php?page=login">
+            <a class="nav-link btn btn-outline-light px-3 ms-2" href="<?php echo URLROOT; ?>index.php?page=users/login">
                 <i class="fas fa-sign-in-alt"></i> دخول
             </a>
           </li>
