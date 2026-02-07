@@ -2,9 +2,18 @@
 
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 
-// إذا مشروعك فيه Core class
-$core = new Core();
+new Core();
 
+// حاول تشغل الراوتر بأي اسم موجود
+if (class_exists('Core')) {
+  new Core();
+} elseif (class_exists('App')) {
+  new App();
+} elseif (class_exists('Router')) {
+  new Router();
+} else {
+  die('Router class not found. Check app/libraries for Core/App/Router.');
+}
 
 // Basic bootstrap
 if (!defined('PUBLICROOT')) {

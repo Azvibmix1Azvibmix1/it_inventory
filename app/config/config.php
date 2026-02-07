@@ -5,10 +5,10 @@
 define('APP_ENV', 'development');
 
 // مسار مجلد app
-define('APPROOT', dirname(__DIR__));
+if (!defined('APPROOT')) define('APPROOT', dirname(__DIR__));
 
 // رابط المشروع (مهم جدًا يكون ينتهي بـ /public)
-define('URLROOT', 'http://localhost/it_inventory/public');
+define('URLROOT', 'http://localhost/it_inventory');
 
 // اسم الموقع
 define('SITENAME', 'IT Inventory');

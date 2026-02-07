@@ -349,6 +349,21 @@ function requireRole(array $roles): void {
 /**
  * للحماية الخاصة بإدارة المستخدمين
  */
+function requireLogin(string $redirectTo = 'login')
+{
+  $page = $_GET['page'] ?? '';
+  $page = strtolower(trim($page));
+
+  // استثناء صفحة تسجيل الدخول من الحماية
+  if ($page === 'login' || str_starts_with($page, 'users/login')) {
+    return;
+  }
+
+  if (!isLoggedIn()) {
+    header('Location: ' . URLROOT . '/public/index.php?page=login');
+    exit;
+  }
+}
 
 
 function normalizeRole($role): string {

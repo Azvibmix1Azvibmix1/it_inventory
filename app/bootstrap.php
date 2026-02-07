@@ -1,29 +1,27 @@
 <?php declare(strict_types=1);
 
-// Base path
-define('APPROOT', dirname(__DIR__));
-define('PUBLICROOT', APPROOT . '/public');
+// Paths (safe defines)
+if (!defined('APPROOT'))    define('APPROOT', __DIR__);
+if (!defined('PUBLICROOT')) define('PUBLICROOT', dirname(__DIR__) . '/public');
 
-// Load config (عدّل المسار إذا config عندك بمكان ثاني)
-require_once APPROOT . '/config/config.php';
+// Load config
+$cfg = __DIR__ . '/config/config.php';
+if (file_exists($cfg)) require_once $cfg;
 
-// Helpers (إذا عندك مجلد helpers)
+// Helpers
 $helpers = [
-  APPROOT . '/helpers/session_helper.php',
-  APPROOT . '/helpers/url_helper.php',
+  __DIR__ . '/helpers/session_helper.php',
+  __DIR__ . '/helpers/url_helper.php',
 ];
-
-foreach ($helpers as $h) {
-  if (file_exists($h)) require_once $h;
-}
+foreach ($helpers as $f) { if (file_exists($f)) require_once $f; }
 
 // Libraries
 $libs = [
-  APPROOT . '/libraries/Core.php',
-  APPROOT . '/libraries/Controller.php',
-  APPROOT . '/libraries/Database.php',
-];
+  __DIR__ . '/libraries/Core.php',
+  __DIR__ . '/libraries/Controller.php',
+  __DIR__ . '/libraries/Database.php',
+  __DIR__ . '/libraries/App.php',
+  __DIR__ . '/libraries/Router.php',
 
-foreach ($libs as $lib) {
-  if (file_exists($lib)) require_once $lib;
-}
+];
+foreach ($libs as $f) { if (file_exists($f)) require_once $f; }
