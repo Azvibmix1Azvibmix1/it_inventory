@@ -1,7 +1,10 @@
 <?php declare(strict_types=1);
 
-// لازم قبل أي شيء عشان APPROOT + helpers + autoload
 require_once dirname(__DIR__) . '/app/bootstrap.php';
+
+// إذا مشروعك فيه Core class
+$core = new Core();
+
 
 // Basic bootstrap
 if (!defined('PUBLICROOT')) {

@@ -1,6 +1,5 @@
 <?php
 
-
 $canLocations = function_exists('canAccessLocationsModule') ? canAccessLocationsModule() : false;
 $logged       = function_exists('isLoggedIn') ? isLoggedIn() : false;
 
@@ -10,8 +9,6 @@ if (!function_exists('pageKey')) {
     return trim(strtolower($page));
   }
 }
-
-
 
 if (!function_exists('isActive')) {
   function isActive(string $prefix): bool {
@@ -25,6 +22,9 @@ if (!function_exists('activeClass')) {
   }
 }
 
+$userName  = $_SESSION['user_name']  ?? ($_SESSION['user_email'] ?? 'حسابي');
+$userEmail = $_SESSION['user_email'] ?? '';
+?>
 
 
 $userName  = $_SESSION['user_name']  ?? ($_SESSION['user_email'] ?? 'حسابي');

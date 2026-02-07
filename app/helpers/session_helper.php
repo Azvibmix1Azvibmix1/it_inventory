@@ -350,33 +350,6 @@ function requireRole(array $roles): void {
  * للحماية الخاصة بإدارة المستخدمين
  */
 
-<<<<<<< HEAD
-function requireLogin(): void
-{
-    $page = $_GET['page'] ?? '';
-
-    // اسمح بصفحة تسجيل الدخول
-    if (stripos($page, 'login') !== false) {
-        return;
-    }
-
-    if (!isLoggedIn()) {
-        header('Location: index.php?page=login');
-        exit;
-    }
-=======
-function requireLogin($redirectTo = 'login')
-{
-  $current = strtolower(trim((string)($_GET['page'] ?? '')));
-  if (!isLoggedIn()) {
-    if ($current !== 'login') {
-      redirect($redirectTo);
-    }
-    return;
-  }
->>>>>>> 6e0ca0b6a9a64f7b51659118ef13d7bd8489e099
-}
-
 
 function normalizeRole($role): string {
   $r = strtolower(trim((string)($role ?? 'user')));
