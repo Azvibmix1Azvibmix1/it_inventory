@@ -37,29 +37,17 @@ class Controller {
      * التأكد من أن المستخدم مسجل دخول
      * تستخدم داخل الكنترولر في __construct أو في دوال معيّنة
      */
-    protected function requireLogin()
-    {
-
-// وجّه المستخدم لصفحة تسجيل الدخول في كنترولر المستخدمين بدلاً من المسار العام
-$loginPath = 'index.php?page=users/login';
-if (function_exists('redirect')) {
-    redirect($loginPath);
+ // شغل الراوتر مرة واحدة اعتماداً على الكلاس الموجود
+if (class_exists('Core')) {
+  new Core();
+} elseif (class_exists('App')) {
+  new App();
+} elseif (class_exists('Router')) {
+  new Router();
 } else {
-    header('Location: ' . $loginPath);
+  die('Router class not found. Check app/libraries for Core/App/Router.');
 }
 
-        if (!isLoggedIn()) {
-            if (function_exists('flash')) {
-                flash('auth_error', 'يجب تسجيل الدخول أولاً');
-            }
-            if (function_exists('redirect')) {
-                redirect('index.php?page=users/login');
-            } else {
-                header('Location: index.php?page=users/login');
-            }
-            exit;
-        }
-    }
 
     /**
      * التأكد من أن المستخدم يملك أحد الأدوار المسموح بها

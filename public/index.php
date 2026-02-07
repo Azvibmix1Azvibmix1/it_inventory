@@ -1,7 +1,6 @@
 <?php declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/bootstrap.php';
-
 // شغل الراوتر مرة واحدة اعتماداً على الكلاس الموجود
 if (class_exists('Core')) {
   new Core();
@@ -12,6 +11,7 @@ if (class_exists('Core')) {
 } else {
   die('Router class not found. Check app/libraries for Core/App/Router.');
 }
+
 
 
 // Basic bootstrap
