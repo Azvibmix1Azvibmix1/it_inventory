@@ -14,6 +14,7 @@ if (class_exists('Core')) {
 
 
 
+
 // Basic bootstrap
 if (!defined('PUBLICROOT')) {
   define('PUBLICROOT', __DIR__);

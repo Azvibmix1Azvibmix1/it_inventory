@@ -33,20 +33,27 @@ class Controller {
         }
     }
 
-    /**
-     * التأكد من أن المستخدم مسجل دخول
-     * تستخدم داخل الكنترولر في __construct أو في دوال معيّنة
+       /**
+     * التأكد من أن المستخدم مسجّل دخول
+     * تُستخدم داخل الكنترولر في __construct أو في دوال معيّنة
      */
- // شغل الراوتر مرة واحدة اعتماداً على الكلاس الموجود
-if (class_exists('Core')) {
-  new Core();
-} elseif (class_exists('App')) {
-  new App();
-} elseif (class_exists('Router')) {
-  new Router();
-} else {
-  die('Router class not found. Check app/libraries for Core/App/Router.');
-}
+    protected function requireLogin()
+    {
+        // إذا لم يكن المستخدم مسجلاً دخوله
+        if (!isLoggedIn()) {
+            // أعرض رسالة ثم وجّه المستخدم إلى صفحة تسجيل الدخول المخصصة
+            if (function_exists('flash')) {
+                flash('auth_error', 'يجب تسجيل الدخول أولاً');
+            }
+            $loginPath = 'index.php?page=users/login';
+            if (function_exists('redirect')) {
+                redirect($loginPath);
+            } else {
+                header('Location: ' . $loginPath);
+            }
+            exit;
+        }
+    }
 
 
     /**
