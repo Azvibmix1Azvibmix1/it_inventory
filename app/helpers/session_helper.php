@@ -1,394 +1,228 @@
 <?php
 // app/helpers/session_helper.php
 
-// ✅ أهم سطر: لازم تفتح Session قبل أي استخدام لـ $_SESSION
+// Session start (safe)
 if (session_status() === PHP_SESSION_NONE) {
   session_start();
 }
 
 /**
- * Flash message helper
+ * Flash messages
  */
-function flash($name = '', $message = '', $class = 'alert alert-success')
-{
-  if ($name === '') return;
-
-  if ($message !== '' && empty($_SESSION[$name])) {
-    $_SESSION[$name] = $message;
-    $_SESSION[$name . '_class'] = $class;
-    return;
-  }
-
-  if (!empty($_SESSION[$name])) {
-    $msg = $_SESSION[$name];
-    $cls = $_SESSION[$name . '_class'] ?? $class;
-
-    echo '<div class="' . htmlspecialchars($cls) . '" id="msg-flash">'
-      . htmlspecialchars($msg) .
-      '</div>';
-
-    unset($_SESSION[$name], $_SESSION[$name . '_class']);
+if (!function_exists('flash')) {
+  function flash($name = '', $msg = '', $class = 'alert alert-success')
+  {
+    if (!empty($name)) {
+      if (!empty($msg) && empty($_SESSION[$name])) {
+        $_SESSION[$name] = $msg;
+        $_SESSION[$name . '_class'] = $class;
+      } elseif (empty($msg) && !empty($_SESSION[$name])) {
+        $class = $_SESSION[$name . '_class'] ?? $class;
+        echo '<div class="' . htmlspecialchars($class) . '">' . htmlspecialchars($_SESSION[$name]) . '</div>';
+        unset($_SESSION[$name], $_SESSION[$name . '_class']);
+      }
+    }
   }
 }
 
 /**
  * Redirect helper
  */
-function redirect($target)
-{
-  // target ممكن يكون:
-  // - "login"
-  // - "users/add"
-  // - "index.php?page=login"
-  // - "/it_inventory/public/index.php?page=login"
-  // - "http://..."
-
-  $target = (string)$target;
-
-  // 1) إذا رابط كامل
-  if (preg_match('#^https?://#i', $target)) {
-    if (!headers_sent()) { header('Location: ' . $target); exit; }
-    echo '<script>location.href=' . json_encode($target) . ';</script>'; exit;
+if (!function_exists('redirect')) {
+  function redirect($location)
+  {
+    header('Location: ' . $location);
+    exit;
   }
-
-  // 2) إذا مرر "index.php?page=..." لا تضيف عليه page مرة ثانية
-  if (stripos($target, 'index.php') !== false) {
-    $url = (defined('URLROOT') ? rtrim(URLROOT, '/') . '/' : '') . ltrim($target, '/');
-    if (!headers_sent()) { header('Location: ' . $url); exit; }
-    echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
-  }
-
-  // 3) إذا مرر "?page=..." أو "page=..."
-  if (strpos($target, '?page=') === 0) {
-    $url = (defined('URLROOT') ? rtrim(URLROOT, '/') : '') . '/index.php' . $target;
-    if (!headers_sent()) { header('Location: ' . $url); exit; }
-    echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
-  }
-  if (stripos($target, 'page=') !== false && strpos($target, '?') === 0) {
-    $url = (defined('URLROOT') ? rtrim(URLROOT, '/') : '') . '/index.php' . $target;
-    if (!headers_sent()) { header('Location: ' . $url); exit; }
-    echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
-  }
-
-  // 4) الحالة الطبيعية: "login" أو "users/index"
-  $url = (defined('URLROOT') ? rtrim(URLROOT, '/') : '') . '/index.php?page=' . ltrim($target, '/');
-  if (!headers_sent()) { header('Location: ' . $url); exit; }
-  echo '<script>location.href=' . json_encode($url) . ';</script>'; exit;
 }
-
-
 
 /**
  * Auth helpers
  */
-
-
-
-/**
- * Role helpers
- */
-
-
-
-
-
-
-function currentRole(): string {
-  return normalizeRole($_SESSION['user_role'] ?? 'user');
+if (!function_exists('isLoggedIn')) {
+  function isLoggedIn(): bool
+  {
+    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+  }
 }
 
+if (!function_exists('currentUserId')) {
+  function currentUserId(): ?int
+  {
+    return isLoggedIn() ? (int)$_SESSION['user_id'] : null;
+  }
+}
+
+if (!function_exists('normalizeRole')) {
+  function normalizeRole($role): string
+  {
+    $role = $role ?: 'user';
+    // توحيد التسميات
+    if ($role === 'superadmin') return 'super_admin';
+    return (string)$role; // super_admin / admin / manager / user
+  }
+}
+
+if (!function_exists('currentRole')) {
+  function currentRole(): string
+  {
+    return normalizeRole($_SESSION['user_role'] ?? 'user');
+  }
+}
+
+if (!function_exists('isSuperAdmin')) {
+  function isSuperAdmin(): bool
+  {
+    return currentRole() === 'super_admin';
+  }
+}
+
+if (!function_exists('isAdminOrManager')) {
+  function isAdminOrManager(): bool
+  {
+    return in_array(currentRole(), ['admin', 'manager', 'super_admin'], true);
+  }
+}
 
 /**
- * ✅ تحديث role من DB إذا تغير
+ * ✅ Require login (مع استثناء صفحة اللوجين لمنع loop)
  */
-function syncSessionRole()
-{
-  if (!isLoggedIn()) return;
-  if (!class_exists('Database')) return;
+if (!function_exists('requireLogin')) {
+  function requireLogin(): void
+  {
+    $page = strtolower(trim((string)($_GET['page'] ?? '')));
 
-  try {
-    $db = new Database();
-    $db->query("SELECT role FROM users WHERE id = :id LIMIT 1");
-    $db->bind(':id', (int)$_SESSION['user_id']);
-    $row = $db->single();
-
-    if ($row && isset($row->role)) {
-      $newRole = normalizeRole($row->role);
-      if (normalizeRole($_SESSION['user_role'] ?? null) !== $newRole) {
-        $_SESSION['user_role'] = $newRole;
-      }
+    // استثناء صفحات تسجيل الدخول من الحماية
+    if ($page === 'login' || $page === 'users/login') {
+      return;
     }
-  } catch (Exception $e) {
-    // لا نكسر الموقع
+
+    if (!isLoggedIn()) {
+      redirect('index.php?page=users/login');
+    }
+  }
+}
+
+/**
+ * ✅ تحديث الدور من DB إذا تغير (اختياري)
+ */
+if (!function_exists('syncSessionRole')) {
+  function syncSessionRole(): void
+  {
+    if (!isLoggedIn() || !class_exists('Database')) return;
+
+    try {
+      $db = new Database();
+      $db->query("SELECT role FROM users WHERE id = :id LIMIT 1");
+      $db->bind(':id', (int)$_SESSION['user_id']);
+      $row = $db->single();
+
+      if ($row && isset($row->role)) {
+        $newRole = normalizeRole($row->role);
+        if (normalizeRole($_SESSION['user_role'] ?? null) !== $newRole) {
+          $_SESSION['user_role'] = $newRole;
+        }
+      }
+    } catch (Exception $e) {
+      // لا نكسر الموقع
+    }
   }
 }
 
 /**
  * ✅ صلاحيات عامة
  */
-function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=dashboard/index')
-{
-  requireLogin();
-  syncSessionRole();
-  $role = currentRole();
+if (!function_exists('requirePermission')) {
+  function requirePermission($permissionOrRoles, $redirectTo = 'index.php?page=dashboard/index'): void
+  {
+    requireLogin();
+    syncSessionRole();
 
-  // 1) Array roles
-  if (is_array($permissionOrRoles)) {
-    $allowed = array_map('normalizeRole', $permissionOrRoles);
+    $role = currentRole();
+
+    // 1) لو جاك array roles مباشرة
+    if (is_array($permissionOrRoles)) {
+      $allowed = array_map('normalizeRole', $permissionOrRoles);
+      if (!in_array($role, $allowed, true)) {
+        flash('access_denied', 'ليس لديك صلاحية للوصول لهذه الصفحة', 'alert alert-danger');
+        redirect($redirectTo);
+      }
+      return;
+    }
+
+    // 2) Permission key map
+    $permission = (string)$permissionOrRoles;
+
+    $map = [
+      // Users
+      'users.view'   => ['super_admin', 'admin', 'manager'],
+      'users.manage' => ['super_admin'],
+
+      // Locations
+      'locations.view'   => ['super_admin', 'admin', 'manager', 'user'],
+      'locations.add'    => ['super_admin', 'admin', 'manager'],
+      'locations.edit'   => ['super_admin', 'admin', 'manager'],
+      'locations.delete' => ['super_admin', 'admin'],
+      'locations.manage' => ['super_admin', 'admin'],
+
+      // Assets
+      'assets.manage' => ['super_admin', 'admin', 'manager'],
+      'assets.assign' => ['super_admin', 'admin', 'manager'],
+      'assets.edit'   => ['super_admin', 'admin', 'manager'],
+      'assets.delete' => ['super_admin', 'admin'],
+
+      // Spare parts
+      'spareparts.manage' => ['super_admin', 'admin', 'manager'],
+
+      // Tickets
+      'tickets.manage' => ['super_admin', 'admin', 'manager'],
+    ];
+
+    $allowed = $map[$permission] ?? ['super_admin'];
+    $allowed = array_map('normalizeRole', $allowed);
+
     if (!in_array($role, $allowed, true)) {
       flash('access_denied', 'ليس لديك صلاحية للوصول لهذه الصفحة', 'alert alert-danger');
       redirect($redirectTo);
     }
-    return;
-  }
-
-  
-if (!function_exists('requireManageUsers')) {
-  
-
-  // 2) Permission key
-  $permission = (string)$permissionOrRoles;
-
-  $map = [
-    // Users
-    // Users
-    'users.view'   => ['super_admin', 'manager'],
-    'users.manage' => ['super_admin'],
-
-
-
-    // Locations (عام)
-    'locations.view'   => ['superadmin', 'admin', 'manager', 'user'],
-    'locations.add'    => ['superadmin', 'admin', 'manager'],
-    'locations.edit'   => ['superadmin', 'admin', 'manager'],
-    'locations.delete' => ['superadmin', 'admin'],
-    'locations.manage' => ['superadmin', 'admin'],
-
-    // Assets
-    'assets.manage'    => ['superadmin', 'admin', 'manager'],
-    'assets.assign'    => ['superadmin', 'admin', 'manager'],
-    'assets.edit'      => ['superadmin', 'admin', 'manager'],
-    'assets.delete'    => ['superadmin', 'admin'],
-
-    // Spare parts
-    'spareparts.manage'=> ['superadmin', 'admin', 'manager'],
-
-    // Tickets
-    'tickets.manage'   => ['superadmin', 'admin', 'manager'],
-  ];
-
-  $allowed = $map[$permission] ?? ['superadmin'];
-  $allowed = array_map('normalizeRole', $allowed);
-
-  if (!in_array($role, $allowed, true)) {
-    flash('access_denied', 'ليس لديك صلاحية للوصول لهذه الصفحة', 'alert alert-danger');
-    redirect($redirectTo);
   }
 }
-}
-
-function requireManageUsers($redirectTo = 'index.php?page=dashboard'): void {
-    requirePermission('users.manage', $redirectTo);
-  }
-
-function requireUsersView($redirectTo = 'index.php?page=dashboard') {
-  requirePermission('users.view', $redirectTo);
-}
-
-function requireUsersManage($redirectTo = 'index.php?page=dashboard') {
-  requirePermission('users.manage', $redirectTo);
-}
-
 
 /**
- * ===========================
- * ✅ صلاحيات على مستوى "الموقع"
- * ===========================
- * تعتمد على جدول locations_permissions
+ * Helpers shortcuts
  */
-function canManageLocation($locationId, $action = 'manage')
-{
-  if (!isLoggedIn()) return false;
-  $role = currentRole();
-
-  // سوبر أدمن دائمًا
-  if (in_array($role, ['super_admin', 'superadmin'], true)) return true;
-
-
-  $locationId = (int)$locationId;
-  if ($locationId <= 0) return false;
-
-  // إذا Database غير محمّل: admin/manager فقط
-  if (!class_exists('Database')) {
-    return ($role === 'admin' || $role === 'manager');
+if (!function_exists('requireUsersView')) {
+  function requireUsersView($redirectTo = 'index.php?page=dashboard/index'): void
+  {
+    requirePermission('users.view', $redirectTo);
   }
-
-  try {
-    $db = new Database();
-
-    // 1) صلاحية مباشرة للمستخدم
-    $db->query("SELECT can_manage, can_add_children, can_edit, can_delete
-               FROM locations_permissions
-               WHERE location_id = :loc AND user_id = :uid
-               LIMIT 1");
-    $db->bind(':loc', $locationId);
-    $db->bind(':uid', (int)$_SESSION['user_id']);
-    $u = $db->single();
-
-    if ($u) {
-      switch ($action) {
-        case 'add':    return (bool)$u->can_add_children;
-        case 'edit':   return (bool)$u->can_edit;
-        case 'delete': return (bool)$u->can_delete;
-        case 'manage':
-        default:       return (bool)$u->can_manage;
-      }
-    }
-
-    // 2) صلاحية حسب الدور
-    $db->query("SELECT can_manage, can_add_children, can_edit, can_delete
-               FROM locations_permissions
-               WHERE location_id = :loc AND role = :role
-               LIMIT 1");
-    $db->bind(':loc', $locationId);
-    $db->bind(':role', $role);
-    $r = $db->single();
-
-    if ($r) {
-      switch ($action) {
-        case 'add':    return (bool)$r->can_add_children;
-        case 'edit':   return (bool)$r->can_edit;
-        case 'delete': return (bool)$r->can_delete;
-        case 'manage':
-        default:       return (bool)$r->can_manage;
-      }
-    }
-
-    // افتراضي
-    return ($role === 'admin' || $role === 'manager');
-  } catch (Exception $e) {
-    return ($role === 'admin' || $role === 'manager');
+}
+if (!function_exists('requireUsersManage')) {
+  function requireUsersManage($redirectTo = 'index.php?page=dashboard/index'): void
+  {
+    requirePermission('users.manage', $redirectTo);
   }
 }
 
-function requireLocationPermission($locationId, $action = 'manage', $redirectTo = 'index.php?page=locations/index')
-{
-  requireLogin();
-  if (!canManageLocation($locationId, $action)) {
-    flash('access_denied', 'ليس لديك صلاحية لإدارة هذا الموقع', 'alert alert-danger');
-    redirect($redirectTo);
-  }
-}
-
-function canAccessLocationsModule()
-{
-  if (!isLoggedIn()) return false;
-  $role = currentRole();
-
-  if (in_array($role, ['super_admin', 'superadmin', 'manager'], true)) return true;
-  if (!class_exists('Database')) return false;
-
-  try {
-    $db = new Database();
-    $db->query("
-      SELECT 1
-      FROM locations_permissions
-      WHERE user_id = :uid
-        AND (can_manage=1 OR can_add_children=1 OR can_edit=1 OR can_delete=1)
-      LIMIT 1
-    ");
-    $db->bind(':uid', (int)$_SESSION['user_id']);
-    return (bool)$db->single();
-  } catch (Exception $e) {
+/**
+ * Locations module gate (بسيط)
+ */
+if (!function_exists('canAccessLocationsModule')) {
+  function canAccessLocationsModule(): bool
+  {
+    if (!isLoggedIn()) return false;
+    $role = currentRole();
+    if (in_array($role, ['super_admin', 'admin', 'manager'], true)) return true;
     return false;
   }
 }
-
-function requireLocationsAccess($redirectTo = 'index.php?page=dashboard/index') {
-  requireLogin();
-
-  if (!canAccessLocationsModule()) {
-    flash('access_denied', 'ليس لديك صلاحية لعرض صفحة المواقع', 'alert alert-danger');
-    redirect($redirectTo);
+if (!function_exists('requireLocationsAccess')) {
+  function requireLocationsAccess($redirectTo = 'index.php?page=dashboard/index'): void
+  {
+    requireLogin();
+    if (!canAccessLocationsModule()) {
+      flash('access_denied', 'ليس لديك صلاحية لعرض صفحة المواقع', 'alert alert-danger');
+      redirect($redirectTo);
+    }
   }
-}
-
-
-
-function isLoggedIn(): bool {
-  return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
-}
-
-function currentUserId(): ?int {
-  return isLoggedIn() ? (int)$_SESSION['user_id'] : null;
-}
-
-function currentUserRole(): string {
-  return (string)($_SESSION['user_role'] ?? '');
-}
-
-
-
-function isAdminOrManager(): bool {
-  $r = currentUserRole();
-  return in_array($r, ['admin','manager','super_admin'], true);
-}
-
-
-
-function requireRole(array $roles): void {
-  requireLogin();
-  $role = currentUserRole();
-  if (!in_array($role, $roles, true)) {
-    flash('msg', 'غير مصرح لك بالوصول لهذه الصفحة', 'alert alert-danger');
-    redirect('dashboard/index');
-    exit;
-  }
-}
-
-/**
- * للحماية الخاصة بإدارة المستخدمين
- */
-function requireLogin(string $redirectTo = 'login')
-{
-  $page = $_GET['page'] ?? '';
-  $page = strtolower(trim($page));
-
-  // استثناء صفحة تسجيل الدخول من الحماية
-  if ($page === 'login' || str_starts_with($page, 'users/login')) {
-    return;
-  }
-
-  if (!isLoggedIn()) {
-    header('Location: ' . URLROOT . '/public/index.php?page=login');
-    exit;
-  }
-}
-
-
-function normalizeRole($role): string {
-  $r = strtolower(trim((string)($role ?? 'user')));
-
-  // وحّد كل الصيغ لقيم DB
-  if ($r === 'superadmin') return 'super_admin';
-  if ($r === 'super_admin') return 'super_admin';
-
-  if ($r === 'admin') return 'manager'; // إذا عندك بقايا admin قديم
-  if ($r === 'manager') return 'manager';
-
-  return 'user';
-}
-
-
-
-
-
-function isManager(): bool {
-  return currentRole() === 'manager';
-}
-
-
-
-function isSuperAdmin(): bool {
-  return currentRole() === 'super_admin';
 }

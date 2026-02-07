@@ -6,6 +6,8 @@ class Core
   protected string $currentMethod = 'index';
   protected array $params = [];
 
+  protected $controllerInstance;
+
   public function __construct()
   {
     $url = $this->getUrl();
@@ -22,7 +24,6 @@ class Core
 
     $controllerFile = APPROOT . '/controllers/' . $this->currentController . 'Controller.php';
     if (!file_exists($controllerFile)) {
-      // fallback to Pages if exists
       $fallback = APPROOT . '/controllers/PagesController.php';
       if (file_exists($fallback)) {
         $this->currentController = 'Pages';
@@ -39,10 +40,10 @@ class Core
       die("Controller class not found: " . htmlspecialchars($class));
     }
 
-    $this->currentController = new $class;
+    $this->controllerInstance = new $class;
 
     // Method
-    if (isset($url[1]) && method_exists($this->currentController, $url[1])) {
+    if (isset($url[1]) && method_exists($this->controllerInstance, $url[1])) {
       $this->currentMethod = $url[1];
       unset($url[1]);
     }
@@ -50,14 +51,13 @@ class Core
     // Params
     $this->params = $url ? array_values($url) : [];
 
-    call_user_func_array([$this->currentController, $this->currentMethod], $this->params);
+    call_user_func_array([$this->controllerInstance, $this->currentMethod], $this->params);
   }
 
   protected function getUrl(): array
   {
     $page = $_GET['page'] ?? '';
     $page = trim($page, '/');
-
     if ($page === '') return [];
 
     $page = filter_var($page, FILTER_SANITIZE_URL);

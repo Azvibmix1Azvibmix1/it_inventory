@@ -22,14 +22,12 @@ if (!function_exists('activeClass')) {
   }
 }
 
+// ✅ مرّة واحدة فقط
 $userName  = $_SESSION['user_name']  ?? ($_SESSION['user_email'] ?? 'حسابي');
 $userEmail = $_SESSION['user_email'] ?? '';
+
 ?>
 
-
-$userName  = $_SESSION['user_name']  ?? ($_SESSION['user_email'] ?? 'حسابي');
-$userEmail = $_SESSION['user_email'] ?? '';
-?>
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
